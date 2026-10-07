@@ -10,3 +10,4 @@ spike_retry_report.json
 spike_fresh_report.json
 .venv/
 .DS_Store
+.claude/settings.local.json
