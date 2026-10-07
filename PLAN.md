@@ -51,8 +51,10 @@ The PayPal client, approval gate, audit log and eval harness carry over, so the 
 ## Week 2 (Oct 10–16): real sandbox end to end
 
 - `scripts/seed_sandbox.py`: create orders, upload tracking, open disputes (buyer API with consent, or Resolution Center by hand).
-- Persist proposals and audit to SQLite.
-- Webhook endpoint with signature verification; deploy backend to Render so PayPal can reach it.
+- Proposals are persisted by the LangGraph checkpointer (done: SQLite locally, tested across a real restart). Still to
+  do: move the audit log into the same database, and exercise the Postgres checkpointer against a live database.
+- Webhook endpoint with signature verification (the endpoint exists but does not verify yet); deploy backend to
+  Render so PayPal can reach it (see "Persistence on Render" below).
 - Grow evals to ~40 cases. You write 10 of them yourself, without looking at the agent, so the score isn't self-graded.
 
 ## Week 3 (Oct 17–23): the product people see
@@ -79,6 +81,30 @@ The PayPal client, approval gate, audit log and eval harness carry over, so the 
 - README with setup, sandbox test credentials, eval table, and how each sponsor tool is used.
 - Final video under 3 minutes (script in `docs/pitches.md`, drafted by Oct 12, rough cut by Oct 23), uploaded public on YouTube.
 - Devpost write-up, APIMatic subscription form (with the log of where the plugin helped), license check, submit **Nov 10**.
+
+## Persistence on Render (decided Oct 6)
+
+Render web services have an ephemeral filesystem, so a SQLite file is lost on every redeploy and a proposal waiting
+for approval would vanish. Persistent disks fix that but need a paid service, allow a single instance only and turn
+off zero-downtime deploys (every push drops the demo URL for a few seconds). **Decision: a paid web service plus a
+paid Render Postgres, with `langgraph-checkpoint-postgres`** (`uv sync --extra postgres`; the app picks it up from
+`DATABASE_URL`, see `backend/rebuttal/persistence.py`).
+
+- Cost: web `0.5c-512mb` about $7/month plus Postgres `0.1c-256mb` about $6/month, roughly $15 from Nov 10 to Dec 15.
+- Do not use the free Postgres: it expires 30 days after creation, so one created now dies before Nov 10. The free web
+  service sleeps after 15 idle minutes, so it is out for the demo too.
+- Render adds uv when `uv.lock` is in the service root, so set `rootDir: backend`; pin `PYTHON_VERSION` to a full
+  3.12.x as well. Start command: `uv run uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT` (the uv start command
+  is our inference, Render documents only `uv sync` for builds).
+- Not verified: how the hackathon credits apply, whether 512 MB is enough, and the Postgres saver itself against a
+  live database (no local Postgres here).
+- Source: the Render docs on disks, free instances, pricing, Postgres, Python and uv, read Oct 6.
+
+## Observability
+
+Langfuse tracing is wired (`backend/rebuttal/tracing.py`): off unless the keys are set, every graph run tagged with
+the dispute id and model, one session per dispute. The 20 eval cases are a Langfuse dataset and
+`uv run python -m evals.run --langfuse` records a run as an experiment with a correct/incorrect score per case.
 
 ## Risks and what we do about them
 

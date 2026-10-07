@@ -20,11 +20,20 @@ equally, often from the video alone.
 ## Rules that never bend
 
 - Sandbox only. `load_settings()` raises unless `PAYPAL_ENV=sandbox`. Never add a live base URL.
-- Only `rebuttal/approval.py` may call PayPal write endpoints (message, offer, evidence, accept). The agent proposes;
-  it never executes. `tests/test_core.py::test_analyze_never_writes_to_paypal` must stay green.
-- Facts are computed in code (`agent/facts.py`). The model interprets words and drafts text. `guard()` rejects model
-  choices the facts don't support.
-- Every agent step and PayPal write goes to the audit log.
+- Only the graph's `execute` node (in `rebuttal/approval.py`) may call PayPal write endpoints (message, offer,
+  evidence, accept). The graph routes to it only after a human approve or edit decision (LangGraph `interrupt()`),
+  and it refuses to run without one. Analysis nodes hold `client.read_only()`, a clone whose transport refuses
+  anything but GET; the full client raises on any write outside `permit_writes()`, which only `execute` (and the
+  named manual sandbox scripts) enter. Nothing fallible may run after `interrupt()` returns or after the PayPal call
+  inside `execute`. `tests/test_write_boundary.py` and `tests/test_core.py::test_analyze_never_writes_to_paypal`
+  must stay green.
+- Facts are computed in code (`agent/facts.py`). The model interprets words and drafts text, and only the `decide`
+  node calls a model; its output is validated against a Pydantic schema. `guard()` rejects model choices the facts
+  don't support.
+- Every agent step and PayPal write goes to the audit log, and every approved PayPal write carries a deterministic
+  `PayPal-Request-Id`.
+- Tests never call a model or send traces: `tests/conftest.py` sets `REBUTTAL_REASONER=rules` and
+  `REBUTTAL_TRACING=0`, because `backend/.env` holds real keys.
 - No secrets in git. `.env` is ignored; keep `.env.example` current.
 - The mock (`paypal/mock.py`) must mirror the real sandbox. When the spike shows a difference, fix the mock and the
   client together, and remove the matching `VERIFY` note.
@@ -35,14 +44,19 @@ equally, often from the video alone.
 ```
 backend/
   rebuttal/config.py        settings, sandbox guard
-  rebuttal/paypal/client.py PayPal REST client      paypal/mock.py  in-memory sandbox
+  rebuttal/paypal/client.py PayPal REST client, read_only(), permit_writes()   paypal/mock.py  in-memory sandbox
   rebuttal/store.py         merchant order records (incl. AI-assistant purchase intent)
   rebuttal/policies.py      store policies + retriever (Elastic later)
-  rebuttal/agent/           facts.py, reasoner.py (Claude | rules, guard), pipeline.py (actions, evidence PDF)
-  rebuttal/approval.py      approval gate     audit.py   audit log
+  rebuttal/agent/graph.py   the LangGraph workflow: gather_facts > decide > guard > plan_actions > approval > execute > record
+  rebuttal/agent/facts.py   gather + hard facts      agent/reasoner.py  rules baseline, guard, prompt
+  rebuttal/agent/llm.py     ModelReasoner: LangChain chat models + Pydantic DecisionOut (Anthropic | Groq | NVIDIA)
+  rebuttal/agent/pipeline.py plan_actions, evidence PDF, Proposal
+  rebuttal/approval.py      the approval interrupt + the execute node (the only PayPal writes) + ApprovalQueue
+  rebuttal/persistence.py   checkpointer (memory | SQLite | Postgres) + per-dispute locks      audit.py   audit log
+  rebuttal/tracing.py       Langfuse tracing, dataset upload, experiments (off unless keys are set)
   rebuttal/runtime.py       wiring            app.py     FastAPI (dashboard API, webhook, simulator)
   rebuttal/scenarios.py     labeled case -> sandbox state
-  evals/cases.json, run.py  20 labeled disputes, accuracy report
+  evals/cases.json, run.py  20 labeled disputes, accuracy report (--langfuse records an experiment)
   scripts/spike_sandbox.py  Gate 1 real-sandbox test     scripts/demo.py   demo run -> preview_data.json
   scripts/build_preview.py  preview page from template
 preview/                    template.html -> rebuttal-preview.html (design target for the React app)
@@ -54,6 +68,7 @@ preview/                    template.html -> rebuttal-preview.html (design targe
 uv sync                                  # once, and after pyproject.toml changes (creates backend/.venv)
 uv run pytest
 uv run python -m evals.run               # model if a provider key is set; --rules forces the baseline
+uv run python -m evals.run --langfuse    # also record the run as a Langfuse experiment (needs the Langfuse keys)
 uv run python -m scripts.demo && uv run python -m scripts.build_preview
 uv run python -m scripts.spike_sandbox
 uv run uvicorn rebuttal.app:app --reload
