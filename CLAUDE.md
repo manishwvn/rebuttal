@@ -49,7 +49,7 @@ backend/
   rebuttal/policies.py      store policies + retriever (Elastic later)
   rebuttal/agent/graph.py   the LangGraph workflow: gather_facts > decide > guard > plan_actions > approval > execute > record
   rebuttal/agent/facts.py   gather + hard facts      agent/reasoner.py  rules baseline, guard, prompt
-  rebuttal/agent/llm.py     ModelReasoner: LangChain chat models + Pydantic DecisionOut (Anthropic | Groq | NVIDIA | Meta Muse)
+  rebuttal/agent/llm.py     ModelReasoner: LangChain chat models + Pydantic DecisionOut (Anthropic | Groq | NVIDIA)
   rebuttal/agent/pipeline.py plan_actions, evidence PDF, Proposal
   rebuttal/approval.py      the approval interrupt + the execute node (the only PayPal writes) + ApprovalQueue
   rebuttal/persistence.py   checkpointer (memory | SQLite | Postgres) + per-dispute locks      audit.py   audit log (file | Postgres)

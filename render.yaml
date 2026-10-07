@@ -5,7 +5,7 @@ services:
   - type: web
     name: rebuttal-api
     runtime: python
-    plan: 0.5c-512mb          # paid, always on (free instances sleep after 15 idle minutes and would drop webhooks)
+    plan: free                # sleeps after 15 idle minutes: the first request after that takes about a minute
     region: oregon
     rootDir: backend
     buildCommand: pip install uv && uv sync --frozen --no-dev --extra postgres

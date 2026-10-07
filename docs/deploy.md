@@ -19,9 +19,8 @@ I could not verify how the credit is issued, so check the source rather than tru
 2. Create or log in to your account at <https://dashboard.render.com>.
 3. Apply it in Render: **Account / Workspace Settings > Billing**, then the credits or promo code field (the exact
    label may differ).
-4. Add a payment card anyway. Render needs one on file to run a paid instance; the credit is used first, so you pay
-   nothing until it runs out (the instance in `render.yaml`, `0.5c-512mb`, is roughly $7/month, so $50 covers it
-   through Dec 15).
+4. `render.yaml` uses the **free** plan, so the credit is optional. Keep it for upgrading to an always-on paid
+   instance (`plan: 0.5c-512mb`, roughly $7/month, so $50 covers it through Dec 15) if the cold starts below bother you.
 
 ## 2. Deploy from GitHub
 
@@ -76,9 +75,13 @@ queries the database directly. Leave `APP_HEALTH_URL` unset in that case.)
 
 ## Notes and open items
 
+- **Free plan trade-offs:** the service sleeps after 15 idle minutes and wakes on the next request, which takes about
+  a minute. A PayPal webhook that arrives while it sleeps may time out; PayPal retries deliveries, and the analysis is
+  safe to repeat (a second analysis of the same dispute does nothing). Judges opening the app cold should expect that
+  wait. The daily keep-alive ping keeps Supabase awake but does not keep Render awake.
 - Mock instead of the real sandbox: set `REBUTTAL_MOCK=1` in Render. Then the in-memory sandbox plus the judge
   simulator (`/api/simulator/dispute/{case}`) run, and webhooks are accepted without a webhook id.
 - Not verified here: the `uv` build/start commands on Render (Render documents `uv.lock` support but not these exact
   commands), and whether 512 MB is enough. If the build fails, read the build log and tell me the first error.
-- The Muse/NVIDIA/Anthropic keys are not needed on Render. Do not set `ANTHROPIC_API_KEY` there: it would win over
+- The NVIDIA and Anthropic keys are not needed on Render. Do not set `ANTHROPIC_API_KEY` there: it would win over
   Groq.

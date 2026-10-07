@@ -88,7 +88,7 @@ Render web services have an ephemeral filesystem, so a SQLite file is lost on ev
 for approval would vanish. **Decision: the free Supabase Postgres** (project `rebuttal`, us-east-1, $0/month), used
 by `langgraph-checkpoint-postgres` for paused proposals and by the audit log (`rebuttal_audit` table). Both switch on
 when `DATABASE_URL` is a `postgresql://` URL; without it the app keeps SQLite (or memory in mock mode), so judges can
-run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed.
+run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed (free plan for now, see `render.yaml`).
 
 - Connection mode: **session pooler, port 5432** (`aws-0-us-east-1.pooler.supabase.com`, user `postgres.<ref>`).
   Supabase docs: direct connections are IPv6-only on the free plan, session mode is "for persistent clients on

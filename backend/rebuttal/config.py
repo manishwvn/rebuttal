@@ -10,7 +10,6 @@ SANDBOX_BASE_URL = "https://api-m.sandbox.paypal.com"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b"
 DEFAULT_NVIDIA_MODEL = "z-ai/glm-5.3"
-DEFAULT_MUSE_MODEL = "muse-spark-1.3-contributor"
 
 
 def _load_dotenv(path: Path) -> None:
@@ -37,8 +36,6 @@ class Settings:
     nvidia_model: str
     groq_api_key: str | None = field(repr=False)
     groq_model: str
-    muse_api_key: str | None = field(repr=False)
-    muse_model: str
     audit_path: Path
     paypal_webhook_id: str | None = None  # PAYPAL_WEBHOOK_ID: webhook deliveries are verified against it
     database_url: str | None = field(default=None, repr=False)  # a postgres:// DATABASE_URL: checkpoints and the audit log live there
@@ -84,8 +81,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         nvidia_model=os.getenv("NVIDIA_MODEL") or (DEFAULT_NVIDIA_MODEL if model.startswith("claude") else model),
         groq_api_key=os.getenv("GROQ_API_KEY") or None,
         groq_model=os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL),
-        muse_api_key=os.getenv("MUSE_API_KEY") or None,
-        muse_model=os.getenv("MUSE_MODEL", DEFAULT_MUSE_MODEL),
         audit_path=Path(os.getenv("REBUTTAL_AUDIT_PATH", "audit.jsonl")),
         paypal_webhook_id=os.getenv("PAYPAL_WEBHOOK_ID") or None,
         database_url=database_url if database_url.startswith(("postgres://", "postgresql://")) else None,
