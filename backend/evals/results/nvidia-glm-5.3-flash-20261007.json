@@ -27,7 +27,9 @@
       ],
       "guard_notes": [
         "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
-      ]
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "hard_two_pieces",
@@ -47,7 +49,9 @@
         "Returning a shattered vase is impractical, and shipping a replacement costs more than the $15 refund.",
         "Tracking confirms delivery to the correct address, so this is purely a damage case, not a delivery dispute."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "hard_stuck_wants_refund",
@@ -67,7 +71,9 @@
         "Return-for-refund is not feasible since the buyer never received the package to send back",
         "Policy favors refunding fast when the buyer is right; $28 refund is the cheapest fair outcome"
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "hard_inr_wrong_color",
@@ -87,7 +93,9 @@
         "OFFER_REPLACEMENT keeps the sale and fixes the error at the cost of one shirt, cheaper than a full refund or return-for-refund.",
         "Fighting the not-received claim with delivery proof can't resolve a wrong-color complaint and would only delay and escalate."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "duplicate_false",
@@ -107,7 +115,9 @@
         "Item shipped via USPS and is in transit with tracking uploaded; keeping the sale is the cheapest fair outcome",
         "No refund was issued, so SUBMIT_REFUND_PROOF does not apply"
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "duplicate_true",
@@ -127,7 +137,9 @@
         "Policy: refund fast when the buyer is right \u2014 the evidence fully supports them.",
         "Fighting a valid duplicate-charge claim would waste the 237-hour response window and lose anyway."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "cnp_owed",
@@ -147,7 +159,9 @@
         "within_return_window is false, but that is moot since the return was already received and accepted.",
         "No refund proof or duplicate-charge evidence exists to submit instead (refund_issued false, duplicate_charge_found false)."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "cnp_refunded",
@@ -167,7 +181,9 @@
         "Refunding again would double-pay the buyer; proving the existing refund is the cheapest fair resolution",
         "Refund may simply be pending in the buyer's bank, so a friendly note with the refund ID helps them trace it"
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "unauth_delivered",
@@ -187,7 +203,9 @@
         "Buyer has not asked for a refund; the 30-day return window is still open if they want to send the wallet back.",
         "No special-case flags apply: not an AI-assistant order, not lost, delivery provable."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "unauth_agent_mandate",
@@ -207,7 +225,9 @@
         "No duplicate charge found (single matching charge that day), and the buyer does not ask for a refund.",
         "Evidence (assistant instructions, transaction record, proof of delivery) can win this inquiry, so the sale should be kept."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "snad_outside_window",
@@ -226,7 +246,9 @@
         "No damage, defect, or misorder is claimed, so accepting the full $40 claim is not warranted.",
         "A partial refund lets the buyer keep the candle and resolves the inquiry cheaply without fighting a case the evidence can't win."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "snad_damaged_high_value",
@@ -248,7 +270,9 @@
       ],
       "guard_notes": [
         "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
-      ]
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "snad_damaged_low_value",
@@ -268,7 +292,9 @@
         "Tracking confirms delivery to the correct address, but the issue is damage, not non-delivery, so evidence would not help.",
         "Cheapest fair resolution: full $12.00 refund without requiring a return."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "snad_changed_mind",
@@ -288,7 +314,9 @@
         "refund_without_return_eligible is false, so a full refund requires the item back; accepting the claim outright would overpay.",
         "Offering a return for refund is the cheapest fair path and avoids fighting a case the evidence cannot win on the stated reason."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "inr_misdelivered",
@@ -308,7 +336,9 @@
         "Days since last scan is 7, under the 10-day lost-package threshold, but misdelivery to a wrong address still means the buyer never received the item.",
         "Merchant is not at fault (USPS misdelivery), so no full refund is owed; a carrier claim can recover the loss."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "inr_no_tracking",
@@ -328,7 +358,9 @@
         "refund_issued=false, so SUBMIT_REFUND_PROOF is not applicable.",
         "Buyer's message 'Never arrived' confirms non-delivery; a full $22.00 refund is the fair, cheapest resolution."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "inr_in_transit",
@@ -348,7 +380,9 @@
         "Buyer did not ask for a refund; they simply want the item, so keeping the sale with tracking details is the cheapest fair fix.",
         "likely_lost is false, so no refund or replacement is warranted yet."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "inr_delivered_claim",
@@ -368,7 +402,9 @@
         "Buyer's message asserts non-receipt, but no facts (lost package, refund request, duplicate charge) support refunding.",
         "Records show a single matching charge same day with no duplicate, ruling out a billing error."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "inr_delivered",
@@ -387,7 +423,9 @@
         "likely_lost is false and cannot_prove_delivery is false, so no refund trigger applies.",
         "Sharing tracking details is the cheapest fair resolution and keeps the sale intact."
       ],
-      "guard_notes": []
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     },
     {
       "id": "agent_wrong_size",
@@ -409,7 +447,9 @@
       ],
       "guard_notes": [
         "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
-      ]
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3-flash"
     }
   ],
   "tokens_used": 59808,
@@ -417,5 +457,9 @@
     "name": "nvidia-glm-5.3-flash-20261007-064723",
     "dataset": "rebuttal-disputes",
     "url": "https://us.cloud.langfuse.com/project/cmuxe1wn005w1ad0cnzaz71j0/datasets/cmuxm7mrc07x0ad0dvm2h896y/runs/81c2e151-0351-4877-8132-334125b3ff94"
-  }
+  },
+  "provider": "nvidia",
+  "model": "z-ai/glm-5.3-flash",
+  "date": "2026-10-07",
+  "restored_from_commit": "d4af157"
 }

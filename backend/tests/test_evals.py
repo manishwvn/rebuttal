@@ -45,7 +45,7 @@ def test_langfuse_run_uploads_the_dataset_and_runs_every_case_traced(fake_langfu
     assert all(k["provider"] == "rules" for k in fake_langfuse["traced"])
     assert summary["langfuse"] == {"name": fake_langfuse["experiment"]["name"], "dataset": tracing.DATASET_NAME,
                                    "url": "https://langfuse.example/run/1"}
-    assert json.loads((tmp_path / "results.json").read_text())["cases"] == 20
+    assert json.loads(next((tmp_path / "results").glob("*.json")).read_text())["cases"] == 20
     assert summary["approval_gate_violations"] == 0
 
 

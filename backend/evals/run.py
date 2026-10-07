@@ -8,8 +8,8 @@
 A model run is strict: if the model hits a rate or quota limit (or any call fails) the run stops and is marked
 INVALID. Nothing falls back to the rules, and no results files are written for an invalid run.
 
-Each case runs in a fresh mock sandbox with an in-memory checkpointer. Writes evals/results.json and
-evals/RESULTS.md. Tracing is off unless --langfuse is given, so a plain run never sends anything anywhere.
+Each case runs in a fresh mock sandbox with an in-memory checkpointer. Saves the run to evals/results/ and
+refreshes evals/RESULTS.md. Tracing is off unless --langfuse is given, so a plain run never sends anything anywhere.
 """
 
 from __future__ import annotations
@@ -42,6 +42,67 @@ def eval_settings() -> Settings:
     return type(settings)(**{**settings.__dict__, "database_url": None, "checkpoint_target": None})
 
 
+
+# Cases whose label is a judgment call, not a clear-cut fact. Misses here are worth reading, not necessarily a bug.
+JUDGMENT_CALLS = {
+    "snad_outside_window": "A buyer 91 days out of the return window, not asking for a refund. We label it "
+                           "SUBMIT_EVIDENCE (the policy wins, so defend). OFFER_PARTIAL_REFUND is a defensible "
+                           "business choice that avoids a fight over $40, so models that pick it are not clearly wrong.",
+}
+
+
+def results_dir() -> Path:
+    return HERE / "results"
+
+
+def slug(text: str) -> str:
+    return "".join(c if c.isalnum() or c in ".-" else "-" for c in text.split("/")[-1]).strip("-")
+
+
+def save_run(summary: dict) -> Path:
+    """Keep every valid run as evals/results/<provider>-<model>-<date>.json (a same-day rerun gets -2, -3, ...)."""
+    results_dir().mkdir(exist_ok=True)
+    base = f"{summary['provider']}-{slug(summary['model'])}-{summary['date'].replace('-', '')}"
+    path, n = results_dir() / f"{base}.json", 2
+    while path.exists():
+        path, n = results_dir() / f"{base}-{n}.json", n + 1
+    path.write_text(json.dumps(summary, indent=2))
+    return path
+
+
+def write_results_md() -> None:
+    """RESULTS.md: one line per saved run, a case-by-run matrix, and the judgment-call notes."""
+    runs = sorted((json.loads(p.read_text()) | {"file": p.name} for p in results_dir().glob("*.json")),
+                  key=lambda r: (r["date"], r["file"]))
+    lines = ["# Eval results", "",
+             "Every valid run is kept in `evals/results/<provider>-<model>-<date>.json`. A run that hit a rate or quota "
+             "limit is invalid and is never saved. Rules baseline = no model.", "",
+             "| Date | Provider | Model | Overall | Standard | Hard | Tokens | Gate violations | Langfuse experiment |",
+             "|---|---|---|---|---|---|---|---|---|"]
+    for r in runs:
+        lf = (r.get("langfuse") or {}).get("name", "")
+        lines.append(f"| {r['date']} | {r['provider']} | {r['model']} | {pct(r['accuracy'])} ({round(r['accuracy'] * r['cases'])}/{r['cases']}) "
+                     f"| {pct(r['standard_accuracy'])} | {pct(r['hard_accuracy'])} of {r['hard_cases']} | "
+                     f"{r['tokens_used']:,} | {r['approval_gate_violations']} | {lf} |")
+    if runs:
+        names = [f"{r['provider']}/{slug(r['model'])} {r['date'][5:]}" for r in runs]
+        lines += ["", "## Per case (yes = matches the label; otherwise what the run chose)", "",
+                  "| Case | Expected | " + " | ".join(names) + " |", "|---|---|" + "---|" * len(runs)]
+        ids = [row["id"] for row in runs[-1]["rows"]]
+        for cid in ids:
+            cells, expected, hard = [], "", False
+            for r in runs:
+                row = next((x for x in r["rows"] if x["id"] == cid), None)
+                if row:
+                    expected, hard = row["expected"], row["hard"]
+                cells.append("n/a" if not row else "yes" if row["correct"] else f"**{row['got']}**")
+            flag = " (judgment call)" if cid in JUDGMENT_CALLS else " (hard)" if hard else ""
+            lines.append(f"| {cid}{flag} | {expected} | " + " | ".join(cells) + " |")
+    lines += ["", "## Judgment calls", ""]
+    lines += [f"- `{cid}`: {note}" for cid, note in JUDGMENT_CALLS.items()]
+    (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
+
+
 class InvalidRun(RuntimeError):
     """The model failed or was rate limited mid-run, so the accuracy would not be the model's."""
 
@@ -65,6 +126,7 @@ def run_case(case: dict, settings: Settings, *, force_rules: bool, tracing: bool
         "writes_before_approval": len(rt.mock.write_calls()),
         "buyer_wants": p.decision.buyer_wants, "reasoning": p.decision.reasoning,
         "guard_notes": p.decision.guard_notes,
+        "provider": rt.reasoner.name, "model": getattr(rt.reasoner, "model_name", "rules"),
     }
     return row, getattr(rt.reasoner, "tokens_used", 0), rt.mode
 
@@ -143,16 +205,12 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
         "approval_gate_violations": sum(r["writes_before_approval"] for r in rows),
         "rows": rows, "tokens_used": tokens_total, "langfuse": experiment,
     }
-    (HERE / "results.json").write_text(json.dumps(summary, indent=2))
-    lines = [f"# Eval results ({mode})", "",
-             f"- Overall: {pct(summary['accuracy'])} of {len(rows)} labeled disputes",
-             f"- Standard cases: {pct(summary['standard_accuracy'])}",
-             f"- Hard cases (meaning, not keywords): {pct(summary['hard_accuracy'])} of {len(hard)}",
-             f"- PayPal writes before merchant approval: {summary['approval_gate_violations']}", "",
-             "| Case | Expected | Got | OK |", "|---|---|---|---|"]
-    lines += [f"| {r['id']}{' (hard)' if r['hard'] else ''} | {r['expected']} | {r['got']} | "
-              f"{'yes' if r['correct'] else 'NO'} |" for r in rows]
-    (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
+    first = rows[0] if rows else {"provider": "rules", "model": "rules"}
+    summary.update(provider=first["provider"], model=first["model"],
+                   date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+    if not only:  # a partial run (--only) is not a result worth keeping
+        save_run(summary)
+        write_results_md()
     return summary
 
 
@@ -163,8 +221,12 @@ if __name__ == "__main__":
     ap.add_argument("--only", help="comma-separated case ids (results files are overwritten with just these)")
     ap.add_argument("--langfuse", action="store_true",
                     help="trace every case and record the run as a Langfuse experiment (needs the Langfuse keys)")
+    ap.add_argument("--rebuild-md", action="store_true", help="regenerate RESULTS.md from evals/results/ and exit")
     ap.add_argument("--provider", choices=PROVIDERS, help="pin the model provider (needs its key in backend/.env)")
     args = ap.parse_args()
+    if args.rebuild_md:
+        write_results_md()
+        raise SystemExit(0)
     try:
         s = run(force_rules=args.rules, pause=args.pause, only=set(args.only.split(",")) if args.only else None,
                 langfuse=args.langfuse, provider=args.provider)

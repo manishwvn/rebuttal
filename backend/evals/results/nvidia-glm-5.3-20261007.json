@@ -1,0 +1,450 @@
+{
+  "mode": "mock / nvidia",
+  "cases": 20,
+  "accuracy": 1.0,
+  "standard_accuracy": 1.0,
+  "hard_accuracy": 1.0,
+  "hard_cases": 4,
+  "approval_gate_violations": 0,
+  "rows": [
+    {
+      "id": "hard_agent_right_size",
+      "title": "Assistant ordered correctly, item runs small",
+      "hard": true,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.92,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants a navy linen shirt that actually fits \u2014 a free exchange for a larger size.",
+      "reasoning": [
+        "Atlas followed its instruction exactly (navy linen shirt, size M), so this is not a misorder \u2014 assistant_misordered is false.",
+        "The item was as described; the buyer's issue is fit ('runs small'), not a defect or wrong item, so the merchant isn't at fault.",
+        "Store policy offers free size exchanges within 30 days of delivery; the shirt was delivered 6 days ago, within the window.",
+        "The buyer hasn't asked for a refund, so a free exchange is the cheapest fair resolution that keeps the sale."
+      ],
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "hard_two_pieces",
+      "title": "Damage described without the usual words",
+      "hard": true,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants their money back for a $15 bud vase that arrived broken in two pieces.",
+      "reasoning": [
+        "Buyer reports the vase arrived broken ('came in two pieces') just 2 days after delivery, within the 7-day damaged-item window.",
+        "Store policy: damaged items under $20 are refunded in full with no return required; this vase is $15.",
+        "The claim is valid and there is no evidence that could win the case, so refunding now is the cheapest fair resolution.",
+        "Accepting at the inquiry stage avoids escalation to a formal dispute."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "hard_stuck_wants_refund",
+      "title": "Lost package, buyer wants money back",
+      "hard": true,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "A full refund because the tea towel set never arrived after three weeks.",
+      "reasoning": [
+        "Package shows IN_TRANSIT with no carrier scan for 22 days; likely_lost is true, so treat it as lost.",
+        "Buyer explicitly asks for money back, so refund rather than share tracking details.",
+        "Item was never delivered, so a return-for-refund is impossible; refund in full.",
+        "Tracking shows no delivery, so evidence cannot win this case; refund fast when the buyer is right."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "hard_inr_wrong_color",
+      "title": "Picked 'not received' but actually got the wrong color",
+      "hard": true,
+      "expected": "OFFER_REPLACEMENT",
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
+      "confidence": 0.9,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer received their order but got the wrong color and wants the navy linen shirt they actually ordered.",
+      "reasoning": [
+        "Tracking shows the package was delivered on 2026-10-05 to the matching address, so the 'not received' dispute reason doesn't match the buyer's actual complaint.",
+        "The buyer's real issue is a wrong-color shipment: they ordered Navy and received grey.",
+        "The buyer has not asked for a refund, so the cheapest fair fix is sending the correct navy shirt.",
+        "The order is within the return window and this was not an assistant purchase, so no special policy applies.",
+        "Fighting with delivery evidence would ignore the legitimate wrong-item complaint and risk losing the case."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "duplicate_false",
+      "title": "Thinks they were charged twice",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to know whether they were charged twice for their candle order.",
+      "reasoning": [
+        "Buyer disputes a duplicate charge, but the transaction search found only 1 matching charge that day and duplicate_charge_found is false.",
+        "The transaction record is the decisive evidence here, so submit it to PayPal rather than refunding.",
+        "The order is legitimate: one $30 Fig soy candle, charged once, shipped via USPS and currently in transit.",
+        "Buyer is not asking for a refund, so no refund action is warranted."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "duplicate_true",
+      "title": "Charged twice",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the duplicate $30 charge refunded while keeping their single candle order.",
+      "reasoning": [
+        "Transaction search found 2 matching $30 charges on the same day; duplicate_charge_found is true.",
+        "The buyer was billed twice for one $30 candle \u2014 the extra charge is our error, not the buyer's.",
+        "The dispute amount ($30) equals exactly the duplicate charge, so accepting the claim refunds only the overcharge while the buyer keeps the candle.",
+        "No evidence could win this case since our own records confirm the double billing; refunding fast is the cheapest fair fix."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "cnp_owed",
+      "title": "Return received, refund never sent",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.97,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "A full refund for the throw blanket they already returned, which the shop received three weeks ago.",
+      "reasoning": [
+        "The shop received the buyer's return (return_received: true) but no refund has been issued (refund_issued: false).",
+        "The return arrived roughly three weeks ago, about 15 days after delivery, so it was sent within the 30-day return window for a full refund.",
+        "The item is already back in our possession, so asking for a return or submitting delivery evidence would be pointless and unfair.",
+        "The buyer is clearly owed their money back; refunding promptly is the cheapest fair resolution and avoids losing a PayPal case."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "cnp_refunded",
+      "title": "Refund already issued",
+      "hard": false,
+      "expected": "SUBMIT_REFUND_PROOF",
+      "got": "SUBMIT_REFUND_PROOF",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the refund for the blanket they returned, which they say has not been credited back to them.",
+      "reasoning": [
+        "A full refund of $54.00 was already issued under refund ID RF0002Y7741, so the credit has been processed on our end.",
+        "The dispute reason CREDIT_NOT_PROCESSED is directly answered by the existing refund record.",
+        "No duplicate charge was found and only one matching charge exists, so nothing further is owed.",
+        "Submitting refund proof to PayPal resolves the inquiry at no additional cost and avoids fighting a case we would lose."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "unauth_delivered",
+      "title": "Unauthorized claim, delivered to account address",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.88,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants their $70 back, claiming they never made this purchase.",
+      "reasoning": [
+        "Order found: a $70 tan leather wallet purchased 14 days ago, matching the disputed charge exactly.",
+        "UPS tracking 1Z999AA10123456788 shows DELIVERED on 2026-09-26 to the address matching the buyer's PayPal address.",
+        "Only one matching charge that day; no duplicate or erroneous billing found.",
+        "Not an AI assistant purchase and no misorder facts apply, so the merchant is not at fault.",
+        "Delivery proof and transaction records give strong evidence to contest the unauthorized claim."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "unauth_agent_mandate",
+      "title": "Unrecognized charge from the buyer's own assistant",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.9,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to identify and reverse a $36 charge they don't recognize.",
+      "reasoning": [
+        "The order was placed by the buyer's own AI assistant Atlas, following their stored standing instruction to reorder cedar candle refills up to $40 a month.",
+        "assistant_misordered is false and the $36 charge is within the agent's spending limit, so the purchase was authorized.",
+        "Store policy: standing reorder instructions stay active until the customer cancels them; each reorder is charged and shipped like a normal order.",
+        "UPS tracking shows the item was delivered to the buyer's verified address on 2026-10-03, confirming a legitimate, fulfilled transaction."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "snad_outside_window",
+      "title": "Complaint long after the return window",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.82,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants their money back because the candle didn't match what they expected from the listing photos.",
+      "reasoning": [
+        "Buyer's own words ('not what I expected from the photos') show a subjective expectation mismatch, not a defect, damage, or inaccurate listing.",
+        "USPS tracking confirms delivery to the matching address on 2026-07-07; the item arrived as ordered.",
+        "The 30-day return window closed 61 days ago, so no policy-based refund or return applies.",
+        "No damage or incorrect-item claim, and the merchant isn't at fault, so we keep the sale and submit the listing and delivery proof to PayPal."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "snad_damaged_high_value",
+      "title": "Expensive item arrived damaged",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.75,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants their new walnut serving board made right \u2014 it arrived with a deep scratch, so they want a pristine board or their money back.",
+      "reasoning": [
+        "Buyer reports the board arrived with a deep scratch \u2014 a damaged-goods claim, not a lost-package issue; delivery is confirmed and tracking is irrelevant here.",
+        "The buyer did not ask for a refund, so a free replacement directly fixes the complaint and keeps the sale.",
+        "Item is within the 30-day window and the damage claim is plausible with no contradicting evidence; contesting it risks losing the dispute outright.",
+        "A replacement is cheaper for the shop than a full refund plus shop-paid return shipping (policy requires the shop to cover return shipping on damaged items)."
+      ],
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "snad_damaged_low_value",
+      "title": "Cheap item arrived damaged",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "A refund (or replacement) for the ceramic mug that arrived cracked.",
+      "reasoning": [
+        "Buyer reports the mug arrived cracked, and reported it 3 days after delivery, within the 7-day damaged-item window.",
+        "Store policy: damaged items under $20 are refunded in full with no return required.",
+        "Item price is $12 (under $20) and refund_without_return_eligible is true, so a full refund without return applies.",
+        "Cheapest fair resolution is a fast full refund; contesting a $12 damage claim isn't winnable or worthwhile."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "snad_changed_mind",
+      "title": "Not as described, really a change of mind",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "To return the blanket for a refund because it's not their style, even though it matches the description.",
+      "reasoning": [
+        "Buyer admits the item matches the listing ('the color is fine') \u2014 this is a style preference, not a not-as-described defect.",
+        "Delivered 6 days ago, well within the 30-day return window for unused items.",
+        "Store policy: full refund on return; buyer pays return shipping since the item is not damaged or incorrect.",
+        "Buyer explicitly asked 'Can I send it back?', so a return-for-refund is exactly what they want."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "inr_misdelivered",
+      "title": "Delivered to the wrong address",
+      "hard": false,
+      "expected": "OFFER_REPLACEMENT",
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
+      "confidence": 0.88,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the wool beanie they paid for, which USPS delivered to the wrong address.",
+      "reasoning": [
+        "Tracking shows DELIVERED, but delivered_address_matches is false \u2014 the package went to the wrong address, so the buyer genuinely never received it.",
+        "Submitting delivery proof to PayPal would lose, since the proof itself shows misdelivery; sharing tracking details would be equally wrong.",
+        "The buyer did not ask for a refund \u2014 they want the item, so reshipping is the cheapest fair fix and keeps the sale.",
+        "The merchant can recover costs by filing a USPS misdelivery claim for tracking 9400111899223311223344."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "inr_no_tracking",
+      "title": "Not received, no tracking",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the speckled ceramic mug they paid for, or their money back since it never arrived.",
+      "reasoning": [
+        "cannot_prove_delivery is true: the order has no tracking number, so there is no proof of delivery to submit to PayPal.",
+        "The buyer reports the mug never arrived 18 days after purchase, and we have no evidence to contest that.",
+        "With no tracking uploaded to PayPal, submitting evidence would lose the case; refunding now is the cheapest fair outcome.",
+        "No refund has been issued yet and the item is not refund-without-return eligible, so we accept the claim and refund in full."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "inr_in_transit",
+      "title": "Not received, package moving normally",
+      "hard": false,
+      "expected": "SHARE_TRACKING",
+      "got": "SHARE_TRACKING",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants their tea towel set to arrive and is wondering where the order is after 5 days.",
+      "reasoning": [
+        "Package is IN_TRANSIT via USPS with a scan just 1 day ago, so it is moving normally and not lost.",
+        "Only 5 days have passed since purchase, which is within normal shipping time.",
+        "The buyer has not asked for a refund; they simply want their order.",
+        "Tracking is already uploaded to PayPal, so no evidence submission is needed at the inquiry stage."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "inr_delivered_claim",
+      "title": "Escalated not-received claim, delivered",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.85,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the wool beanie they paid for, which they insist never arrived.",
+      "reasoning": [
+        "USPS tracking 9400111899223300112233 shows the package was DELIVERED on 2026-09-15 to an address matching the order.",
+        "cannot_prove_delivery is false and tracking was already uploaded to PayPal, so proof of delivery exists to contest the chargeback.",
+        "likely_lost is false \u2014 the carrier's final scan confirms delivery, so this is not a lost-package case.",
+        "The merchant shipped promptly and is not at fault; policy is to keep the sale when delivery to the correct address is proven.",
+        "A not-received chargeback is best answered with proof of delivery, the transaction record, and the listing."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "inr_delivered",
+      "title": "Says not received, tracking shows delivered",
+      "hard": false,
+      "expected": "SHARE_TRACKING",
+      "got": "SHARE_TRACKING",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to know where their order is and to receive their soy candle.",
+      "reasoning": [
+        "UPS tracking shows the package was DELIVERED on 2026-09-25 to an address matching the order.",
+        "The buyer has not asked for a refund \u2014 they simply want to know where the order is.",
+        "The merchant is not at fault: delivery is confirmed to the correct address, so no refund or replacement is warranted.",
+        "Sharing tracking details resolves this inquiry at zero cost and keeps the sale."
+      ],
+      "guard_notes": [],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    },
+    {
+      "id": "agent_wrong_size",
+      "title": "Buyer's AI assistant ordered the wrong size",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "nvidia",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the navy linen shirt in size medium, the size they originally asked for.",
+      "reasoning": [
+        "Atlas, the buyer's AI shopping assistant, was instructed to order a medium but ordered a size L \u2014 assistant_misordered is true, so we don't fight this with evidence.",
+        "Store policy allows free size exchanges on apparel within 30 days of delivery; only 5 days have passed since delivery.",
+        "The buyer hasn't asked for a refund \u2014 they want the correct size, making a free exchange the cheapest fair fix.",
+        "We cover return shipping since the item arrived incorrect, and ship the medium as soon as the return is scanned."
+      ],
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ],
+      "provider": "nvidia",
+      "model": "z-ai/glm-5.3"
+    }
+  ],
+  "tokens_used": 53138,
+  "langfuse": {
+    "name": "nvidia-glm-5.3-20261007-055102",
+    "dataset": "rebuttal-disputes",
+    "url": "https://us.cloud.langfuse.com/project/cmuxe1wn005w1ad0cnzaz71j0/datasets/cmuxm7mrc07x0ad0dvm2h896y/runs/b351105e-3a73-442d-9666-dbff9a6d70b5"
+  },
+  "provider": "nvidia",
+  "model": "z-ai/glm-5.3",
+  "date": "2026-10-07",
+  "restored_from_commit": "45ca606"
+}
