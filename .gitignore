@@ -12,3 +12,4 @@ spike_fresh_report.json
 .DS_Store
 .claude/settings.local.json
 checkpoints.sqlite*
+LEARNING.md
