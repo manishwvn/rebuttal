@@ -17,13 +17,15 @@ See [PLAN.md](PLAN.md) for the road to submission.
 
 ## Run it (no keys needed)
 
+The backend is a [uv](https://docs.astral.sh/uv/) project (`backend/pyproject.toml`, locked in `backend/uv.lock`).
+
 ```bash
 cd backend
-pip install -r requirements.txt
-python -m pytest            # 8 tests
-python -m evals.run --rules # eval suite, offline baseline
-python -m scripts.demo      # agent handles 6 demo disputes end to end
-uvicorn rebuttal.app:app --reload   # API on http://127.0.0.1:8000/docs
+uv sync                              # creates .venv from the lockfile (Python 3.12)
+uv run pytest                        # test suite
+uv run python -m evals.run --rules   # eval suite, offline baseline
+uv run python -m scripts.demo        # agent handles 6 demo disputes end to end
+uv run uvicorn rebuttal.app:app --reload   # API on http://127.0.0.1:8000/docs
 ```
 
 Add `ANTHROPIC_API_KEY` to `backend/.env` to switch the reasoner from the offline baseline to Claude.

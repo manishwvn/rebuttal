@@ -51,12 +51,16 @@ preview/                    template.html -> rebuttal-preview.html (design targe
 ## Commands (from backend/)
 
 ```
-python -m pytest
-python -m evals.run            # Claude if ANTHROPIC_API_KEY set; --rules forces the baseline
-python -m scripts.demo && python -m scripts.build_preview
-python -m scripts.spike_sandbox
-uvicorn rebuttal.app:app --reload
+uv sync                                  # once, and after pyproject.toml changes (creates backend/.venv)
+uv run pytest
+uv run python -m evals.run               # model if a provider key is set; --rules forces the baseline
+uv run python -m scripts.demo && uv run python -m scripts.build_preview
+uv run python -m scripts.spike_sandbox
+uv run uvicorn rebuttal.app:app --reload
+uv add <package>                         # add a dependency (never pip install, never a requirements.txt)
 ```
+
+The backend is a uv project: `backend/pyproject.toml`, `backend/uv.lock` (commit both), `backend/.python-version`.
 
 ## Next tasks, in order
 
