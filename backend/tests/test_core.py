@@ -6,6 +6,7 @@ from rebuttal.agent.facts import gather
 from rebuttal.agent.reasoner import Decision, guard
 from rebuttal.approval import ApprovalError
 from rebuttal.config import load_settings
+from rebuttal.paypal.client import permit_writes
 from rebuttal.runtime import Runtime
 from rebuttal.scenarios import DEMO_NOW
 
@@ -80,15 +81,16 @@ def test_trackers_come_from_the_order(rt):
     assert not any("/v1/shipping/trackers" in c for _, c in rt.mock.calls)
 
 
-def test_transaction_search_403_is_not_fatal():
-    from rebuttal.paypal.client import PayPalError
+def test_transaction_search_403_is_not_fatal(monkeypatch):
+    from rebuttal.paypal.client import PayPalClient, PayPalError
 
     rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
 
     def forbidden(*a, **kw):
         raise PayPalError(403, {"name": "NOT_AUTHORIZED"})
 
-    rt.client.search_transactions = forbidden
+    # on the class: analysis reads through a read-only clone of the client, not the instance patched here
+    monkeypatch.setattr(PayPalClient, "search_transactions", forbidden)
     case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
     assert case.facts["transaction_search_available"] is False
     assert "duplicate_charge_found" not in case.facts
@@ -102,7 +104,8 @@ def test_mock_rejects_seller_actions_while_under_review(rt):
 
     rt.mock.disputes["PP-D-2000"]["status"] = "UNDER_REVIEW"
     with pytest.raises(PayPalError) as err:
-        rt.client.send_message("PP-D-2000", "hi")
+        with permit_writes():
+            rt.client.send_message("PP-D-2000", "hi")
     assert err.value.status == 422 and "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE" in str(err.value)
 
 
@@ -149,7 +152,8 @@ def test_mock_rejects_offer_types_paypal_does_not_allow(rt):
     from rebuttal.paypal.client import PayPalError
 
     with pytest.raises(PayPalError) as err:
-        rt.client.make_offer("PP-D-2000", note="x", offer_type="REPLACEMENT_WITHOUT_REFUND")
+        with permit_writes():
+            rt.client.make_offer("PP-D-2000", note="x", offer_type="REPLACEMENT_WITHOUT_REFUND")
     assert err.value.status == 400 and "INVALID_OFFER_TYPE" in str(err.value)
     assert rt.mock.disputes["PP-D-2000"]["status"] == "WAITING_FOR_SELLER_RESPONSE"
 
@@ -199,3 +203,17 @@ def test_assistant_misordered_fact_and_guard():
     assert guard(Decision("SUBMIT_EVIDENCE", 0.9, [], "", "m", "e", source="claude"), right).resolution == "SUBMIT_EVIDENCE"
     _, plain = _case_facts("inr_delivered")
     assert plain.facts["assistant_misordered"] is False
+
+
+def test_unauthorised_claims_are_answered_with_evidence_not_tracking_messages():
+    rt, case = _case_facts("unauth_delivered")
+    d = guard(Decision("SHARE_TRACKING", 0.95, [], "", "Your tracking is ...", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_EVIDENCE" and d.evidence_summary
+    assert any("Unauthorised-purchase claim" in n for n in d.guard_notes)
+
+
+def test_no_tracking_on_a_not_received_dispute_means_a_refund_not_a_replacement():
+    _, case = _case_facts("inr_no_tracking")
+    for model_choice in ("OFFER_REPLACEMENT", "SUBMIT_EVIDENCE"):
+        d = guard(Decision(model_choice, 0.9, [], "", "m", "e", source="claude"), case)
+        assert d.resolution == "ACCEPT_CLAIM" and any("can't be proven" in n for n in d.guard_notes)

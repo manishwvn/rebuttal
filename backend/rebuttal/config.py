@@ -37,6 +37,8 @@ class Settings:
     groq_api_key: str | None
     groq_model: str
     audit_path: Path
+    checkpoint_target: str | None = None  # None = in memory; see persistence.py
+    reasoner: str = "auto"  # "rules" (REBUTTAL_REASONER=rules) never calls a model, whatever keys are set
 
     @property
     def base_url(self) -> str:
@@ -58,6 +60,12 @@ def load_settings(env_file: Path | None = None) -> Settings:
     # Mock mode unless explicitly turned off AND real sandbox keys exist.
     mock = os.getenv("REBUTTAL_MOCK", "1") == "1" or not (client_id and client_secret)
 
+    database_url = os.getenv("DATABASE_URL", "")
+    checkpoint_target = os.getenv("REBUTTAL_CHECKPOINT_URL") or (
+        database_url if database_url.startswith(("postgres://", "postgresql://")) else None)
+    if not checkpoint_target and not mock:
+        checkpoint_target = "checkpoints.sqlite"  # real sandbox: keep paused proposals across restarts
+
     return Settings(
         paypal_env=paypal_env,
         client_id=client_id,
@@ -71,4 +79,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         groq_api_key=os.getenv("GROQ_API_KEY") or None,
         groq_model=os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL),
         audit_path=Path(os.getenv("REBUTTAL_AUDIT_PATH", "audit.jsonl")),
+        checkpoint_target=checkpoint_target,
+        reasoner=os.getenv("REBUTTAL_REASONER", "auto").strip().lower(),
     )

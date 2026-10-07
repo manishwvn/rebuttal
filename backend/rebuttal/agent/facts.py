@@ -42,10 +42,43 @@ class CaseFile:
     facts: dict
     tool_calls: list[str] = field(default_factory=list)
     allowed_response_options: dict | None = None  # PayPal's own list of what the seller may do now
+    seller_activity: dict = field(default_factory=dict)  # seller messages and offer types already on the dispute
 
     @property
     def last_buyer_message(self) -> str:
         return self.buyer_messages[-1] if self.buyer_messages else ""
+
+    def to_dict(self) -> dict:
+        """JSON-safe snapshot: this is what travels through the graph state and into checkpoints."""
+        return {
+            "dispute_id": self.dispute_id, "reason": self.reason, "stage": self.stage, "status": self.status,
+            "amount": self.amount, "currency": self.currency,
+            "due": self.due.isoformat() if self.due else None, "hours_left": self.hours_left,
+            "buyer_messages": self.buyer_messages, "order": self.order.to_dict() if self.order else None,
+            "trackers": self.trackers, "transactions": self.transactions,
+            "policies": [list(p) for p in self.policies], "facts": self.facts, "tool_calls": self.tool_calls,
+            "allowed_response_options": self.allowed_response_options,
+            "seller_activity": self.seller_activity,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CaseFile":
+        return cls(**{
+            **data,
+            "due": parse_time(data["due"]) if data.get("due") else None,
+            "order": MerchantOrder.from_dict(data["order"]) if data.get("order") else None,
+            "policies": [tuple(p) for p in data["policies"]],
+        })
+
+
+def seller_activity(dispute: dict) -> dict:
+    """What the seller side already did on this dispute. `execute` compares against it, not against clocks, to tell
+    whether its own message or offer has already landed."""
+    return {
+        "messages": [m.get("content") for m in dispute.get("messages", []) if m.get("posted_by") == "SELLER"],
+        "offers": [h.get("offer_type") for h in (dispute.get("offer") or {}).get("history", [])
+                   if h.get("actor") == "SELLER"],
+    }
 
 
 def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: datetime) -> CaseFile:
@@ -99,6 +132,7 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
         facts=facts,
         tool_calls=calls,
         allowed_response_options=dispute.get("allowed_response_options"),
+        seller_activity=seller_activity(dispute),
     )
 
 

@@ -18,7 +18,7 @@ import argparse
 import json
 
 from rebuttal.config import load_settings
-from rebuttal.paypal.client import PayPalClient
+from rebuttal.paypal.client import PayPalClient, permit_writes
 from scripts.spike_sandbox import SELLER_STEPS, dry_run, seller_action_steps
 
 SELLER_STATUS = "WAITING_FOR_SELLER_RESPONSE"
@@ -86,4 +86,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with permit_writes():  # manual sandbox tool: it answers a real sandbox dispute
+        raise SystemExit(main())

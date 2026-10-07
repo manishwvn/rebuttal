@@ -102,25 +102,25 @@ def test_token_usage_falls_back_to_response_metadata(case):
     assert r.tokens_used == 777
 
 
-def test_throttle_is_consulted_before_and_updated_after_each_call(case):
+def test_throttle_is_reserved_before_and_settled_after_each_call(case):
+    calls = []
+
+    class Reservation:
+        def settle(self, tokens):
+            calls.append(("settle", tokens))
+
     class Budget:
-        def __init__(self):
-            self.calls = []
+        def reserve(self, estimate, output=0):
+            calls.append(("reserve", output))
+            return Reservation()
 
-        def wait(self, estimate, output=0):
-            self.calls.append(("wait", output))
-
-        def record(self, tokens, output=0):
-            self.calls.append(("record", tokens, output))
-
-    budget = Budget()
-    reasoner(lambda m: parsed_result(1234), throttle=budget, max_output_tokens=500).decide(case)
-    assert budget.calls == [("wait", 500), ("record", 1234, 500)]
+    reasoner(lambda m: parsed_result(1234), throttle=Budget(), max_output_tokens=500).decide(case)
+    assert calls == [("reserve", 500), ("settle", 1234)]
 
 
 def settings(**kw):
-    return Settings(**{**load_settings().__dict__, "mock": True, "anthropic_api_key": None, "groq_api_key": None,
-                       "nvidia_api_key": None, **kw})
+    return Settings(**{**load_settings().__dict__, "mock": True, "reasoner": "auto", "anthropic_api_key": None,
+                       "groq_api_key": None, "nvidia_api_key": None, **kw})
 
 
 def test_providers_are_picked_in_order_anthropic_groq_nvidia_rules():
@@ -133,6 +133,7 @@ def test_providers_are_picked_in_order_anthropic_groq_nvidia_rules():
     assert Runtime(settings=settings(nvidia_api_key="n"), seed_cases=[]).mode == "mock / nvidia"
     assert Runtime(settings=settings(), seed_cases=[]).reasoner.name == "rules"
     assert Runtime(settings=both, seed_cases=[], force_rules=True).reasoner.name == "rules"
+    assert Runtime(settings=settings(groq_api_key="g", reasoner="rules"), seed_cases=[]).reasoner.name == "rules"
 
 
 def test_chat_models_are_configured_for_repeatable_decisions():
@@ -154,23 +155,41 @@ def test_groq_calls_share_one_budget_across_reasoners():
     assert a._throttle is b._throttle and (a._throttle.tpm, a._throttle.rpm, a._throttle.otpm) == (8000, 30, 1000)
 
 
+def fake_clock():
+    now = [0.0]
+    return now, (lambda: now[0]), (lambda secs: now.__setitem__(0, now[0] + secs))
+
+
 def test_token_budget_waits_for_the_window():
-    now, slept = [0.0], []
-    b = TokenBudget(tpm=8000, rpm=30, clock=lambda: now[0],
-                    sleep=lambda s: (slept.append(s), now.__setitem__(0, now[0] + s)))
-    b.wait(5000)
-    b.record(5000)
-    b.wait(5000)  # 5000 + 5000 > 8000: must wait out the first call's 60s window
-    assert slept and now[0] >= 60
+    now, clock, sleep = fake_clock()
+    b = TokenBudget(tpm=8000, rpm=30, clock=clock, sleep=sleep)
+    b.reserve(5000).settle(5000)
+    b.reserve(5000)  # 5000 + 5000 > 8000: must wait out the first call's 60s window
+    assert now[0] >= 60
 
 
 def test_token_budget_limits_reserved_output_tokens():
-    now = [0.0]
-    b = TokenBudget(tpm=8000, rpm=30, otpm=1000, clock=lambda: now[0],
-                    sleep=lambda s: now.__setitem__(0, now[0] + s))
+    now, clock, sleep = fake_clock()
+    b = TokenBudget(tpm=8000, rpm=30, otpm=1000, clock=clock, sleep=sleep)
     for _ in range(2):
-        b.wait(1500, 500)
-        b.record(900, 500)
+        b.reserve(1500, 500).settle(900)
     t = now[0]
-    b.wait(1500, 500)  # a third 500-token reservation would exceed 1,000/min
+    b.reserve(1500, 500)  # a third 500-token reservation would exceed 1,000/min
     assert now[0] - t >= 59
+
+
+def test_token_budget_books_capacity_at_reserve_time_and_is_thread_safe():
+    """Two threads asking at once must not both see an empty window: the second waits for the first's slot."""
+    import threading
+    import time
+
+    b = TokenBudget(tpm=1000, rpm=30, otpm=None, sleep=lambda secs: time.sleep(0.01))
+    first = b.reserve(900)  # in flight, not settled yet
+    order = []
+    waiter = threading.Thread(target=lambda: (b.reserve(900), order.append("second")))
+    waiter.start()
+    time.sleep(0.05)
+    assert order == []  # blocked: 900 + 900 > 1000 although the first call has not finished
+    b._events[0][0] -= 61  # the first call ages out of the 60s window
+    waiter.join(timeout=2)
+    assert order == ["second"] and first is not None

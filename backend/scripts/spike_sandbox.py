@@ -15,11 +15,13 @@ import time
 import traceback
 from datetime import datetime, timedelta, timezone
 
-from rebuttal.agent.pipeline import Agent
+from langgraph.checkpoint.memory import InMemorySaver
+
+from rebuttal.agent.graph import DisputeAgent
 from rebuttal.agent.reasoner import RuleReasoner
 from rebuttal.audit import AuditLog
 from rebuttal.config import load_settings
-from rebuttal.paypal.client import PayPalClient, PayPalError
+from rebuttal.paypal.client import PayPalClient, PayPalError, permit_writes
 from rebuttal.store import MerchantOrder, MerchantStore, Shipment
 
 REPORT: list[dict] = []
@@ -72,8 +74,9 @@ def dry_run(pp: PayPalClient, *, invoice: str, capture_id: str, dispute_id: str,
                 "constraints": {"variant": "Size M", "max_price": 60},
                 "submitted_item": {"sku": "LIN-SHIRT", "variant": "Navy / Size L", "price": 48.0},
                 "recorded_at": datetime.now(timezone.utc).isoformat()}))
-    agent = Agent(pp, store, RuleReasoner(), AuditLog(), lambda: datetime.now(timezone.utc))
-    return agent.analyze(dispute_id)
+    agent = DisputeAgent(client=pp, store=store, reasoner=RuleReasoner(), audit=AuditLog(),
+                         clock=lambda: datetime.now(timezone.utc), checkpointer=InMemorySaver())
+    return agent.analyze(dispute_id)  # stops at the approval gate; nothing is sent to PayPal
 
 
 SELLER_STEPS = ("send_message", "make_offer", "require_evidence", "provide_evidence", "adjudicate", "final_state")
@@ -196,4 +199,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    with permit_writes():  # manual sandbox tool: it creates and answers real sandbox disputes
+        main()

@@ -8,9 +8,12 @@ Prints each decision and writes preview_data.json, which the product preview pag
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from rebuttal.app import DEMO_CASES
+from rebuttal.config import load_settings
+from rebuttal.paypal.client import permit_writes
 from rebuttal.runtime import Runtime
 
 OUT = Path(__file__).resolve().parents[1] / "preview_data.json"
@@ -18,7 +21,9 @@ EVALS = Path(__file__).resolve().parents[1] / "evals" / "results.json"
 
 
 def main() -> None:
-    rt = Runtime(seed_cases=DEMO_CASES)
+    # The demo approves every proposal itself, so it only ever runs on the in-memory mock, whatever REBUTTAL_MOCK says.
+    rt = Runtime(settings=replace(load_settings(), mock=True), seed_cases=DEMO_CASES)
+    assert rt.mock is not None
     cases = []
     for d in rt.client.list_disputes():
         p = rt.analyze(d["dispute_id"])
@@ -27,10 +32,11 @@ def main() -> None:
               f"{p.actions[0].summary}")
         rt.approvals.approve(p.id)
         # Sandbox-side outcome so the preview can show the end state.
-        if p.decision.resolution.startswith("OFFER_"):
-            rt.client._request("POST", f"/v1/customer/disputes/{d['dispute_id']}/accept-offer", json={})
-        elif p.decision.resolution.startswith("SUBMIT_"):
-            rt.client.adjudicate(d["dispute_id"], "SELLER_FAVOR")
+        with permit_writes():  # the mock's buyer side, not the merchant's agent
+            if p.decision.resolution.startswith("OFFER_"):
+                rt.client._request("POST", f"/v1/customer/disputes/{d['dispute_id']}/accept-offer", json={})
+            elif p.decision.resolution.startswith("SUBMIT_"):
+                rt.client.adjudicate(d["dispute_id"], "SELLER_FAVOR")
         after = rt.mock.disputes[d["dispute_id"]]
         cases.append({
             "dispute_id": d["dispute_id"],

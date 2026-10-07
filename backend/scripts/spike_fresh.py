@@ -14,7 +14,7 @@ import json
 import time
 
 from rebuttal.config import load_settings
-from rebuttal.paypal.client import PayPalClient
+from rebuttal.paypal.client import PayPalClient, permit_writes
 from scripts.spike_retry import SELLER_STATUS, dispute_summary
 from scripts.spike_sandbox import TRACKING_NUMBER, seller_action_steps, step
 
@@ -102,4 +102,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    with permit_writes():  # manual sandbox tool: it answers a real sandbox dispute
+        raise SystemExit(main())

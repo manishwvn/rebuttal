@@ -5,7 +5,10 @@ Run:  uvicorn rebuttal.app:app --reload   (from backend/)
 
 from __future__ import annotations
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+import hmac
+import os
+
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from .approval import ApprovalError
@@ -19,6 +22,20 @@ app = FastAPI(title="Rebuttal", version="0.1.0")
 rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)
 
 
+# Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health and the
+# PayPal webhook needs `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call
+# approve is the "human" in the approval gate, so set it on any deployment.
+API_TOKEN = os.getenv("REBUTTAL_API_TOKEN", "").strip()
+
+
+def require_token(authorization: str | None = Header(default=None)) -> None:
+    if API_TOKEN and not hmac.compare_digest((authorization or "").encode(), f"Bearer {API_TOKEN}".encode()):
+        raise HTTPException(401, "Missing or wrong API token")
+
+
+protected = [Depends(require_token)]
+
+
 class ApproveBody(BaseModel):
     edited_message: str | None = None
 
@@ -29,10 +46,10 @@ class RejectBody(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "mode": rt.mode}
+    return {"ok": True, "mode": rt.mode, "auth": bool(API_TOKEN)}
 
 
-@app.get("/api/disputes")
+@app.get("/api/disputes", dependencies=protected)
 def list_disputes():
     out = []
     for d in rt.client.list_disputes():
@@ -41,12 +58,12 @@ def list_disputes():
     return out
 
 
-@app.post("/api/disputes/{dispute_id}/analyze")
+@app.post("/api/disputes/{dispute_id}/analyze", dependencies=protected)
 def analyze(dispute_id: str):
     return rt.analyze(dispute_id).to_dict()
 
 
-@app.post("/api/proposals/{proposal_id}/approve")
+@app.post("/api/proposals/{proposal_id}/approve", dependencies=protected)
 def approve(proposal_id: str, body: ApproveBody):
     try:
         return rt.approvals.approve(proposal_id, body.edited_message).to_dict()
@@ -54,7 +71,22 @@ def approve(proposal_id: str, body: ApproveBody):
         raise HTTPException(409, str(exc)) from exc
 
 
-@app.post("/api/proposals/{proposal_id}/reject")
+@app.post("/api/proposals/{proposal_id}/retry", dependencies=protected)
+def retry(proposal_id: str):
+    """Continue an approved proposal whose PayPal call was interrupted (it reads the dispute first and does not
+    resend a message or offer that already landed)."""
+    try:
+        return rt.approvals.retry(proposal_id).to_dict()
+    except ApprovalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/proposals/pending", dependencies=protected)
+def pending():
+    return [p.to_dict() for p in rt.approvals.pending()]
+
+
+@app.post("/api/proposals/{proposal_id}/reject", dependencies=protected)
 def reject(proposal_id: str, body: RejectBody):
     try:
         return rt.approvals.reject(proposal_id, body.reason).to_dict()
@@ -62,7 +94,7 @@ def reject(proposal_id: str, body: RejectBody):
         raise HTTPException(409, str(exc)) from exc
 
 
-@app.get("/api/audit/{dispute_id}")
+@app.get("/api/audit/{dispute_id}", dependencies=protected)
 def audit(dispute_id: str):
     return rt.audit.for_dispute(dispute_id)
 
@@ -78,7 +110,7 @@ async def paypal_webhook(request: Request, background: BackgroundTasks):
     return {"received": True}
 
 
-@app.post("/api/simulator/dispute/{case_id}")
+@app.post("/api/simulator/dispute/{case_id}", dependencies=protected)
 def simulate(case_id: str):
     """Judge-facing simulator. Mock mode seeds a labeled case; sandbox mode comes in week 2."""
     if rt.mock is None:

@@ -11,6 +11,7 @@ baseline. Temperature is 0 everywhere (LangChain sends 1e-8 to Groq, which rejec
 from __future__ import annotations
 
 import json
+import threading
 import time
 from typing import Literal
 
@@ -72,25 +73,38 @@ class DecisionOut(BaseModel):
 
 class TokenBudget:
     """Keeps calls inside a provider's per-minute limits (sliding 60s window): requests, total tokens, and
-    reserved output tokens (providers count a request's max_tokens against the output limit up front)."""
+    reserved output tokens (providers count a request's max_tokens against the output limit up front).
+
+    Thread-safe. `reserve()` blocks until the call fits and books its estimate straight away, so two threads cannot
+    both think there is room; `Reservation.settle()` swaps the estimate for the tokens the call really used."""
 
     def __init__(self, tpm: int, rpm: int, otpm: int | None = None, clock=time.monotonic, sleep=time.sleep):
         self.tpm, self.rpm, self.otpm, self._clock, self._sleep = tpm, rpm, otpm, clock, sleep
-        self._events: list[tuple[float, int, int]] = []  # (time, tokens, reserved output)
+        self._events: list[list] = []  # [time, tokens, reserved output]
+        self._lock = threading.Lock()
 
-    def wait(self, estimate: int, output: int = 0) -> None:
-        while True:
-            now = self._clock()
-            self._events = [e for e in self._events if now - e[0] < 60]
-            used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
-            fits = (len(self._events) < self.rpm and used + estimate <= self.tpm
-                    and (self.otpm is None or reserved + output <= self.otpm))
-            if fits or not self._events:
-                return
-            self._sleep(max(0.5, 60 - (now - self._events[0][0])))
+    def reserve(self, estimate: int, output: int = 0) -> "Reservation":
+        with self._lock:  # held while waiting, which queues other callers behind this one
+            while True:
+                now = self._clock()
+                self._events = [e for e in self._events if now - e[0] < 60]
+                used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
+                fits = (len(self._events) < self.rpm and used + estimate <= self.tpm
+                        and (self.otpm is None or reserved + output <= self.otpm))
+                if fits or not self._events:
+                    event = [now, estimate, output]
+                    self._events.append(event)
+                    return Reservation(event, self._lock)
+                self._sleep(max(0.5, 60 - (now - self._events[0][0])))
 
-    def record(self, tokens: int, output: int = 0) -> None:
-        self._events.append((self._clock(), tokens, output))
+
+class Reservation:
+    def __init__(self, event: list, lock: threading.Lock):
+        self._event, self._lock = event, lock
+
+    def settle(self, tokens: int) -> None:
+        with self._lock:
+            self._event[1] = tokens
 
 
 def _total_tokens(raw: AIMessage | None) -> int:
@@ -126,16 +140,17 @@ class ModelReasoner:
     def decide(self, case: CaseFile, config: RunnableConfig | None = None) -> Decision:
         try:
             payload = json.dumps(build_payload(case), indent=2, default=str)
+            reservation = None
             if self._throttle:
-                self._throttle.wait((len(SYSTEM_PROMPT) + len(payload)) // 3 + self._max_output_tokens,
-                                    self._max_output_tokens)
+                reservation = self._throttle.reserve((len(SYSTEM_PROMPT) + len(payload)) // 3 + self._max_output_tokens,
+                                                     self._max_output_tokens)
             result = self._structured.invoke(
                 [SystemMessage(SYSTEM_PROMPT), HumanMessage(payload)], config=config)
             raw = result.get("raw")
             used = _total_tokens(raw)
             self.tokens_used += used
-            if self._throttle:
-                self._throttle.record(used, self._max_output_tokens)
+            if reservation:
+                reservation.settle(used)
             parsed = result.get("parsed")
             if parsed is None:
                 text = raw.text if isinstance(raw, AIMessage) else ""

@@ -73,12 +73,17 @@ class Decision:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Decision":
+        return cls(**data)
+
 
 # --------------------------------------------------------------------- rules
 class RuleReasoner:
     name = "rules"
+    model_name = "rules-baseline"
 
-    def decide(self, case: CaseFile) -> Decision:
+    def decide(self, case: CaseFile, config=None) -> Decision:  # config: unused, matches ModelReasoner
         resolution, confidence, why = self._pick(case)
         return Decision(
             resolution=resolution,
@@ -273,11 +278,18 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
         notes.append("The buyer's assistant ordered a different variant than instructed; offering the friendly "
                      "fix instead of fighting with evidence.")
-    if (decision.resolution == "SUBMIT_EVIDENCE" and f.get("cannot_prove_delivery")
+    if (decision.resolution in ("SUBMIT_EVIDENCE", "OFFER_REPLACEMENT") and f.get("cannot_prove_delivery")
             and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"):
+        # Nothing to show PayPal, and nothing shipped to replace: refund.
+        notes.append(f"No tracking on file, so delivery can't be proven; converted '{decision.resolution}' "
+                     "into a refund.")
         decision.resolution = "ACCEPT_CLAIM"
         decision.message_to_buyer = draft_message("ACCEPT_CLAIM", case)
-        notes.append("No tracking on file, so delivery can't be proven; converted 'submit evidence' into a refund.")
+    if decision.resolution == "SHARE_TRACKING" and case.reason == "UNAUTHORISED":
+        # A claim that the buyer did not authorise the purchase is answered with evidence, not a courtesy message.
+        decision.resolution = "SUBMIT_EVIDENCE"
+        decision.evidence_summary = decision.evidence_summary or draft_evidence_summary("SUBMIT_EVIDENCE", case)
+        notes.append("Unauthorised-purchase claim: converted 'share tracking' into submitting evidence.")
     if decision.resolution == "SHARE_TRACKING" and f.get("likely_lost") and f.get("buyer_asks_for_refund"):
         decision.resolution = "ACCEPT_CLAIM"
         decision.message_to_buyer = draft_message("ACCEPT_CLAIM", case)

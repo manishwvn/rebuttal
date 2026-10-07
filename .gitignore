@@ -11,3 +11,4 @@ spike_fresh_report.json
 .venv/
 .DS_Store
 .claude/settings.local.json
+checkpoints.sqlite*

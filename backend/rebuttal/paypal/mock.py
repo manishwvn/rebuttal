@@ -64,6 +64,9 @@ class MockPayPal:
         self.events: list[dict] = []
         self.calls: list[tuple[str, str]] = []
         self.evidence_files: dict[str, list[str]] = {}
+        self._replays: dict[tuple[str, str], httpx.Response] = {}  # (path, PayPal-Request-Id) -> first response
+        self.replayed: list[tuple[str, str]] = []  # requests answered from the idempotency cache
+        self.request_ids: list[tuple[str, str]] = []  # (path, PayPal-Request-Id) of every POST that had one
 
     # ----------------------------------------------------------- seeding
     def add_dispute(self, dispute: dict) -> None:
@@ -109,6 +112,24 @@ class MockPayPal:
         })
 
     def _handle(self, request: httpx.Request) -> httpx.Response:
+        """Idempotency like PayPal's: a POST repeating a PayPal-Request-Id gets the first response back and is not
+        executed again. VERIFY: PayPal's OpenAPI specs document PayPal-Request-Id for Orders and Payments but not for
+        any Disputes endpoint; the mock replays every POST so the retry path can be tested."""
+        key = (request.url.path, request.headers.get("paypal-request-id", ""))
+        if request.method == "POST" and key[1]:
+            self.request_ids.append(key)
+        if request.method == "POST" and key[1] and key in self._replays:
+            self.calls.append((request.method, request.url.path))
+            self.replayed.append(key)
+            first = self._replays[key]
+            return httpx.Response(first.status_code, content=first.content, headers=first.headers)
+        response = self._dispatch(request)
+        if request.method == "POST" and key[1] and response.status_code < 400:
+            response.read()
+            self._replays[key] = response
+        return response
+
+    def _dispatch(self, request: httpx.Request) -> httpx.Response:
         path, method = request.url.path, request.method
         self.calls.append((method, path))
 

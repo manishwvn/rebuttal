@@ -1,7 +1,14 @@
 """Typed wrapper over the PayPal REST endpoints Rebuttal uses.
 
 Every call that changes a dispute (message, offer, evidence, accept) is only
-ever invoked by the approval executor, never directly by the agent.
+ever invoked by the approval executor, never directly by the agent. Two runtime
+guards back that rule up:
+
+- a write (POST/PATCH/PUT/DELETE, except the OAuth token call) raises `WriteNotPermitted` unless the calling
+  context is inside `permit_writes()`, which only the approval gate's `execute` node (and manual sandbox scripts)
+  enter;
+- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET, so analysis steps
+  hold a handle that cannot write even if someone reaches for its private attributes.
 
 Endpoint shapes follow developer.paypal.com (Disputes API v1, Orders v2).
 Items marked VERIFY should be confirmed against the live sandbox in the
@@ -13,9 +20,64 @@ from __future__ import annotations
 import json
 import time
 import uuid
-from typing import Any
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Any, Iterator
+from urllib.parse import urlparse
 
 import httpx
+
+SANDBOX_HOSTS = {"api-m.sandbox.paypal.com", "api.sandbox.paypal.com"}
+WRITE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
+TOKEN_PATH = "/v1/oauth2/token"  # authentication, not a change to any dispute
+
+_writes_permitted: ContextVar[bool] = ContextVar("paypal_writes_permitted", default=False)
+
+
+class WriteNotPermitted(RuntimeError):
+    """A PayPal write was attempted outside the approval gate."""
+
+
+@contextmanager
+def permit_writes() -> Iterator[None]:
+    """Allow PayPal writes in this context. Used by the `execute` node after a human approval, and by manual
+    sandbox scripts. Nothing else should enter it (tests/test_write_boundary.py checks)."""
+    token = _writes_permitted.set(True)
+    try:
+        yield
+    finally:
+        _writes_permitted.reset(token)
+
+
+class WriteGateTransport(httpx.BaseTransport):
+    """Refuses a write unless the caller is inside `permit_writes()`, whatever code issued the request: this is the
+    lowest layer, so it also stops anything that reaches for the client's private httpx handle."""
+
+    def __init__(self, inner: httpx.BaseTransport):
+        self._inner = inner
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if request.method not in {"GET", "HEAD"} and request.url.path != TOKEN_PATH and not _writes_permitted.get():
+            raise WriteNotPermitted(f"{request.method} {request.url.path} is a PayPal write outside the approval gate")
+        return self._inner.handle_request(request)
+
+    def close(self) -> None:
+        self._inner.close()
+
+
+class ReadOnlyTransport(httpx.BaseTransport):
+    """Passes GET and HEAD through and refuses everything else, except the OAuth token request."""
+
+    def __init__(self, inner: httpx.BaseTransport):
+        self._inner = inner
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        if request.method not in {"GET", "HEAD"} and request.url.path != TOKEN_PATH:
+            raise WriteNotPermitted(f"read-only PayPal handle refused {request.method} {request.url.path}")
+        return self._inner.handle_request(request)
+
+    def close(self) -> None:
+        self._inner.close()
 
 
 class PayPalError(RuntimeError):
@@ -35,11 +97,26 @@ class PayPalClient:
         transport: httpx.BaseTransport | None = None,
         timeout: float = 30.0,
     ):
+        host = (urlparse(base_url).hostname or "").rstrip(".").lower()
+        if host.endswith("paypal.com") and host not in SANDBOX_HOSTS:
+            raise ValueError(f"Rebuttal only talks to the PayPal sandbox; refusing {host}")
+        self._init = (base_url, client_id, client_secret, transport, timeout)
         self._client_id = client_id
         self._client_secret = client_secret
-        self._http = httpx.Client(base_url=base_url, transport=transport, timeout=timeout)
+        self._http = httpx.Client(base_url=base_url, timeout=timeout,
+                                  transport=WriteGateTransport(transport or httpx.HTTPTransport()))
         self._token: str | None = None
         self._token_expiry = 0.0
+
+    def read_only(self) -> "PayPalClient":
+        """A clone for analysis steps: same credentials and endpoint, but its transport refuses any write."""
+        if self._init is None:  # already a read-only clone
+            return self
+        base_url, client_id, client_secret, transport, timeout = self._init
+        clone = PayPalClient(base_url, client_id, client_secret, timeout=timeout,
+                             transport=ReadOnlyTransport(transport or httpx.HTTPTransport()))
+        clone._init = None  # a read-only handle keeps no recipe for building a writable one
+        return clone
 
     # ------------------------------------------------------------------ core
     def _access_token(self) -> str:
@@ -67,10 +144,15 @@ class PayPalClient:
         debug_id = body.get("debug_id") if isinstance(body, dict) else None
         raise PayPalError(resp.status_code, body, debug_id)
 
-    def _request(self, method: str, path: str, *, headers: dict | None = None, **kw) -> Any:
+    def _request(self, method: str, path: str, *, headers: dict | None = None,
+                 request_id: str | None = None, **kw) -> Any:
+        if method in WRITE_METHODS and not _writes_permitted.get():
+            raise WriteNotPermitted(f"{method} {path} is a PayPal write outside the approval gate")
         hdrs = {"Authorization": f"Bearer {self._access_token()}"}
         if method in {"POST", "PATCH"}:
-            hdrs["PayPal-Request-Id"] = str(uuid.uuid4())  # idempotency
+            # Idempotency key. Approved actions pass a deterministic one (approval.idempotency_key) so a retry of
+            # the same action is the same request to PayPal; anything else gets a fresh key per call.
+            hdrs["PayPal-Request-Id"] = request_id or str(uuid.uuid4())
         if headers:
             hdrs.update(headers)
         resp = self._http.request(method, path, headers=hdrs, **kw)
@@ -86,9 +168,10 @@ class PayPalClient:
     def get_dispute(self, dispute_id: str) -> dict:
         return self._request("GET", f"/v1/customer/disputes/{dispute_id}")
 
-    def send_message(self, dispute_id: str, message: str) -> dict:
+    def send_message(self, dispute_id: str, message: str, *, request_id: str | None = None) -> dict:
         return self._request(
-            "POST", f"/v1/customer/disputes/{dispute_id}/send-message", json={"message": message}
+            "POST", f"/v1/customer/disputes/{dispute_id}/send-message", json={"message": message},
+            request_id=request_id,
         )
 
     def make_offer(
@@ -99,6 +182,7 @@ class PayPalClient:
         offer_type: str,
         amount: dict | None = None,
         return_address: dict | None = None,
+        request_id: str | None = None,
     ) -> dict:
         """offer_type: REFUND | REFUND_WITH_RETURN | REFUND_WITH_REPLACEMENT | REPLACEMENT_WITHOUT_REFUND"""
         body: dict[str, Any] = {"note": note, "offer_type": offer_type}
@@ -106,10 +190,12 @@ class PayPalClient:
             body["offer_amount"] = amount
         if return_address:
             body["return_shipping_address"] = return_address
-        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/make-offer", json=body)
+        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/make-offer", json=body,
+                             request_id=request_id)
 
     def provide_evidence(
-        self, dispute_id: str, evidences: list[dict], files: list[tuple[str, bytes, str]] = ()
+        self, dispute_id: str, evidences: list[dict], files: list[tuple[str, bytes, str]] = (),
+        *, request_id: str | None = None,
     ) -> dict:
         """Multipart: an `input` JSON part plus optional document files."""
         parts: list[tuple[str, tuple]] = [
@@ -118,18 +204,20 @@ class PayPalClient:
         for i, (name, content, mime) in enumerate(files):
             parts.append((f"file{i + 1}", (name, content, mime)))
         return self._request(
-            "POST", f"/v1/customer/disputes/{dispute_id}/provide-evidence", files=parts
+            "POST", f"/v1/customer/disputes/{dispute_id}/provide-evidence", files=parts, request_id=request_id
         )
 
-    def accept_claim(self, dispute_id: str, *, note: str, refund_amount: dict | None = None) -> dict:
+    def accept_claim(self, dispute_id: str, *, note: str, refund_amount: dict | None = None,
+                     request_id: str | None = None) -> dict:
         body: dict[str, Any] = {"note": note, "accept_claim_type": "REFUND"}
         if refund_amount:
             body["refund_amount"] = refund_amount
-        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/accept-claim", json=body)
+        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/accept-claim", json=body,
+                             request_id=request_id)
 
-    def escalate(self, dispute_id: str, note: str) -> dict:
+    def escalate(self, dispute_id: str, note: str, *, request_id: str | None = None) -> dict:
         return self._request(
-            "POST", f"/v1/customer/disputes/{dispute_id}/escalate", json={"note": note}
+            "POST", f"/v1/customer/disputes/{dispute_id}/escalate", json={"note": note}, request_id=request_id
         )
 
     # ---------------------------------------------- sandbox-only simulation
