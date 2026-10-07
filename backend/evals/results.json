@@ -1,9 +1,9 @@
 {
-  "mode": "mock / rules",
+  "mode": "mock / groq",
   "cases": 20,
-  "accuracy": 0.85,
-  "standard_accuracy": 1.0,
-  "hard_accuracy": 0.25,
+  "accuracy": 0.95,
+  "standard_accuracy": 0.938,
+  "hard_accuracy": 1.0,
   "hard_cases": 4,
   "approval_gate_violations": 0,
   "rows": [
@@ -14,12 +14,15 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.8,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "A medium-sized navy linen shirt instead of the large one received.",
       "reasoning": [
-        "The buyer's assistant ordered a different variant than instructed."
+        "The buyer's AI assistant 'Atlas' misordered a Large instead of the instructed Medium.",
+        "The item is within the 30-day return window and qualifies for a free size exchange.",
+        "The buyer did not explicitly request a refund, but the wrong size was delivered due to the agent error.",
+        "Offering a replacement aligns with the store's policy for size exchanges and resolves the 'not as described' complaint."
       ],
       "guard_notes": [
         "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
@@ -32,12 +35,15 @@
       "expected": "SHARE_TRACKING",
       "got": "SHARE_TRACKING",
       "correct": true,
-      "confidence": 0.8,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to know the location of their order.",
       "reasoning": [
-        "Delivered to the order address."
+        "The buyer asked 'Where is it?' and did not request a refund.",
+        "Facts show the package was delivered to the correct address 11 days ago.",
+        "Tracking is already uploaded to PayPal and status is DELIVERED.",
+        "The cheapest fair resolution is to inform the buyer of the delivery status."
       ],
       "guard_notes": []
     },
@@ -48,12 +54,15 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.85,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to resolve the dispute regarding the non-received item, likely seeking a refund or confirmation of delivery.",
       "reasoning": [
-        "Claim stage; delivered to the order address."
+        "Shipment status is DELIVERED to the correct address 21 days ago.",
+        "Tracking number 9400111899223300112233 confirms delivery.",
+        "cannot_prove_delivery is false, so evidence can be submitted.",
+        "Buyer has not explicitly requested a refund in the message, only stated non-receipt."
       ],
       "guard_notes": []
     },
@@ -64,12 +73,15 @@
       "expected": "SHARE_TRACKING",
       "got": "SHARE_TRACKING",
       "correct": true,
-      "confidence": 0.75,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to know why their order has not arrived yet.",
       "reasoning": [
-        "Package is moving and inside normal delivery time."
+        "The package is currently IN_TRANSIT with a scan from 1 day ago.",
+        "Tracking has already been uploaded to PayPal, providing proof of shipment.",
+        "The buyer has not explicitly requested a refund, only inquiring about the delay.",
+        "The item is not marked as likely lost, so waiting for delivery is appropriate."
       ],
       "guard_notes": []
     },
@@ -80,12 +92,15 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.85,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants the item to arrive or a resolution for the non-received package.",
       "reasoning": [
-        "No tracking on file, so delivery can't be proven."
+        "The dispute reason is 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED'.",
+        "The fact 'cannot_prove_delivery' is true, meaning there is no tracking to submit.",
+        "Per instructions, if cannot_prove_delivery is true on a not-received dispute, refund the buyer.",
+        "The buyer has not explicitly asked for a refund, but the lack of proof of delivery necessitates a refund to resolve the dispute fairly and cheaply."
       ],
       "guard_notes": []
     },
@@ -96,12 +111,15 @@
       "expected": "OFFER_REPLACEMENT",
       "got": "OFFER_REPLACEMENT",
       "correct": true,
-      "confidence": 0.75,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants the item delivered to the correct address or a resolution for the misdelivered package.",
       "reasoning": [
-        "Delivered, but not to the address on the order."
+        "Tracking shows the package was delivered, but to an incorrect address.",
+        "The buyer did not explicitly ask for a refund, preferring a resolution to the delivery error.",
+        "Offering a replacement is the cheapest fair resolution that keeps the sale and resolves the 'not received' issue.",
+        "The item is within the return window, but since it wasn't received by the buyer, a return is not possible."
       ],
       "guard_notes": []
     },
@@ -112,12 +130,15 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.7,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "to return the item because it is not their style",
       "reasoning": [
-        "Inside the return window; normal return applies."
+        "Buyer states the item is 'not my style' and asks to send it back, indicating a change of mind rather than a defect.",
+        "Item was delivered 6 days ago, which is within the 30-day return window.",
+        "Store policy allows returns for unused items within 30 days for a full refund.",
+        "Buyer is responsible for return shipping as the item was not damaged or incorrect."
       ],
       "guard_notes": []
     },
@@ -128,12 +149,15 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.8,
-      "source": "rules",
+      "confidence": 1.0,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "Resolution for the cracked ceramic mug",
       "reasoning": [
-        "Damaged and under $20: refund without return."
+        "Item arrived damaged (cracked) as reported by buyer.",
+        "Store policy states items under $20 arriving damaged are refunded in full without return.",
+        "Fact 'refund_without_return_eligible' is true.",
+        "Purchase was within the 7-day damage reporting window."
       ],
       "guard_notes": []
     },
@@ -144,30 +168,34 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.75,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "Resolution for a damaged item",
       "reasoning": [
-        "Damaged in transit; replace it."
+        "Item arrived damaged (deep scratch), which is a valid 'Not as Described' claim.",
+        "Store policy states buyer pays return shipping unless item arrived damaged.",
+        "Item is within the 30-day return window.",
+        "Refund without return is not eligible, so a return is required for a full refund."
       ],
-      "guard_notes": [
-        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
-      ]
+      "guard_notes": []
     },
     {
       "id": "snad_outside_window",
       "title": "Complaint long after the return window",
       "hard": false,
       "expected": "SUBMIT_EVIDENCE",
-      "got": "SUBMIT_EVIDENCE",
-      "correct": true,
-      "confidence": 0.7,
-      "source": "rules",
+      "got": "OFFER_PARTIAL_REFUND",
+      "correct": false,
+      "confidence": 0.85,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer is dissatisfied with the item's appearance compared to photos but has not explicitly requested a refund.",
       "reasoning": [
-        "Outside the return window and no defect described."
+        "The item was delivered 91 days ago, which is outside the 30-day return window.",
+        "The buyer's complaint is subjective ('not what I expected') rather than a factual error or damage.",
+        "A partial refund is the cheapest fair resolution to retain the sale and close the dispute without a return.",
+        "The buyer has not explicitly asked for a full refund, making a goodwill gesture appropriate."
       ],
       "guard_notes": []
     },
@@ -178,12 +206,15 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.8,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to verify the legitimacy of the charge as they do not recognize it.",
       "reasoning": [
-        "Placed by the buyer's own assistant within its instructions."
+        "The purchase was made by the buyer's AI assistant 'Atlas' following a standing instruction to reorder cedar candle refills.",
+        "The assistant followed the instruction correctly and the amount is within the specified $40 monthly limit.",
+        "The item was delivered to the correct address 3 days ago, confirming the transaction was executed as intended.",
+        "The dispute reason 'UNAUTHORISED' is incorrect because the charge was authorized via the standing reorder policy."
       ],
       "guard_notes": []
     },
@@ -194,12 +225,15 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.7,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to dispute the charge as unauthorized.",
       "reasoning": [
-        "Delivered to the address on the transaction."
+        "The dispute reason is UNAUTHORISED, but the item was delivered to the correct address.",
+        "Tracking shows the package was delivered 10 days ago.",
+        "The buyer has not explicitly requested a refund, only stated they did not make the purchase.",
+        "Evidence of delivery to the correct address is the strongest defense against an unauthorized claim."
       ],
       "guard_notes": []
     },
@@ -210,12 +244,15 @@
       "expected": "SUBMIT_REFUND_PROOF",
       "got": "SUBMIT_REFUND_PROOF",
       "correct": true,
-      "confidence": 0.9,
-      "source": "rules",
+      "confidence": 1.0,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants the refund for the returned item.",
       "reasoning": [
-        "A refund was already issued."
+        "The dispute reason is CREDIT_NOT_PROCESSED, but the facts show a refund was already issued.",
+        "Fact 'refund_issued' is true with ID RF0002Y7741.",
+        "The buyer claims no refund was received, but the system confirms the transaction.",
+        "Submitting proof of the existing refund is the correct action to close the inquiry."
       ],
       "guard_notes": []
     },
@@ -226,12 +263,15 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.75,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants the refund for the returned throw blanket.",
       "reasoning": [
-        "No refund on file."
+        "Facts confirm the return was received three weeks ago.",
+        "The buyer is requesting a refund for a returned item.",
+        "The return window has passed, but the item is already back in the shop.",
+        "Refunding is the cheapest fair resolution since the item is recovered."
       ],
       "guard_notes": []
     },
@@ -242,12 +282,15 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.9,
-      "source": "rules",
+      "confidence": 1.0,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "A refund for the duplicate charge.",
       "reasoning": [
-        "Two matching charges found."
+        "The dispute reason is DUPLICATE_TRANSACTION.",
+        "Facts confirm duplicate_charge_found is true.",
+        "Facts show matching_charges_same_day is 2.",
+        "The buyer was charged twice for a single item."
       ],
       "guard_notes": []
     },
@@ -258,12 +301,15 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.75,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "Confirmation that they were not charged twice for the same item.",
       "reasoning": [
-        "Only one matching charge exists."
+        "The buyer claims a duplicate transaction, but facts show only one matching charge on the same day.",
+        "duplicate_charge_found is false, indicating no actual duplicate billing occurred.",
+        "The order is valid, in transit, and tracking has been uploaded to PayPal.",
+        "Submitting the transaction record proves the single charge to resolve the inquiry."
       ],
       "guard_notes": []
     },
@@ -272,14 +318,17 @@
       "title": "Picked 'not received' but actually got the wrong color",
       "hard": true,
       "expected": "OFFER_REPLACEMENT",
-      "got": "SHARE_TRACKING",
-      "correct": false,
-      "confidence": 0.8,
-      "source": "rules",
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "The buyer wants to exchange the grey shirt for the navy shirt they originally ordered.",
       "reasoning": [
-        "Delivered to the order address."
+        "Buyer explicitly states they received the wrong color (grey instead of navy).",
+        "Tracking confirms delivery to the correct address, disproving the 'not received' dispute reason.",
+        "Item is within the return window and not damaged, so a replacement is the standard fix for wrong item.",
+        "Buyer did not explicitly ask for a refund, preferring the correct item."
       ],
       "guard_notes": []
     },
@@ -288,14 +337,17 @@
       "title": "Lost package, buyer wants money back",
       "hard": true,
       "expected": "ACCEPT_CLAIM",
-      "got": "OFFER_REPLACEMENT",
-      "correct": false,
-      "confidence": 0.65,
-      "source": "rules",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "A full refund because the item has not arrived and they no longer want it.",
       "reasoning": [
-        "No carrier movement for 10+ days; treat as lost."
+        "The fact 'likely_lost' is true, indicating the package is presumed lost.",
+        "The buyer explicitly asks for a refund, not a replacement or tracking details.",
+        "Per instructions, if likely_lost is true, a buyer who wants money back gets a refund.",
+        "The item is a low-value tea towel set ($28.00), making a refund the cheapest fair resolution."
       ],
       "guard_notes": []
     },
@@ -304,14 +356,17 @@
       "title": "Damage described without the usual words",
       "hard": true,
       "expected": "ACCEPT_CLAIM",
-      "got": "OFFER_RETURN_FOR_REFUND",
-      "correct": false,
-      "confidence": 0.7,
-      "source": "rules",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "Resolution for the item arriving broken in two pieces.",
       "reasoning": [
-        "Inside the return window; normal return applies."
+        "Buyer reports item arrived damaged ('came in two pieces').",
+        "Store policy states items under $20 that arrive damaged are refunded in full without return.",
+        "Item price is $15.00, which is under the $20 threshold.",
+        "Purchase was made 5 days ago, within the 7-day damage reporting window."
       ],
       "guard_notes": []
     },
@@ -322,15 +377,20 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.7,
-      "source": "rules",
+      "confidence": 0.95,
+      "source": "groq",
       "writes_before_approval": 0,
-      "buyer_wants": "(not interpreted by the offline baseline)",
+      "buyer_wants": "A size exchange for the linen shirt because it runs small.",
       "reasoning": [
-        "Inside the return window; normal return applies."
+        "The buyer's AI assistant correctly followed the instruction to order a Medium navy linen shirt.",
+        "The item was delivered to the correct address and is within the 30-day return window.",
+        "Store policy allows free size exchanges for apparel within 30 days of delivery.",
+        "The buyer did not request a refund, only indicated the item is too tight."
       ],
-      "guard_notes": []
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ]
     }
   ],
-  "tokens_used": 0
+  "tokens_used": 27618
 }

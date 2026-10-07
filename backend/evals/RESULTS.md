@@ -1,8 +1,8 @@
-# Eval results (mock / rules)
+# Eval results (mock / groq)
 
-- Overall: 85% of 20 labeled disputes
-- Standard cases: 100%
-- Hard cases (meaning, not keywords): 25% of 4
+- Overall: 95% of 20 labeled disputes
+- Standard cases: 94%
+- Hard cases (meaning, not keywords): 100% of 4
 - PayPal writes before merchant approval: 0
 
 | Case | Expected | Got | OK |
@@ -16,14 +16,14 @@
 | snad_changed_mind | OFFER_RETURN_FOR_REFUND | OFFER_RETURN_FOR_REFUND | yes |
 | snad_damaged_low_value | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | snad_damaged_high_value | OFFER_RETURN_FOR_REFUND | OFFER_RETURN_FOR_REFUND | yes |
-| snad_outside_window | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
+| snad_outside_window | SUBMIT_EVIDENCE | OFFER_PARTIAL_REFUND | NO |
 | unauth_agent_mandate | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
 | unauth_delivered | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
 | cnp_refunded | SUBMIT_REFUND_PROOF | SUBMIT_REFUND_PROOF | yes |
 | cnp_owed | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | duplicate_true | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | duplicate_false | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
-| hard_inr_wrong_color (hard) | OFFER_REPLACEMENT | SHARE_TRACKING | NO |
-| hard_stuck_wants_refund (hard) | ACCEPT_CLAIM | OFFER_REPLACEMENT | NO |
-| hard_two_pieces (hard) | ACCEPT_CLAIM | OFFER_RETURN_FOR_REFUND | NO |
+| hard_inr_wrong_color (hard) | OFFER_REPLACEMENT | OFFER_REPLACEMENT | yes |
+| hard_stuck_wants_refund (hard) | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
+| hard_two_pieces (hard) | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | hard_agent_right_size (hard) | OFFER_RETURN_FOR_REFUND | OFFER_RETURN_FOR_REFUND | yes |
