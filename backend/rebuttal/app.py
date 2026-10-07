@@ -10,6 +10,7 @@ import os
 
 from fastapi.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .approval import ApprovalError
@@ -19,7 +20,21 @@ from .scenarios import load_cases, seed_case
 DEMO_CASES = ["agent_wrong_size", "inr_delivered", "inr_misdelivered",
               "snad_damaged_low_value", "unauth_agent_mandate", "cnp_refunded"]
 
+def cors_origins(raw: str | None = None) -> list[str]:
+    """Browser origins allowed to call the API (REBUTTAL_CORS_ORIGINS, comma separated). Unset = none, which is
+    right when the dashboard is served from the same origin. Never `*`: the API takes a bearer token."""
+    raw = os.getenv("REBUTTAL_CORS_ORIGINS", "") if raw is None else raw
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip() and o.strip() != "*"]
+
+
+def configure_cors(application: FastAPI, origins: list[str]) -> None:
+    if origins:
+        application.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"],
+                                   allow_headers=["Authorization", "Content-Type"])
+
+
 app = FastAPI(title="Rebuttal", version="0.1.0")
+configure_cors(app, cors_origins())
 rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)
 
 
@@ -132,6 +147,15 @@ async def paypal_webhook(request: Request, background: BackgroundTasks):
         if dispute_id:
             background.add_task(rt.analyze, dispute_id)
     return {"received": True}
+
+
+@app.get("/api/simulator/cases", dependencies=protected)
+def simulator_cases():
+    """The labeled cases the simulator can create, for the dashboard's picker. Mock mode only, like the simulator."""
+    if rt.mock is None:
+        raise HTTPException(501, "The simulator only runs against the mock sandbox.")
+    return [{"id": c["id"], "title": c["title"], "reason": c["reason"], "agent_purchase": bool(c.get("agent_purchase"))}
+            for c in load_cases()]
 
 
 @app.post("/api/simulator/dispute/{case_id}", dependencies=protected)

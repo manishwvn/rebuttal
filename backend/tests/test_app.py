@@ -86,3 +86,43 @@ def test_a_real_sandbox_refuses_webhooks_when_no_webhook_id_is_set(client, monke
     monkeypatch.setattr(app_module.rt, "mock", None)
     event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
     assert client.post("/api/webhooks/paypal", json=event).status_code == 503
+
+
+def test_cors_origins_come_from_the_environment_and_never_allow_a_wildcard():
+    assert app_module.cors_origins("") == []
+    assert app_module.cors_origins("http://localhost:5173/, https://app.example.com") == [
+        "http://localhost:5173", "https://app.example.com"]
+    assert app_module.cors_origins("*,http://localhost:5173") == ["http://localhost:5173"]
+
+
+def test_cors_headers_only_for_configured_origins():
+    from fastapi import FastAPI
+
+    probe = FastAPI()
+    probe.get("/ping")(lambda: {"ok": True})
+    app_module.configure_cors(probe, ["http://localhost:5173"])
+    web = TestClient(probe)
+    ask = {"Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST",
+           "Access-Control-Request-Headers": "authorization,content-type"}
+    allowed = web.options("/ping", headers=ask)
+    assert allowed.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "authorization" in allowed.headers["access-control-allow-headers"].lower()
+    assert "access-control-allow-origin" not in web.options("/ping", headers={**ask, "Origin": "http://evil.example"}).headers
+
+    plain = FastAPI()
+    plain.get("/ping")(lambda: {"ok": True})
+    app_module.configure_cors(plain, [])  # unset: the middleware is not installed at all
+    assert "access-control-allow-origin" not in TestClient(plain).get("/ping", headers={"Origin": "http://x"}).headers
+
+
+def test_the_simulator_lists_the_labeled_cases(client):
+    cases = client.get("/api/simulator/cases").json()
+    hero = next(c for c in cases if c["id"] == "agent_wrong_size")
+    assert hero["agent_purchase"] is True and hero["title"] and len(cases) == 20
+    created = client.post("/api/simulator/dispute/agent_wrong_size").json()
+    assert created["status"] == "PENDING" and app_module.rt.mock.write_calls() == []
+
+
+def test_the_simulator_case_list_is_mock_only(client, monkeypatch):
+    monkeypatch.setattr(app_module.rt, "mock", None)
+    assert client.get("/api/simulator/cases").status_code == 501
