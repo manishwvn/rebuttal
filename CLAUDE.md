@@ -52,7 +52,7 @@ backend/
   rebuttal/agent/llm.py     ModelReasoner: LangChain chat models + Pydantic DecisionOut (Anthropic | Groq | NVIDIA)
   rebuttal/agent/pipeline.py plan_actions, evidence PDF, Proposal
   rebuttal/approval.py      the approval interrupt + the execute node (the only PayPal writes) + ApprovalQueue
-  rebuttal/persistence.py   checkpointer (memory | SQLite | Postgres) + per-dispute locks      audit.py   audit log
+  rebuttal/persistence.py   checkpointer (memory | SQLite | Postgres) + per-dispute locks      audit.py   audit log (file | Postgres)
   rebuttal/tracing.py       Langfuse tracing, dataset upload, experiments (off unless keys are set)
   rebuttal/runtime.py       wiring            app.py     FastAPI (dashboard API, webhook, simulator)
   rebuttal/scenarios.py     labeled case -> sandbox state
@@ -102,6 +102,10 @@ render-deploy, uv, langgraph-fundamentals, langgraph-persistence, ag-dev, ag-upd
 - `langchain-docs` and `langchain-reference`: LangGraph and LangChain docs and API reference (`.mcp.json`).
 - `ag-mcp`: AG Grid docs by version, for the AG Studio dashboard (`.mcp.json`).
 - `playwright`: drive the app in a browser for end-to-end checks (`.mcp.json`).
+- `supabase` MCP: the online database (free project `rebuttal`, us-east-1). Use `search_docs` for Supabase facts. The
+  password is only in `backend/.env` as `DATABASE_URL` (session pooler, port 5432). Tests and evals blank it and never
+  touch the online database; `backend/tests/live_postgres.py` is the one deliberate live check. Ask before creating
+  anything that could cost money.
 - Render MCP is not installed. Add it when we deploy, and ask Manish before using any Render API key.
 - Project-scoped servers in `.mcp.json` need approval once per machine (run `claude` and approve).
 
