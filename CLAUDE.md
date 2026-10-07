@@ -66,6 +66,28 @@ uvicorn rebuttal.app:app --reload
 
 ## Tooling
 
-Use the PayPal AI Toolkit plugin (github.com/paypal/AI-Toolkit) and the APIMatic Context Plugin for PayPal when
-writing PayPal integration code. Keep a running list of where APIMatic helped (endpoint shapes, request bodies, error handling) and put it in the
-README; the APIMatic prize depends on it.
+**Skills.** At the start of any new kind of work (a new framework, deploy, testing, design, docs), run the
+`find-skills` skill first and recommend matches before installing anything (global rule: ask first). Project skills
+already installed in `.claude/skills/`: frontend-design, vercel-react-best-practices, playwright-cli, webapp-testing,
+render-deploy, uv, langgraph-fundamentals, langgraph-persistence, ag-dev, ag-update.
+
+**MCP servers and plugins: prefer these over memory for API details.** Look the answer up, then write the code.
+- `paypal` plugin (PayPal AI Toolkit, project scope) and its `paypal-sandbox` MCP server: PayPal API behavior and
+  error codes. It needs `PAYPAL_SANDBOX_ACCESS_TOKEN` in `.claude/settings.local.json` (git-ignored). Refresh it
+  with `backend/scripts/refresh_paypal_token.sh` (tokens last about 9 hours), then restart Claude Code. The sandbox
+  MCP can also write to disputes: use it to read and to look things up, never to act on a dispute. Only
+  `rebuttal/approval.py` writes.
+- APIMatic Context Plugin for PayPal (`paypal@context-plugins-local`, user scope, installed with
+  `npx context-plugins install https://github.com/paypaldev/server-sdk-context-plugin-preview`): PayPal Server SDK
+  skills. Log every place it helped in `docs/apimatic-log.md`; the APIMatic prize depends on it.
+- `langchain-docs` and `langchain-reference`: LangGraph and LangChain docs and API reference (`.mcp.json`).
+- `ag-mcp`: AG Grid docs by version, for the AG Studio dashboard (`.mcp.json`).
+- `playwright`: drive the app in a browser for end-to-end checks (`.mcp.json`).
+- Render MCP is not installed. Add it when we deploy, and ask Manish before using any Render API key.
+- Project-scoped servers in `.mcp.json` need approval once per machine (run `claude` and approve).
+
+**Subagents.** Use subagents for independent tasks that can run in parallel (for example research on one
+sponsor tool while another agent writes tests), and for code review of any non-trivial change before it is
+committed. Give each subagent a self-contained prompt; they do not see this conversation.
+
+**Keys.** Never print, commit or guess a key or token. Ask Manish.
