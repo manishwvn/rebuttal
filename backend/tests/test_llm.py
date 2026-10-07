@@ -193,3 +193,32 @@ def test_token_budget_books_capacity_at_reserve_time_and_is_thread_safe():
     b._events[0][0] -= 61  # the first call ages out of the 60s window
     waiter.join(timeout=2)
     assert order == ["second"] and first is not None
+
+
+def test_strict_reasoner_raises_instead_of_using_the_rules(case):
+    from rebuttal.agent.llm import ModelCallFailed
+
+    def limited(messages):
+        raise RuntimeError("Error code: 429 - rate_limit_exceeded")
+
+    with pytest.raises(ModelCallFailed) as err:
+        reasoner(limited, strict=True).decide(case)
+    assert err.value.rate_limited
+
+    def broken(messages):
+        raise ValueError("bad json")
+
+    with pytest.raises(ModelCallFailed) as err:
+        reasoner(broken, strict=True).decide(case)
+    assert not err.value.rate_limited
+
+
+def test_provider_can_be_pinned_and_needs_its_key():
+    both = settings(groq_api_key="g", nvidia_api_key="n")
+    assert build_reasoner(both, provider="nvidia").name == "nvidia"
+    assert build_reasoner(settings(groq_api_key="g", nvidia_api_key="n", provider="nvidia")).name == "nvidia"
+    with pytest.raises(ValueError, match="needs its API key"):
+        build_reasoner(settings(groq_api_key="g"), provider="nvidia")
+    with pytest.raises(ValueError, match="unknown provider"):
+        build_reasoner(both, provider="openai")
+    assert build_reasoner(both, strict=True).strict

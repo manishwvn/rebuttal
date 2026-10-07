@@ -35,6 +35,20 @@ NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
 ResolutionName = Literal[tuple(RESOLUTIONS)]  # type: ignore[valid-type]
 
 
+class ModelCallFailed(RuntimeError):
+    """A strict reasoner (evals) could not get a decision from its model. Never silently replaced by the rules."""
+
+    def __init__(self, message: str, *, rate_limited: bool = False):
+        super().__init__(message)
+        self.rate_limited = rate_limited
+
+
+def is_rate_limit(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__} {exc}".lower()
+    return (getattr(exc, "status_code", None) == 429 or "ratelimit" in text or "rate limit" in text
+            or "rate_limit" in text or "quota" in text or "429" in text)
+
+
 class DecisionOut(BaseModel):
     """The resolution for one dispute, with the reasoning and the drafts for the buyer or PayPal."""
 
@@ -127,7 +141,8 @@ class ModelReasoner:
 
     def __init__(self, *, name: str, model_name: str, structured: Runnable, chat_model=None,
                  max_output_tokens: int = 1024, throttle: TokenBudget | None = None,
-                 fallback: RuleReasoner | None = None):
+                 fallback: RuleReasoner | None = None, strict: bool = False):
+        self.strict = strict  # True (evals): a failed model call raises ModelCallFailed instead of using the rules
         self.name = name
         self.model_name = model_name
         self.chat_model = chat_model  # the underlying LangChain chat model, for inspection
@@ -160,6 +175,9 @@ class ModelReasoner:
                     raise ValueError(f"no valid decision in model output ({result.get('parsing_error') or exc})") from exc
             return parsed.to_decision(self.name)
         except Exception as exc:  # network, rate limit, invalid output
+            if self.strict:
+                raise ModelCallFailed(f"{self.name} call failed ({type(exc).__name__}: {str(exc)[:300]})",
+                                      rate_limited=is_rate_limit(exc)) from exc
             d = self._fallback.decide(case)
             d.guard_notes.append(f"Model call failed ({type(exc).__name__}: {str(exc)[:600]}); used rules baseline.")
             return d
@@ -180,9 +198,40 @@ def _groq_budget() -> TokenBudget:
     return _GROQ_BUDGET
 
 
-def build_reasoner(settings: Settings) -> ModelReasoner | None:
-    """The model reasoner for the first provider with a key, or None (the caller then uses the rules baseline)."""
-    if settings.anthropic_api_key:
+# NVIDIA build free tier: 40 requests/min (no published token limit). Stay a little under it.
+NVIDIA_LIMITS = {"tpm": 10**9, "rpm": 30}
+_NVIDIA_BUDGET: TokenBudget | None = None
+
+
+def _nvidia_budget() -> TokenBudget:
+    global _NVIDIA_BUDGET
+    if _NVIDIA_BUDGET is None:
+        _NVIDIA_BUDGET = TokenBudget(**NVIDIA_LIMITS)
+    return _NVIDIA_BUDGET
+
+
+PROVIDERS = ("anthropic", "groq", "nvidia")
+
+
+def build_reasoner(settings: Settings, *, provider: str | None = None, strict: bool = False) -> ModelReasoner | None:
+    """The model reasoner for `provider` (or the first provider with a key), or None (rules baseline).
+
+    An explicit provider without its key raises: the caller asked for a specific model."""
+    provider = provider or settings.provider
+    if provider:
+        if provider not in PROVIDERS:
+            raise ValueError(f"unknown provider {provider!r}; use one of {', '.join(PROVIDERS)}")
+        if not getattr(settings, f"{'anthropic' if provider == 'anthropic' else provider}_api_key"):
+            raise ValueError(f"provider {provider} needs its API key in backend/.env")
+    want = lambda name: (provider == name) if provider else bool(getattr(settings, f"{name}_api_key"))  # noqa: E731
+    r = _build(settings, want)
+    if r:
+        r.strict = strict
+    return r
+
+
+def _build(settings: Settings, want) -> ModelReasoner | None:
+    if want("anthropic") and settings.anthropic_api_key:
         from langchain_anthropic import ChatAnthropic
 
         chat = ChatAnthropic(model=settings.model, api_key=settings.anthropic_api_key, temperature=TEMPERATURE,
@@ -190,7 +239,7 @@ def build_reasoner(settings: Settings) -> ModelReasoner | None:
         return ModelReasoner(name="claude", model_name=settings.model, max_output_tokens=1200, chat_model=chat,
                              structured=chat.with_structured_output(DecisionOut, method="json_schema",
                                                                     include_raw=True))
-    if settings.groq_api_key:
+    if want("groq") and settings.groq_api_key:
         from langchain_groq import ChatGroq
 
         chat = ChatGroq(model=settings.groq_model, api_key=settings.groq_api_key, temperature=TEMPERATURE,
@@ -199,12 +248,13 @@ def build_reasoner(settings: Settings) -> ModelReasoner | None:
                              chat_model=chat, throttle=_groq_budget(),
                              structured=chat.with_structured_output(DecisionOut, method="json_schema",
                                                                     include_raw=True))
-    if settings.nvidia_api_key:
+    if want("nvidia") and settings.nvidia_api_key:
         from langchain_openai import ChatOpenAI
 
         chat = ChatOpenAI(model=settings.nvidia_model, api_key=settings.nvidia_api_key, base_url=NVIDIA_BASE_URL,
                           temperature=TEMPERATURE, max_tokens=4096, timeout=240, max_retries=1)
         return ModelReasoner(name="nvidia", model_name=settings.nvidia_model, max_output_tokens=4096,
-                             chat_model=chat, structured=chat.with_structured_output(DecisionOut, method="function_calling",
+                             chat_model=chat, throttle=_nvidia_budget(),
+                             structured=chat.with_structured_output(DecisionOut, method="function_calling",
                                                                     include_raw=True))
     return None

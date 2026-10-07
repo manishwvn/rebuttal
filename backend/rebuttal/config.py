@@ -9,7 +9,7 @@ from pathlib import Path
 SANDBOX_BASE_URL = "https://api-m.sandbox.paypal.com"
 DEFAULT_MODEL = "claude-sonnet-5-5"
 DEFAULT_GROQ_MODEL = "qwen/qwen3.8-27b"
-DEFAULT_NVIDIA_MODEL = "deepseek-ai/deepseek-v4.1-flash"
+DEFAULT_NVIDIA_MODEL = "z-ai/glm-5.3"
 
 
 def _load_dotenv(path: Path) -> None:
@@ -38,6 +38,7 @@ class Settings:
     groq_model: str
     audit_path: Path
     checkpoint_target: str | None = None  # None = in memory; see persistence.py
+    provider: str | None = None  # REBUTTAL_PROVIDER=groq|nvidia|anthropic pins the model provider
     reasoner: str = "auto"  # "rules" (REBUTTAL_REASONER=rules) never calls a model, whatever keys are set
 
     @property
@@ -80,5 +81,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         groq_model=os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL),
         audit_path=Path(os.getenv("REBUTTAL_AUDIT_PATH", "audit.jsonl")),
         checkpoint_target=checkpoint_target,
+        provider=(os.getenv("REBUTTAL_PROVIDER") or "").strip().lower() or None,
         reasoner=os.getenv("REBUTTAL_REASONER", "auto").strip().lower(),
     )

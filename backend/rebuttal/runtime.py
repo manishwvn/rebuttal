@@ -30,7 +30,7 @@ def _tracing_configured() -> bool:
 class Runtime:
     def __init__(self, settings: Settings | None = None, seed_cases: list[str] | None = None,
                  force_rules: bool = False, audit_to_file: bool = False, checkpointer=None,
-                 tracing: bool | None = None):
+                 tracing: bool | None = None, provider: str | None = None, strict: bool = False):
         """`checkpointer`: a LangGraph saver; default comes from settings (in memory in mock mode).
         `tracing`: True/False forces Langfuse tracing on/off; None means on when Langfuse keys are set."""
         self.settings = settings or load_settings()
@@ -48,7 +48,7 @@ class Runtime:
             self.clock = lambda: datetime.now(timezone.utc)
 
         rules_only = force_rules or self.settings.reasoner == "rules"
-        self.reasoner = (None if rules_only else build_reasoner(self.settings)) or RuleReasoner()
+        self.reasoner = (None if rules_only else build_reasoner(self.settings, provider=provider, strict=strict)) or RuleReasoner()
 
         self.audit = AuditLog(self.settings.audit_path if audit_to_file else None)
         self.agent = DisputeAgent(

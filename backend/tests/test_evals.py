@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from langchain_core.runnables import RunnableLambda
 
 from evals import run as evals_run
 from rebuttal import tracing
@@ -60,3 +61,24 @@ def test_langfuse_flag_needs_keys_and_the_whole_dataset(fake_langfuse, monkeypat
     monkeypatch.setattr(tracing, "langfuse_configured", lambda: False)
     with pytest.raises(SystemExit, match="LANGFUSE_PUBLIC_KEY"):
         evals_run.run(force_rules=True, langfuse=True)
+
+
+def test_a_rate_limited_model_makes_the_eval_invalid_and_writes_nothing(monkeypatch, tmp_path):
+    import json
+
+    from evals import run as ev
+    from rebuttal.agent import llm
+
+    def limited(messages, config=None):
+        raise RuntimeError("429 rate_limit_exceeded")
+
+    def fake_build(settings, **kw):
+        r = llm.ModelReasoner(name="fake", model_name="m", structured=RunnableLambda(limited), strict=kw.get("strict", False))
+        return r
+
+    monkeypatch.setattr("rebuttal.runtime.build_reasoner", fake_build)
+    monkeypatch.setattr(ev, "HERE", tmp_path)
+    monkeypatch.setenv("REBUTTAL_REASONER", "auto")
+    with pytest.raises(ev.InvalidRun, match="rate or quota limit on case"):
+        ev.run(force_rules=False, only={"agent_wrong_size", "snad_damaged_high_value"})
+    assert not list(tmp_path.iterdir())
