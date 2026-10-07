@@ -8,6 +8,7 @@ from __future__ import annotations
 import hmac
 import os
 
+from fastapi.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel
 
@@ -111,8 +112,21 @@ def audit(dispute_id: str):
 
 @app.post("/api/webhooks/paypal")
 async def paypal_webhook(request: Request, background: BackgroundTasks):
-    # TODO(week 3): verify signature via POST /v1/notifications/verify-webhook-signature
+    """PayPal sends CUSTOMER.DISPUTE.* here. Every delivery is verified with PayPal's verify-webhook-signature call
+    against PAYPAL_WEBHOOK_ID before anything happens. Without a webhook id only the local mock accepts deliveries
+    (fail closed on a real sandbox). Only CUSTOMER.DISPUTE.CREATED starts an analysis, which never writes."""
     event = await request.json()
+    webhook_id = rt.settings.paypal_webhook_id
+    if webhook_id:
+        try:
+            genuine = await run_in_threadpool(rt.client.read_only().verify_webhook_signature,
+                                              webhook_id, dict(request.headers), event)
+        except Exception as exc:  # noqa: BLE001 - PayPal unreachable: ask it to deliver again later
+            raise HTTPException(503, "Could not verify the webhook with PayPal") from exc
+        if not genuine:
+            raise HTTPException(401, "Webhook signature verification failed")
+    elif rt.mock is None:
+        raise HTTPException(503, "PAYPAL_WEBHOOK_ID is not set; refusing unverified webhooks")
     if event.get("event_type") == "CUSTOMER.DISPUTE.CREATED":
         dispute_id = event.get("resource", {}).get("dispute_id")
         if dispute_id:

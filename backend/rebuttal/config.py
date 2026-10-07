@@ -40,6 +40,7 @@ class Settings:
     muse_api_key: str | None = field(repr=False)
     muse_model: str
     audit_path: Path
+    paypal_webhook_id: str | None = None  # PAYPAL_WEBHOOK_ID: webhook deliveries are verified against it
     database_url: str | None = field(default=None, repr=False)  # a postgres:// DATABASE_URL: checkpoints and the audit log live there
     checkpoint_target: str | None = field(default=None, repr=False)  # None = in memory; see persistence.py
     provider: str | None = None  # REBUTTAL_PROVIDER=groq|nvidia|anthropic pins the model provider
@@ -86,6 +87,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         muse_api_key=os.getenv("MUSE_API_KEY") or None,
         muse_model=os.getenv("MUSE_MODEL", DEFAULT_MUSE_MODEL),
         audit_path=Path(os.getenv("REBUTTAL_AUDIT_PATH", "audit.jsonl")),
+        paypal_webhook_id=os.getenv("PAYPAL_WEBHOOK_ID") or None,
         database_url=database_url if database_url.startswith(("postgres://", "postgresql://")) else None,
         checkpoint_target=checkpoint_target,
         provider=(os.getenv("REBUTTAL_PROVIDER") or "").strip().lower() or None,

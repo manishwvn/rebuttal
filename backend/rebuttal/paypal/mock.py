@@ -100,7 +100,7 @@ class MockPayPal:
         return httpx.MockTransport(self._handle)
 
     def write_calls(self) -> list[tuple[str, str]]:
-        return [c for c in self.calls if c[0] == "POST" and c[1] != "/v1/oauth2/token"]
+        return [c for c in self.calls if c[0] == "POST" and c[1] not in ("/v1/oauth2/token", "/v1/notifications/verify-webhook-signature")]
 
     # ----------------------------------------------------------- routing
     def _event(self, event_type: str, dispute: dict) -> None:
@@ -137,6 +137,12 @@ class MockPayPal:
             return _json(200, {"access_token": "MOCK-TOKEN", "token_type": "Bearer", "expires_in": 32400})
         if not request.headers.get("authorization", "").startswith("Bearer "):
             return _error(401, "AUTHENTICATION_FAILURE", "Missing bearer token")
+        if path == "/v1/notifications/verify-webhook-signature" and method == "POST":
+            # The real call needs PayPal's signing certificate; the mock accepts any complete request except a
+            # transmission_sig of "invalid", which tests use for a forged delivery.
+            body = json.loads(request.content or b"{}")
+            ok = body.get("transmission_sig") not in (None, "", "invalid") and bool(body.get("webhook_id"))
+            return _json(200, {"verification_status": "SUCCESS" if ok else "FAILURE"})
 
         if path == "/v1/customer/disputes" and method == "GET":
             items = [{k: d[k] for k in SUMMARY_FIELDS if k in d} for d in self.disputes.values()]

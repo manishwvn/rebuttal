@@ -53,7 +53,7 @@ The PayPal client, approval gate, audit log and eval harness carry over, so the 
 - `scripts/seed_sandbox.py`: create orders, upload tracking, open disputes (buyer API with consent, or Resolution Center by hand).
 - Proposals are persisted by the LangGraph checkpointer (done: SQLite locally, tested across a real restart). Postgres
   (Supabase) holds checkpoints and the audit log when `DATABASE_URL` is set, verified live Oct 7.
-- Webhook endpoint with signature verification (the endpoint exists but does not verify yet); deploy backend to
+- Webhook endpoint with signature verification (done Oct 7, `PAYPAL_WEBHOOK_ID`); `render.yaml` and `docs/deploy.md` written; deploy backend to
   Render so PayPal can reach it (see "Persistence: Supabase" below).
 - Grow evals to ~40 cases. You write 10 of them yourself, without looking at the agent, so the score isn't self-graded.
 

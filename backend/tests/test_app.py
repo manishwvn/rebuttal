@@ -56,9 +56,33 @@ def test_the_api_token_is_enforced_when_set_and_the_webhook_and_health_stay_open
     ok = client.post("/api/disputes/PP-D-2000/analyze", headers={"Authorization": "Bearer s3cret"})
     assert ok.status_code == 200 and ok.json()["status"] == "PENDING"
     event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
-    assert client.post("/api/webhooks/paypal", json=event).status_code == 200  # signature check is planned
+    assert client.post("/api/webhooks/paypal", json=event).status_code == 200  # open in local mock mode when no webhook id is set
 
 
 def test_health_reports_no_database_when_none_is_configured(client):
     body = client.get("/api/health").json()
     assert body["ok"] is True and body["database"] is None
+
+
+SIG = {"paypal-auth-algo": "SHA256withRSA", "paypal-cert-url": "https://api.sandbox.paypal.com/cert",
+       "paypal-transmission-id": "t-1", "paypal-transmission-sig": "good", "paypal-transmission-time": "2026-10-07T00:00:00Z"}
+
+
+def test_a_configured_webhook_id_requires_a_genuine_signature(client, monkeypatch):
+    from dataclasses import replace
+
+    monkeypatch.setattr(app_module.rt, "settings", replace(app_module.rt.settings, paypal_webhook_id="WH-1"))
+    event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
+    assert client.post("/api/webhooks/paypal", json=event).status_code == 401  # no signature headers at all
+    assert client.post("/api/webhooks/paypal", json=event, headers={**SIG, "paypal-transmission-sig": "invalid"}
+                       ).status_code == 401
+    assert app_module.rt.approvals.latest_for("PP-D-2001") is None  # nothing was analysed
+    assert client.post("/api/webhooks/paypal", json=event, headers=SIG).json() == {"received": True}
+    assert app_module.rt.approvals.latest_for("PP-D-2001").status == "PENDING"
+    assert app_module.rt.mock.write_calls() == []  # verifying is not a write
+
+
+def test_a_real_sandbox_refuses_webhooks_when_no_webhook_id_is_set(client, monkeypatch):
+    monkeypatch.setattr(app_module.rt, "mock", None)
+    event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
+    assert client.post("/api/webhooks/paypal", json=event).status_code == 503

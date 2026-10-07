@@ -92,6 +92,7 @@ def test_the_write_method_list_covers_every_mutating_client_method():
             if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr == "_request" \
                     and call.args and isinstance(call.args[0], ast.Constant) and call.args[0].value != "GET":
                 posting.add(fn.name)
+    posting -= {"verify_webhook_signature"}  # a POST that only asks PayPal whether an event is genuine
     assert posting == WRITE_METHODS, f"WRITE_METHODS is out of date: {posting ^ WRITE_METHODS}"
 
 
@@ -149,3 +150,31 @@ def test_the_scan_catches_the_evasions_a_reviewer_tried(name, code, tmp_path):
     path = tmp_path / "sneaky.py"
     path.write_text(code)
     assert references_in(path), f"the boundary scan misses: {name}"
+
+
+def test_only_post_to_the_token_and_verify_paths_passes_the_write_gates():
+    import httpx
+
+    from rebuttal.paypal.client import ReadOnlyTransport, WriteGateTransport, WriteNotPermitted
+
+    inner = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+    for gate in (ReadOnlyTransport(inner), WriteGateTransport(inner)):
+        for path in ("/v1/oauth2/token", "/v1/notifications/verify-webhook-signature"):
+            assert gate.handle_request(httpx.Request("POST", f"https://api-m.sandbox.paypal.com{path}")).status_code == 200
+            with pytest.raises(WriteNotPermitted):  # POST only: no PATCH/DELETE on those paths
+                gate.handle_request(httpx.Request("DELETE", f"https://api-m.sandbox.paypal.com{path}"))
+        with pytest.raises(WriteNotPermitted):
+            gate.handle_request(httpx.Request("POST", "https://api-m.sandbox.paypal.com/v1/customer/disputes/X/send-message"))
+
+
+def test_render_blueprint_holds_no_secret_values_and_keeps_groq_live():
+    import yaml
+
+    blueprint = yaml.safe_load((BACKEND.parent / "render.yaml").read_text())
+    env = {e["key"]: e for e in blueprint["services"][0]["envVars"]}
+    for key in ("PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_WEBHOOK_ID", "GROQ_API_KEY", "DATABASE_URL",
+                "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"):
+        assert env[key] == {"key": key, "sync": False}, f"{key} must be prompted for in the dashboard, not stored"
+    assert env["REBUTTAL_API_TOKEN"].get("generateValue") is True and "value" not in env["REBUTTAL_API_TOKEN"]
+    assert env["PAYPAL_ENV"]["value"] == "sandbox" and "ANTHROPIC_API_KEY" not in env
+    assert blueprint["services"][0]["healthCheckPath"] == "/api/health"

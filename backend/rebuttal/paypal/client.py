@@ -30,8 +30,15 @@ import httpx
 SANDBOX_HOSTS = {"api-m.sandbox.paypal.com", "api.sandbox.paypal.com"}
 WRITE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
 TOKEN_PATH = "/v1/oauth2/token"  # authentication, not a change to any dispute
+VERIFY_PATH = "/v1/notifications/verify-webhook-signature"  # a POST that only answers "is this event from PayPal?"
+# The only POSTs that change nothing at PayPal, so the write gates let them through (POST only).
+READ_ONLY_POSTS = frozenset({TOKEN_PATH, VERIFY_PATH})
 
 _writes_permitted: ContextVar[bool] = ContextVar("paypal_writes_permitted", default=False)
+
+
+def _is_read_only(method: str, path: str) -> bool:
+    return method in {"GET", "HEAD"} or (method == "POST" and path in READ_ONLY_POSTS)
 
 
 class WriteNotPermitted(RuntimeError):
@@ -57,7 +64,7 @@ class WriteGateTransport(httpx.BaseTransport):
         self._inner = inner
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
-        if request.method not in {"GET", "HEAD"} and request.url.path != TOKEN_PATH and not _writes_permitted.get():
+        if not _is_read_only(request.method, request.url.path) and not _writes_permitted.get():
             raise WriteNotPermitted(f"{request.method} {request.url.path} is a PayPal write outside the approval gate")
         return self._inner.handle_request(request)
 
@@ -72,7 +79,7 @@ class ReadOnlyTransport(httpx.BaseTransport):
         self._inner = inner
 
     def handle_request(self, request: httpx.Request) -> httpx.Response:
-        if request.method not in {"GET", "HEAD"} and request.url.path != TOKEN_PATH:
+        if not _is_read_only(request.method, request.url.path):
             raise WriteNotPermitted(f"read-only PayPal handle refused {request.method} {request.url.path}")
         return self._inner.handle_request(request)
 
@@ -146,7 +153,7 @@ class PayPalClient:
 
     def _request(self, method: str, path: str, *, headers: dict | None = None,
                  request_id: str | None = None, **kw) -> Any:
-        if method in WRITE_METHODS and not _writes_permitted.get():
+        if method in WRITE_METHODS and not _is_read_only(method, path) and not _writes_permitted.get():
             raise WriteNotPermitted(f"{method} {path} is a PayPal write outside the approval gate")
         hdrs = {"Authorization": f"Bearer {self._access_token()}"}
         if method in {"POST", "PATCH"}:
@@ -298,6 +305,19 @@ class PayPalClient:
         return self._request("GET", "/v1/notifications/webhooks-events", params=params).get(
             "events", []
         )
+
+    def verify_webhook_signature(self, webhook_id: str, headers: dict, event: dict) -> bool:
+        """Ask PayPal whether a webhook delivery is genuine. `headers` are the request's PayPal-* headers (any case),
+        `event` the parsed body. Changes nothing at PayPal (see READ_ONLY_POSTS)."""
+        h = {k.lower(): v for k, v in headers.items()}
+        body = {
+            "auth_algo": h.get("paypal-auth-algo"), "cert_url": h.get("paypal-cert-url"),
+            "transmission_id": h.get("paypal-transmission-id"), "transmission_sig": h.get("paypal-transmission-sig"),
+            "transmission_time": h.get("paypal-transmission-time"), "webhook_id": webhook_id, "webhook_event": event,
+        }
+        if not all(body[k] for k in ("auth_algo", "cert_url", "transmission_id", "transmission_sig", "transmission_time")):
+            return False
+        return self._request("POST", VERIFY_PATH, json=body).get("verification_status") == "SUCCESS"
 
     def close(self) -> None:
         self._http.close()
