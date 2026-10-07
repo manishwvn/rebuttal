@@ -1,0 +1,48 @@
+# Render Blueprint for the Rebuttal backend (FastAPI + LangGraph). Deploy: Render dashboard > New > Blueprint >
+# pick this GitHub repo. Every secret below is `sync: false`: Render asks for its value in the dashboard and it
+# never enters git. Step-by-step: docs/deploy.md.
+services:
+  - type: web
+    name: rebuttal-api
+    runtime: python
+    plan: 0.5c-512mb          # paid, always on (free instances sleep after 15 idle minutes and would drop webhooks)
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install uv && uv sync --frozen --no-dev --extra postgres
+    startCommand: uv run --no-sync uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health   # also runs SELECT 1 on Supabase, so it doubles as the keep-alive
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      # PayPal sandbox only: the code refuses anything else.
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID      # from the webhook you register for this service's URL
+        sync: false
+      - key: REBUTTAL_MOCK          # 0 = the real PayPal sandbox. 1 = the in-memory mock sandbox plus the simulator
+        value: "0"
+      # Live model: Groq. (Anthropic would win if ANTHROPIC_API_KEY were set, so do not set it here.)
+      - key: REBUTTAL_REASONER
+        value: auto
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
+      # Supabase: checkpoints and the audit log. Session pooler string, port 5432.
+      - key: DATABASE_URL
+        sync: false
+      # The dashboard API needs this bearer token; the app refuses to start without it against the real sandbox.
+      - key: REBUTTAL_API_TOKEN
+        generateValue: true
+      # Langfuse tracing (optional: leave the keys empty to run without it).
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_BASE_URL
+        value: https://us.cloud.langfuse.com
