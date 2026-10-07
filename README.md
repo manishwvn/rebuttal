@@ -34,6 +34,9 @@ uv run python -m scripts.demo              # the agent handles 6 demo disputes e
 uv run uvicorn rebuttal.app:app --reload   # API on http://127.0.0.1:8000/docs
 ```
 
+The merchant dashboard (React + AG Grid) is in `frontend/`; its run commands are in
+[frontend/README.md](frontend/README.md).
+
 Configuration lives in `backend/.env` (copy `backend/.env.example`; the file is git-ignored):
 
 | Setting | What it does |

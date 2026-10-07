@@ -1,4 +1,4 @@
-# Runs the whole backend test suite on every push and pull request. Needs no secrets: tests run on the in-memory
+# Runs the backend test suite and the dashboard build + Playwright run on every push and pull request. Needs no secrets: tests run on the in-memory
 # mock sandbox with the rules provider (tests/conftest.py pins REBUTTAL_MOCK=1, REBUTTAL_REASONER=rules, no tracing,
 # no online database).
 name: tests
@@ -25,3 +25,37 @@ jobs:
         run: uv sync --frozen --extra postgres
       - name: Tests
         run: uv run --frozen pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install the backend the Playwright run starts (mock mode, no secrets, no model)
+        run: uv sync --frozen
+        working-directory: backend
+      - name: Install (locked)
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Playwright (backend in mock mode + the built dashboard; uses the runner's Google Chrome)
+        run: npx playwright test
+      - name: Keep the Playwright trace when a test fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: frontend/test-results

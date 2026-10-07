@@ -1,0 +1,31 @@
+/* Design tokens from preview/template.html (the design target): a merchant's case desk. */
+:root {
+  --bg: #f2f5f8; --surface: #ffffff; --raised: #f7f9fb; --ink: #14202e; --muted: #5a6777; --line: #d8dee6;
+  --accent: #0e6b63; --accent-soft: #dcefec; --on-accent: #ffffff;
+  --good: #1d7a3d; --good-soft: #e1f3e6; --warn: #985a00; --warn-soft: #fbefd8; --bad: #b3262d; --bad-soft: #f9e1e2;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e141b; --surface: #161f29; --raised: #1b2531; --ink: #e5ebf1; --muted: #93a0ae; --line: #2a3643;
+    --accent: #4cc2b4; --accent-soft: #143936; --on-accent: #062522;
+    --good: #5bc983; --good-soft: #15321f; --warn: #e6a84a; --warn-soft: #3a2a12; --bad: #f07178; --bad-soft: #3c1a1d;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.mono { font-family: var(--mono); font-size: 0.84em; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
