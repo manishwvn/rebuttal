@@ -1,0 +1,13 @@
+{
+  "enabledPlugins": {
+    "paypal@paypal-ai-toolkit": true
+  },
+  "extraKnownMarketplaces": {
+    "paypal-ai-toolkit": {
+      "source": {
+        "source": "github",
+        "repo": "paypal/AI-Toolkit"
+      }
+    }
+  }
+}
