@@ -213,7 +213,7 @@ def test_nvidia_reasoner_skips_thinking_before_json(rt):
     d = _nvidia(chat).decide(case)
     assert (d.resolution, d.source, d.buyer_wants) == ("OFFER_RETURN_FOR_REFUND", "nvidia", "a medium")
     assert chat.kwargs["model"] == "deepseek-ai/deepseek-v4.1-flash"
-    assert chat.kwargs["temperature"] == 0.2 and chat.kwargs["max_tokens"] == 4096
+    assert chat.kwargs["temperature"] == 0 and chat.kwargs["max_tokens"] == 4096
 
 
 def test_nvidia_reasoner_falls_back_to_rules(rt):

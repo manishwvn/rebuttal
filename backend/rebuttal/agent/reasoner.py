@@ -55,6 +55,7 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
 
 
 DAMAGE_WORDS = policies.DAMAGE_WORDS
+TEMPERATURE = 0.0  # evals and the demo should repeat; the models still vary a little at 0
 
 
 @dataclass
@@ -276,6 +277,7 @@ class ClaudeReasoner:
             resp = self._client.messages.create(
                 model=self._model,
                 max_tokens=1200,
+                temperature=TEMPERATURE,
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": json.dumps(payload, indent=2, default=str)}],
             )
@@ -339,7 +341,7 @@ class OpenAICompatReasoner:
             resp = self._client.chat.completions.create(
                 model=self._model,
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
-                temperature=0.2, top_p=1, max_tokens=self.MAX_TOKENS, stream=False,
+                temperature=TEMPERATURE, top_p=1, max_tokens=self.MAX_TOKENS, stream=False,
                 **({"extra_body": self.EXTRA_BODY} if self.EXTRA_BODY else {}),
             )
             used = getattr(getattr(resp, "usage", None), "total_tokens", None) or 0
