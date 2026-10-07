@@ -1,0 +1,30 @@
+{
+  "mcpServers": {
+    "ag-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "ag-mcp"
+      ],
+      "env": {}
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "env": {}
+    },
+    "langchain-docs": {
+      "type": "http",
+      "url": "https://docs.langchain.com/mcp"
+    },
+    "langchain-reference": {
+      "type": "http",
+      "url": "https://reference.langchain.com/mcp"
+    }
+  }
+}
