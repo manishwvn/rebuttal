@@ -67,34 +67,6 @@ def test_evidence_submission_attaches_pdf(rt):
     assert rt.mock.evidence_files["PP-D-2002"] == ["evidence-PP-D-2002.pdf"]
 
 
-class _FakeMessages:
-    def __init__(self, text):
-        self.text = text
-
-    def create(self, **kw):
-        block = type("B", (), {"type": "text", "text": self.text})()
-        return type("R", (), {"content": [block]})()
-
-
-def test_claude_reasoner_parses_and_is_guarded(rt):
-    from rebuttal.agent.reasoner import ClaudeReasoner
-
-    r = ClaudeReasoner.__new__(ClaudeReasoner)
-    r._model, r._fallback = "test", __import__("rebuttal.agent.reasoner", fromlist=["RuleReasoner"]).RuleReasoner()
-    r._client = type("C", (), {"messages": _FakeMessages(
-        'Sure: {"buyer_wants": "a medium", "resolution": "OFFER_REPLACEMENT", "partial_refund_pct": null,'
-        ' "confidence": 0.9, "reasoning": ["assistant picked L"], "message_to_buyer": "Hi", "evidence_summary": ""}')})()
-    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
-    d = guard(r.decide(case), case)
-    # The model chose a replacement; PayPal allows only refund offers on this dispute, so guard converts it.
-    assert (d.resolution, d.source, d.buyer_wants) == ("OFFER_RETURN_FOR_REFUND", "claude", "a medium")
-    assert any("allowed_response_options" in n for n in d.guard_notes)
-
-    r._client = type("C", (), {"messages": _FakeMessages("not json")})()
-    d2 = r.decide(case)
-    assert d2.source == "rules" and "failed" in d2.guard_notes[0]
-
-
 def test_missing_due_date_is_tolerated(rt):
     del rt.mock.disputes["PP-D-2000"]["seller_response_due_date"]
     p = rt.analyze("PP-D-2000")
@@ -180,95 +152,6 @@ def test_mock_rejects_offer_types_paypal_does_not_allow(rt):
         rt.client.make_offer("PP-D-2000", note="x", offer_type="REPLACEMENT_WITHOUT_REFUND")
     assert err.value.status == 400 and "INVALID_OFFER_TYPE" in str(err.value)
     assert rt.mock.disputes["PP-D-2000"]["status"] == "WAITING_FOR_SELLER_RESPONSE"
-
-
-class _FakeChat:
-    def __init__(self, content, reasoning_content=None, fail=False):
-        self.content, self.reasoning_content, self.fail, self.kwargs = content, reasoning_content, fail, None
-
-    def create(self, **kw):
-        self.kwargs = kw
-        if self.fail:
-            raise RuntimeError("429 rate limited")
-        msg = type("M", (), {"content": self.content, "reasoning_content": self.reasoning_content})()
-        return type("R", (), {"choices": [type("C", (), {"message": msg})()]})()
-
-
-def _nvidia(chat):
-    from rebuttal.agent.reasoner import NvidiaReasoner
-
-    client = type("C", (), {"chat": type("Ch", (), {"completions": chat})()})()
-    return NvidiaReasoner("unused", "deepseek-ai/deepseek-v4.1-flash", client=client)
-
-
-_ANSWER = ('{"buyer_wants": "a medium", "resolution": "OFFER_RETURN_FOR_REFUND", "partial_refund_pct": null, '
-           '"confidence": 0.9, "reasoning": ["assistant picked L"], "message_to_buyer": "Hi", "evidence_summary": ""}')
-
-
-def test_nvidia_reasoner_skips_thinking_before_json(rt):
-    thinking = ('<think>The buyer wants {"resolution": "SHARE_TRACKING"}? No. Let me reconsider the facts.</think>\n'
-                'Okay, my analysis: sizes differ {not json}.\n')
-    chat = _FakeChat(thinking + _ANSWER, reasoning_content='{"resolution": "ACCEPT_CLAIM"} scratch work')
-    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
-    d = _nvidia(chat).decide(case)
-    assert (d.resolution, d.source, d.buyer_wants) == ("OFFER_RETURN_FOR_REFUND", "nvidia", "a medium")
-    assert chat.kwargs["model"] == "deepseek-ai/deepseek-v4.1-flash"
-    assert chat.kwargs["temperature"] == 0 and chat.kwargs["max_tokens"] == 4096
-
-
-def test_nvidia_reasoner_falls_back_to_rules(rt):
-    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
-    d = _nvidia(_FakeChat("I could not decide.")).decide(case)
-    assert d.source == "rules" and "failed" in d.guard_notes[0]
-    d = _nvidia(_FakeChat("", fail=True)).decide(case)
-    assert d.source == "rules" and "RuntimeError" in d.guard_notes[0]
-
-
-def test_runtime_prefers_anthropic_groq_nvidia_then_rules(monkeypatch):
-    from rebuttal.config import Settings
-
-    base = load_settings()
-    mk = lambda **kw: Runtime(settings=Settings(**{**base.__dict__, "mock": True, **kw}), seed_cases=[])  # noqa: E731
-    assert mk(anthropic_api_key="a", groq_api_key="g").reasoner.name == "claude"
-    assert mk(anthropic_api_key=None, groq_api_key="g", nvidia_api_key="n").mode == "mock / groq"
-    assert mk(anthropic_api_key=None, groq_api_key=None, nvidia_api_key="n").mode == "mock / nvidia"
-    assert mk(anthropic_api_key=None, groq_api_key=None, nvidia_api_key=None).reasoner.name == "rules"
-
-
-def test_groq_reasoner_hides_reasoning_and_stays_in_budget(rt):
-    from rebuttal.agent.reasoner import GroqReasoner, TokenBudget
-
-    chat = _FakeChat("<think>hmm {\"resolution\": \"ACCEPT_CLAIM\"}</think>" + _ANSWER)
-    chat.create_orig = chat.create
-    client = type("C", (), {"chat": type("Ch", (), {"completions": chat})()})()
-    r = GroqReasoner("unused", "qwen/qwen3.8-27b", client=client)
-    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
-    d = r.decide(case)
-    assert (d.resolution, d.source) == ("OFFER_RETURN_FOR_REFUND", "groq")
-    assert chat.kwargs["extra_body"] == {"reasoning_format": "hidden"} and chat.kwargs["max_tokens"] == 500
-
-
-def test_token_budget_waits_for_the_window():
-    from rebuttal.agent.reasoner import TokenBudget
-
-    now, slept = [0.0], []
-    b = TokenBudget(tpm=8000, rpm=30, clock=lambda: now[0], sleep=lambda s: (slept.append(s), now.__setitem__(0, now[0] + s)))
-    b.wait(5000); b.record(5000)
-    b.wait(5000)  # 5000 + 5000 > 8000: must wait out the first call's 60s window
-    assert slept and now[0] >= 60
-
-
-def test_token_budget_limits_reserved_output_tokens():
-    from rebuttal.agent.reasoner import TokenBudget
-
-    now = [0.0]
-    b = TokenBudget(tpm=8000, rpm=30, otpm=1000, clock=lambda: now[0],
-                    sleep=lambda s: now.__setitem__(0, now[0] + s))
-    for _ in range(2):
-        b.wait(1500, 500); b.record(900, 500)
-    t = now[0]
-    b.wait(1500, 500)  # a third 500-token reservation would exceed 1,000/min
-    assert now[0] - t >= 59
 
 
 def _case_facts(case_id):

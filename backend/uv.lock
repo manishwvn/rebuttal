@@ -1490,7 +1490,6 @@ name = "rebuttal"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "anthropic" },
     { name = "fastapi" },
     { name = "fpdf2" },
     { name = "httpx" },
@@ -1501,7 +1500,6 @@ dependencies = [
     { name = "langfuse" },
     { name = "langgraph" },
     { name = "langgraph-checkpoint-sqlite" },
-    { name = "openai" },
     { name = "pydantic" },
     { name = "uvicorn" },
 ]
@@ -1519,7 +1517,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", specifier = ">=0.40" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fpdf2", specifier = ">=2.8" },
     { name = "httpx", specifier = ">=0.27" },
@@ -1531,7 +1528,6 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.2.12" },
     { name = "langgraph-checkpoint-postgres", marker = "extra == 'postgres'", specifier = ">=3.1.2" },
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3.1.1" },
-    { name = "openai", specifier = ">=1.50" },
     { name = "psycopg", extras = ["binary", "pool"], marker = "extra == 'postgres'", specifier = ">=3.3.6" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "uvicorn", specifier = ">=0.30" },

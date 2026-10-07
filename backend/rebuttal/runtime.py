@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from .agent.pipeline import Agent, Proposal
-from .agent.reasoner import ClaudeReasoner, GroqReasoner, NvidiaReasoner, RuleReasoner
+from .agent.llm import build_reasoner
+from .agent.reasoner import RuleReasoner
 from .approval import ApprovalQueue
 from .audit import AuditLog
 from .config import Settings, load_settings
@@ -32,14 +33,7 @@ class Runtime:
                                        self.settings.client_secret)
             self.clock = lambda: datetime.now(timezone.utc)
 
-        if self.settings.anthropic_api_key and not force_rules:
-            self.reasoner = ClaudeReasoner(self.settings.anthropic_api_key, self.settings.model)
-        elif self.settings.groq_api_key and not force_rules:
-            self.reasoner = GroqReasoner(self.settings.groq_api_key, self.settings.groq_model)
-        elif self.settings.nvidia_api_key and not force_rules:
-            self.reasoner = NvidiaReasoner(self.settings.nvidia_api_key, self.settings.nvidia_model)
-        else:
-            self.reasoner = RuleReasoner()
+        self.reasoner = (None if force_rules else build_reasoner(self.settings)) or RuleReasoner()
 
         self.audit = AuditLog(self.settings.audit_path if audit_to_file else None)
         self.agent = Agent(self.client, self.store, self.reasoner, self.audit, self.clock)

@@ -1,9 +1,10 @@
 """Step 4-5 of the agent: decide the resolution and draft the response.
 
 Two interchangeable reasoners:
-- ClaudeReasoner: reads the buyer's words, the facts, the policies and any AI
-  assistant purchase record, then decides and drafts. Used when
-  ANTHROPIC_API_KEY is set.
+- ModelReasoner (agent/llm.py): a LangChain chat model reads the buyer's words,
+  the facts, the policies and any AI assistant purchase record, then decides and
+  drafts, with output validated against a Pydantic schema. Used when a provider
+  key is set.
 - RuleReasoner: a keyword-and-rules baseline that runs offline. It exists so
   the pipeline and evals run without a key, and as the yardstick the model
   must beat on the "hard" cases where meaning matters more than keywords.
@@ -16,7 +17,6 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import asdict, dataclass, field
 
 from .. import policies
@@ -196,7 +196,7 @@ def draft_evidence_summary(resolution: str, case: CaseFile) -> str:
     return " ".join(lines)
 
 
-# --------------------------------------------------------------------- Claude
+# ------------------------------------------------------------------- prompt
 SYSTEM_PROMPT = """You resolve PayPal disputes for a small online shop called Juniper & Oak.
 Goal: the cheapest fair resolution. Keep the sale when the merchant isn't at fault, refund fast when the buyer is right, and never fight a case the evidence can't win.
 Read the buyer's own words carefully: they often pick the wrong dispute reason, and what they ask for matters.
@@ -228,19 +228,6 @@ def build_payload(case: CaseFile) -> dict:
     }
 
 
-def to_decision(data: dict, source: str) -> Decision:
-    return Decision(
-        resolution=str(data["resolution"]).strip(),
-        confidence=float(data.get("confidence", 0.5)),
-        reasoning=list(data.get("reasoning", []))[:5],
-        buyer_wants=str(data.get("buyer_wants", "")),
-        message_to_buyer=str(data.get("message_to_buyer", "")),
-        evidence_summary=str(data.get("evidence_summary", "")),
-        partial_refund_pct=data.get("partial_refund_pct"),
-        source=source,
-    )
-
-
 def extract_decision_json(text: str) -> dict:
     """The final JSON object with a "resolution" key. Reasoning models may think first, in <think> tags or
     as plain text containing braces, so drop think blocks and take the last matching object."""
@@ -259,127 +246,6 @@ def extract_decision_json(text: str) -> dict:
     if found is None:
         raise ValueError("no JSON decision in model output")
     return found
-
-
-class ClaudeReasoner:
-    name = "claude"
-
-    def __init__(self, api_key: str, model: str, fallback: RuleReasoner | None = None):
-        import anthropic  # imported lazily so offline mode needs no key
-
-        self._client = anthropic.Anthropic(api_key=api_key)
-        self._model = model
-        self._fallback = fallback or RuleReasoner()
-
-    def decide(self, case: CaseFile) -> Decision:
-        payload = build_payload(case)
-        try:
-            resp = self._client.messages.create(
-                model=self._model,
-                max_tokens=1200,
-                temperature=TEMPERATURE,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": json.dumps(payload, indent=2, default=str)}],
-            )
-            text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
-            data = json.loads(re.search(r"\{.*\}", text, re.S).group(0))
-            return to_decision(data, self.name)
-        except Exception as exc:  # network, parsing, schema
-            d = self._fallback.decide(case)
-            d.guard_notes.append(f"Model call failed ({type(exc).__name__}); used rules baseline.")
-            return d
-
-
-class TokenBudget:
-    """Keeps calls inside a provider's per-minute limits (sliding 60s window): requests, total tokens, and
-    reserved output tokens (providers count a request's max_tokens against the output limit up front)."""
-
-    def __init__(self, tpm: int, rpm: int, otpm: int | None = None, clock=time.monotonic, sleep=time.sleep):
-        self.tpm, self.rpm, self.otpm, self._clock, self._sleep = tpm, rpm, otpm, clock, sleep
-        self._events: list[tuple[float, int, int]] = []  # (time, tokens, reserved output)
-
-    def wait(self, estimate: int, output: int = 0) -> None:
-        while True:
-            now = self._clock()
-            self._events = [e for e in self._events if now - e[0] < 60]
-            used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
-            fits = (len(self._events) < self.rpm and used + estimate <= self.tpm
-                    and (self.otpm is None or reserved + output <= self.otpm))
-            if fits or not self._events:
-                return
-            self._sleep(max(0.5, 60 - (now - self._events[0][0])))
-
-    def record(self, tokens: int, output: int = 0) -> None:
-        self._events.append((self._clock(), tokens, output))
-
-
-class OpenAICompatReasoner:
-    """Same prompt, payload and fallback as ClaudeReasoner, over an OpenAI-compatible chat API."""
-
-    name = ""
-    BASE_URL = ""
-    MAX_TOKENS = 4096
-    EXTRA_BODY: dict | None = None
-
-    def __init__(self, api_key: str, model: str, fallback: RuleReasoner | None = None, client=None,
-                 throttle: TokenBudget | None = None):
-        if client is None:
-            from openai import OpenAI  # imported lazily so offline mode needs no key
-
-            client = OpenAI(base_url=self.BASE_URL, api_key=api_key, timeout=240.0, max_retries=2)
-        self._client = client
-        self._model = model
-        self._fallback = fallback or RuleReasoner()
-        self._throttle = throttle
-        self.tokens_used = 0
-
-    def decide(self, case: CaseFile) -> Decision:
-        try:
-            user = json.dumps(build_payload(case), indent=2, default=str)
-            if self._throttle:
-                self._throttle.wait((len(SYSTEM_PROMPT) + len(user)) // 3 + self.MAX_TOKENS, self.MAX_TOKENS)
-            resp = self._client.chat.completions.create(
-                model=self._model,
-                messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
-                temperature=TEMPERATURE, top_p=1, max_tokens=self.MAX_TOKENS, stream=False,
-                **({"extra_body": self.EXTRA_BODY} if self.EXTRA_BODY else {}),
-            )
-            used = getattr(getattr(resp, "usage", None), "total_tokens", None) or 0
-            self.tokens_used += used
-            if self._throttle:
-                self._throttle.record(used, self.MAX_TOKENS)
-            # Only message.content: reasoning_content is the model's thinking and is ignored.
-            text = resp.choices[0].message.content or ""
-            return to_decision(extract_decision_json(text), self.name)
-        except Exception as exc:  # network, rate limit, parsing, schema
-            d = self._fallback.decide(case)
-            d.guard_notes.append(f"Model call failed ({type(exc).__name__}: {str(exc)[:600]}); used rules baseline.")
-            return d
-
-
-class NvidiaReasoner(OpenAICompatReasoner):
-    name = "nvidia"
-    BASE_URL = "https://integrate.api.nvidia.com/v1"
-
-
-class GroqReasoner(OpenAICompatReasoner):
-    """Groq free tier for qwen/qwen3.8-27b: 30 requests/min, 1K/day, 8K tokens/min, 200K/day, and (from the 429
-    error) 1,000 output tokens/min."""
-
-    name = "groq"
-    BASE_URL = "https://api.groq.com/openai/v1"
-    MAX_TOKENS = 500  # reserved against the 1,000 output-tokens/min limit (so 2 calls/min); answers use ~300
-    EXTRA_BODY = {"reasoning_format": "hidden"}
-    TPM, RPM, OTPM = 8000, 30, 1000
-    _shared_budget: TokenBudget | None = None  # one budget per process: the evals build a reasoner per case
-
-    def __init__(self, api_key: str, model: str, fallback: RuleReasoner | None = None, client=None,
-                 throttle: TokenBudget | None = None):
-        if throttle is None:
-            if GroqReasoner._shared_budget is None:
-                GroqReasoner._shared_budget = TokenBudget(self.TPM, self.RPM, self.OTPM)
-            throttle = GroqReasoner._shared_budget
-        super().__init__(api_key, model, fallback, client, throttle)
 
 
 # ---------------------------------------------------------------------- guard
