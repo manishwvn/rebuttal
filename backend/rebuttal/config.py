@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 SANDBOX_BASE_URL = "https://api-m.sandbox.paypal.com"
@@ -28,17 +28,17 @@ def _load_dotenv(path: Path) -> None:
 class Settings:
     paypal_env: str
     client_id: str
-    client_secret: str
+    client_secret: str = field(repr=False)
     mock: bool
-    anthropic_api_key: str | None
+    anthropic_api_key: str | None = field(repr=False)
     model: str  # Claude model
-    nvidia_api_key: str | None
+    nvidia_api_key: str | None = field(repr=False)
     nvidia_model: str
-    groq_api_key: str | None
+    groq_api_key: str | None = field(repr=False)
     groq_model: str
     audit_path: Path
-    database_url: str | None = None  # a postgres:// DATABASE_URL: checkpoints and the audit log live there
-    checkpoint_target: str | None = None  # None = in memory; see persistence.py
+    database_url: str | None = field(default=None, repr=False)  # a postgres:// DATABASE_URL: checkpoints and the audit log live there
+    checkpoint_target: str | None = field(default=None, repr=False)  # None = in memory; see persistence.py
     provider: str | None = None  # REBUTTAL_PROVIDER=groq|nvidia|anthropic pins the model provider
     reasoner: str = "auto"  # "rules" (REBUTTAL_REASONER=rules) never calls a model, whatever keys are set
 

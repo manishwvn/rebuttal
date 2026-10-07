@@ -26,6 +26,10 @@ rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)
 # PayPal webhook needs `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call
 # approve is the "human" in the approval gate, so set it on any deployment.
 API_TOKEN = os.getenv("REBUTTAL_API_TOKEN", "").strip()
+if not API_TOKEN and (not rt.settings.mock or rt.settings.database_url) and os.getenv("REBUTTAL_ALLOW_OPEN_API") != "1":
+    # Real sandbox or a shared database: an open approve endpoint would make the approval gate meaningless.
+    raise RuntimeError("Set REBUTTAL_API_TOKEN (any long random string) before serving the real sandbox or a shared "
+                       "database. For local development only, REBUTTAL_ALLOW_OPEN_API=1 skips this check.")
 
 
 def require_token(authorization: str | None = Header(default=None)) -> None:

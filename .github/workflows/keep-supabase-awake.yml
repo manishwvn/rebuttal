@@ -16,7 +16,9 @@ jobs:
     steps:
       - name: Ping the app health endpoint
         if: ${{ vars.APP_HEALTH_URL != '' }}
-        run: curl --fail --silent --show-error --max-time 60 --retry 3 "${{ vars.APP_HEALTH_URL }}"
+        env:
+          APP_HEALTH_URL: ${{ vars.APP_HEALTH_URL }}
+        run: curl --fail --silent --show-error --max-time 60 --retry 3 "$APP_HEALTH_URL"
       - name: Query the database directly
         if: ${{ vars.APP_HEALTH_URL == '' }}
         env:
