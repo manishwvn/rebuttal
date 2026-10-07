@@ -30,6 +30,10 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
         event.preventDefault()
         if (!busy) onCancel()
       }}
+      // Chrome can close a modal dialog without firing `cancel` (a second Escape): keep the parent state in step.
+      onClose={() => {
+        if (!busy) onCancel()
+      }}
     >
       <h2 id="confirm-title">{title}</h2>
       <div className="confirm-body">{children}</div>

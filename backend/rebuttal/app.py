@@ -34,8 +34,8 @@ def configure_cors(application: FastAPI, origins: list[str]) -> None:
 
 
 app = FastAPI(title="Rebuttal", version="0.1.0")
-configure_cors(app, cors_origins())
-rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)
+rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)  # loads backend/.env into the environment
+configure_cors(app, cors_origins())  # after the Runtime, so REBUTTAL_CORS_ORIGINS may live in backend/.env
 
 
 # Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health and the

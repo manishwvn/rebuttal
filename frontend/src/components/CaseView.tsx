@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, ApiError } from '../api'
+import { api } from '../api'
 import {
   actionAmount,
   actionText,
@@ -131,8 +131,9 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
       await onChanged()
     } catch (e) {
       setError(errorText(e))
-      // A 409 means the proposal is no longer approvable: show why, and refresh so the screen matches the server.
-      if (e instanceof ApiError && e.status === 409) await onChanged().catch(() => undefined)
+      // Show why, and refresh so the screen matches the server. A 409 means the proposal is no longer approvable.
+      // Any other failure (for example a 500 after PayPal answered 5xx) may also have moved the proposal on.
+      await onChanged().catch(() => undefined)
     } finally {
       setBusy(false)
     }
@@ -234,12 +235,16 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           {callLine(dispute.dispute_id, action)}
         </code>
 
-        {originalText !== null ? (
+        {proposal.status === 'APPROVED' && originalText !== null ? (
+          <p className="note" data-testid="approved-text-note">
+            You approved this, possibly with edits. The dashboard can’t show the edited text after an interruption; a retry sends exactly what you approved.
+          </p>
+        ) : originalText !== null ? (
           <>
             <label htmlFor="draft" className="label">
               Message the buyer will receive {pending ? '(you can edit it)' : ''}
             </label>
-            <textarea id="draft" value={draft} readOnly={!pending} onChange={(e) => setDraft(e.target.value)} rows={5} />
+            <textarea id="draft" value={draft} readOnly={!pending} onChange={(e) => setDraft(e.target.value)} rows={5} maxLength={2000} />
           </>
         ) : (
           <>
@@ -293,7 +298,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
       )}
       {confirming === 'retry' && (
         <ConfirmDialog title="Retry sending to PayPal?" confirmLabel="Retry" busy={busy} error={error} onConfirm={confirm} onCancel={close}>
-          <SendSummary dispute={dispute} action={action} amount={actionAmount(action, summary.amount)} message={originalText === null ? null : messageToSend} edited={false} />
+          <SendSummary dispute={dispute} action={action} amount={actionAmount(action, summary.amount)} message={null} messageNote="The message you approved, including any edits you made, exactly as approved." edited={false} />
         </ConfirmDialog>
       )}
       {confirming === 'reject' && (
@@ -318,7 +323,7 @@ function callLine(disputeId: string, action: PlannedAction): string {
   return [endpointFor(disputeId, action), ...extra].join('  ·  ')
 }
 
-function SendSummary({ dispute, action, amount, message, edited }: { dispute: Dispute; action: PlannedAction; amount: string | null; message: string | null; edited: boolean }) {
+function SendSummary({ dispute, action, amount, message, messageNote, edited }: { dispute: Dispute; action: PlannedAction; amount: string | null; message: string | null; messageNote?: string; edited: boolean }) {
   return (
     <>
       <p>Approving makes exactly this one call to the PayPal sandbox:</p>
@@ -335,9 +340,11 @@ function SendSummary({ dispute, action, amount, message, edited }: { dispute: Di
         )}
         <dt>Amount</dt>
         <dd>{amount ?? 'No money moves with this call'}</dd>
-        <dt>{message === null ? 'Evidence' : 'Message'}</dt>
+        <dt>{message === null && !messageNote ? 'Evidence' : 'Message'}</dt>
         <dd>
-          {message === null ? (
+          {messageNote ? (
+            messageNote
+          ) : message === null ? (
             <>{action.params.evidences?.map((e) => e.evidence_type).join(', ')} with an evidence PDF ({action.params.filename})</>
           ) : (
             <>

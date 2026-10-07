@@ -98,3 +98,29 @@ test('a proposal that is no longer approvable shows the 409 plainly', async ({ p
   await dialog.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByTestId('case-status')).toHaveText('Rejected')
 })
+
+test('cancelling the confirm dialog sends nothing', async ({ page }) => {
+  const disputeId = await simulate(page, 'inr_no_tracking')
+  const caseView = page.getByTestId('case-view')
+
+  await caseView.getByRole('button', { name: 'Approve' }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByTestId('send-summary')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(dialog).toBeHidden()
+
+  // Escape closes it too, and the dialog can be opened again afterwards.
+  await caseView.getByRole('button', { name: 'Approve' }).click()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await caseView.getByRole('button', { name: 'Approve' }).click()
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  await expect(page.getByTestId('case-status')).toHaveText('Pending')
+  await expect(statusCell(page, disputeId)).toHaveText('Pending')
+  const steps = await auditSteps(page)
+  expect(steps).toContain('propose')
+  expect(steps).not.toContain('approve')
+  expect(steps).not.toContain('execute')
+})

@@ -43,7 +43,7 @@ SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
 | Variable | Default | Meaning |
 |---|---|---|
 | `VITE_API_BASE` | `http://localhost:8000` | Backend base URL |
-| `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. Anything in `VITE_*` is public in the built bundle: only use a token meant for this dashboard. |
+| `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. Anything in `VITE_*` is public in the built bundle, and the backend has one token, which is the one that authorizes approve. Use it for local runs only. A hosted build must not set it: add a login or session before the dashboard is deployed (slice 2). |
 
 The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` on the backend (comma separated, no
 wildcard). Playwright sets it for `http://localhost:4173`.

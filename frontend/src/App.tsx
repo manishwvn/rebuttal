@@ -15,11 +15,14 @@ export default function App() {
   const [audit, setAudit] = useState<AuditEntry[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  // A slow audit response for a dispute the merchant has already left must not overwrite the one now open.
+  // Only the newest audit request may set the trail: a slow older response (another dispute, or the same one before
+  // a decision) must not overwrite it.
   const openId = useRef<string | null>(null)
+  const auditRequest = useRef(0)
   const loadAudit = useCallback(async (disputeId: string) => {
+    const request = ++auditRequest.current
     const entries = await api.audit(disputeId)
-    if (openId.current === disputeId) setAudit(entries)
+    if (request === auditRequest.current && openId.current === disputeId) setAudit(entries)
   }, [])
 
   const refresh = useCallback(

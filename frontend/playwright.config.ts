@@ -10,7 +10,7 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL: APP_ORIGIN,
@@ -29,6 +29,14 @@ export default defineConfig({
         REBUTTAL_MOCK: '1',
         REBUTTAL_REASONER: 'rules',
         REBUTTAL_PROVIDER: '',
+        // Defence in depth: mock mode and the rules reasoner never use these, and now nothing can even see them.
+        PAYPAL_CLIENT_ID: '',
+        PAYPAL_CLIENT_SECRET: '',
+        GROQ_API_KEY: '',
+        ANTHROPIC_API_KEY: '',
+        NVIDIA_API_KEY: '',
+        LANGFUSE_PUBLIC_KEY: '',
+        LANGFUSE_SECRET_KEY: '',
         REBUTTAL_TRACING: '0',
         REBUTTAL_ALLOW_OPEN_API: '1',
         REBUTTAL_API_TOKEN: '',
@@ -39,7 +47,8 @@ export default defineConfig({
       },
     },
     {
-      command: `npm run build && npx vite preview --port ${APP_PORT} --strictPort`,
+      // CI builds in its own step; locally this builds first so the run never serves a stale dist/.
+      command: `${process.env.CI ? '' : 'npm run build && '}npx vite preview --port ${APP_PORT} --strictPort`,
       url: APP_ORIGIN,
       reuseExistingServer: false,
       timeout: 120_000,
