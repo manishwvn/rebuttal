@@ -1,8 +1,8 @@
 {
   "mode": "mock / nvidia",
   "cases": 20,
-  "accuracy": 0.8,
-  "standard_accuracy": 0.75,
+  "accuracy": 0.95,
+  "standard_accuracy": 0.938,
   "hard_accuracy": 1.0,
   "hard_cases": 4,
   "approval_gate_violations": 0,
@@ -14,12 +14,16 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.9,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund because the shirt is too tight",
+      "buyer_wants": "A linen shirt that actually fits \u2014 a free size exchange, not a refund.",
       "reasoning": [
-        "Buyer's AI assistant correctly ordered medium size per instruction"
+        "Agent Atlas ordered exactly per its instruction (navy linen shirt, medium); assistant_misordered is false, so no misorder fix applies.",
+        "Item matches the listing; 'runs small' is a fit preference, not a not-as-described defect.",
+        "buyer_asks_for_refund is false \u2014 the buyer wants a wearable fit, not money back.",
+        "Store policy offers free size exchange within 30 days of delivery; delivered 6 days ago, well within window.",
+        "Exchange keeps the sale and is the cheapest fair fix; tracking confirms delivery to the correct address."
       ],
       "guard_notes": [
         "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
@@ -32,15 +36,16 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.9,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "refund because the vase arrived in two pieces",
+      "buyer_wants": "The buyer wants the bud vase that arrived broken made right \u2014 a replacement or refund for the damaged item.",
       "reasoning": [
-        "Buyer reports item arrived in two pieces (damaged)",
-        "Store policy: damaged items under $20 are refunded in full without return",
-        "Item price is $15, within the under $20 threshold",
-        "Item was delivered to correct address, but damage occurred in transit"
+        "Buyer reports the vase 'came in two pieces' \u2014 the item arrived damaged, so the not-as-described complaint is valid and the merchant is at fault.",
+        "Store policy: damaged items under $20 are refunded in full with no return requested.",
+        "Item price is $15, under the $20 threshold; delivered 2 days ago, well within the 7-day damage-report window.",
+        "Returning a shattered vase is impractical, and shipping a replacement costs more than the $15 refund.",
+        "Tracking confirms delivery to the correct address, so this is purely a damage case, not a delivery dispute."
       ],
       "guard_notes": []
     },
@@ -54,12 +59,13 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a full refund",
+      "buyer_wants": "A full refund because the item never arrived and they no longer want it.",
       "reasoning": [
-        "likely_lost is true - package has been in transit for 22 days with no delivery scan",
-        "buyer_asks_for_refund is true - buyer explicitly wants money back",
-        "tracking shows IN_TRANSIT status with no recent scans indicating delivery",
-        "within_return_window is true - buyer is eligible for refund"
+        "likely_lost is true: USPS shows IN_TRANSIT with no scan in 22 days, so the package is treated as lost",
+        "Buyer explicitly asks for money back, not the item, so tracking details won't resolve it",
+        "No proof of delivery exists (cannot_prove_delivery false, status IN_TRANSIT), so evidence can't win this case",
+        "Return-for-refund is not feasible since the buyer never received the package to send back",
+        "Policy favors refunding fast when the buyer is right; $28 refund is the cheapest fair outcome"
       ],
       "guard_notes": []
     },
@@ -70,16 +76,16 @@
       "expected": "OFFER_REPLACEMENT",
       "got": "OFFER_REPLACEMENT",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.9,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund for receiving the wrong color shirt",
+      "buyer_wants": "The buyer wants the navy linen shirt they ordered, since they received grey instead.",
       "reasoning": [
-        "Buyer received item but claims wrong color (grey instead of navy)",
-        "Order shows Linen shirt in Navy / Size M matching what was ordered",
-        "Shipment was delivered to correct address on 2026-10-05",
-        "Store policy for AI assistant purchases: offer free exchange if assistant picks wrong variant",
-        "No evidence of delivery issue - tracking confirms delivery"
+        "Buyer's own message says the package arrived; tracking confirms DELIVERED to the matching address 1 day ago, so the NOT_RECEIVED reason doesn't fit the real issue.",
+        "Order record shows Linen shirt (Navy / Size M) while the buyer reports receiving grey \u2014 a wrong-variant shipment, not a lost or undelivered package.",
+        "buyer_asks_for_refund is false; the buyer wants the correct item, not money back.",
+        "OFFER_REPLACEMENT keeps the sale and fixes the error at the cost of one shirt, cheaper than a full refund or return-for-refund.",
+        "Fighting the not-received claim with delivery proof can't resolve a wrong-color complaint and would only delay and escalate."
       ],
       "guard_notes": []
     },
@@ -88,17 +94,18 @@
       "title": "Thinks they were charged twice",
       "hard": false,
       "expected": "SUBMIT_EVIDENCE",
-      "got": "SHARE_TRACKING",
-      "correct": false,
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "to know why they were charged twice",
+      "buyer_wants": "The buyer wants to know whether they were charged twice for their order.",
       "reasoning": [
-        "Buyer claims duplicate charge but facts show only one matching charge on same day",
-        "No duplicate charge found in transaction records",
-        "Item is in transit with tracking showing normal delivery progress",
-        "Buyer did not ask for refund, only questioned the charge"
+        "duplicate_charge_found is false and only 1 matching charge same day, so no duplicate exists",
+        "buyer_asks_for_refund is false; they only asked a question, so no refund is owed",
+        "transaction_search_available is true, so the single-charge transaction record can be submitted to PayPal",
+        "Item shipped via USPS and is in transit with tracking uploaded; keeping the sale is the cheapest fair outcome",
+        "No refund was issued, so SUBMIT_REFUND_PROOF does not apply"
       ],
       "guard_notes": []
     },
@@ -109,15 +116,16 @@
       "expected": "ACCEPT_CLAIM",
       "got": "ACCEPT_CLAIM",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.97,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund for the duplicate charge",
+      "buyer_wants": "The buyer wants the duplicate charge removed so they pay only once for the candle.",
       "reasoning": [
-        "Duplicate charge found in transaction records with 2 matching charges same day",
-        "Buyer claims being charged twice for one candle",
-        "No tracking to submit as evidence",
-        "Refund is the cheapest fair resolution for confirmed duplicate"
+        "duplicate_charge_found is true with 2 matching charges on the same day, confirming the buyer's claim.",
+        "refund_issued is false, so there is no refund proof to submit instead.",
+        "Accepting the claim refunds the disputed duplicate charge; the buyer keeps the candle and pays once.",
+        "Policy: refund fast when the buyer is right \u2014 the evidence fully supports them.",
+        "Fighting a valid duplicate-charge claim would waste the 237-hour response window and lose anyway."
       ],
       "guard_notes": []
     },
@@ -126,18 +134,18 @@
       "title": "Return received, refund never sent",
       "hard": false,
       "expected": "ACCEPT_CLAIM",
-      "got": "SUBMIT_EVIDENCE",
-      "correct": false,
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund for the returned throw blanket",
+      "buyer_wants": "The buyer wants the $54 refund for a return the shop already received three weeks ago.",
       "reasoning": [
-        "Return was received by the merchant three weeks ago",
-        "Tracking shows delivery to correct address on 2026-08-31",
-        "Buyer is outside the 30-day return window but has already returned the item",
-        "No evidence of item damage or misdelivery",
-        "Refund has not yet been issued"
+        "return_received is true: the shop has the returned blanket in hand.",
+        "refund_issued is false: no refund has gone out, so the CREDIT_NOT_PROCESSED claim is valid.",
+        "Buyer asks for a refund and the return was already accepted, so refunding fast is the cheapest fair path.",
+        "within_return_window is false, but that is moot since the return was already received and accepted.",
+        "No refund proof or duplicate-charge evidence exists to submit instead (refund_issued false, duplicate_charge_found false)."
       ],
       "guard_notes": []
     },
@@ -151,12 +159,13 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund for the returned throw blanket",
+      "buyer_wants": "Their $54.00 refund for the returned blanket, which they believe was never processed.",
       "reasoning": [
-        "Refund RF0002Y7741 was already issued for $54.00",
-        "Buyer claims no refund received but transaction shows refund processed",
-        "Tracking confirms delivery to correct address on 2026-09-10",
-        "Return was not received by merchant"
+        "refund_issued is true with refund ID RF0002Y7741 for the full $54.00, directly contradicting the CREDIT_NOT_PROCESSED claim",
+        "No duplicate charge found and only one matching charge same day, so no second refund is owed",
+        "Original item was delivered (UPS 1Z999AA10123456789, 2026-09-10, address matches); return_received is false, yet the refund was issued anyway",
+        "Refunding again would double-pay the buyer; proving the existing refund is the cheapest fair resolution",
+        "Refund may simply be pending in the buyer's bank, so a friendly note with the refund ID helps them trace it"
       ],
       "guard_notes": []
     },
@@ -167,15 +176,16 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.85,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "I didn't make this purchase.",
+      "buyer_wants": "The buyer claims the purchase was unauthorised and wants the charge reversed.",
       "reasoning": [
-        "Buyer claims unauthorized purchase but order was delivered to correct address",
-        "Tracking shows UPS delivery on 2026-09-26 with matching address",
-        "Shipment status confirms delivery, buyer is within return window",
-        "No evidence of fraud or unauthorized access in facts"
+        "Buyer claims unauthorised purchase, but UPS tracking 1Z999AA10123456788 shows DELIVERED on 2026-09-26 to the address matching the buyer's PayPal account.",
+        "Proof of delivery is already uploaded to PayPal, and the transaction record is searchable with no duplicate charge found.",
+        "Merchant is not at fault and the evidence (delivery to buyer's own address) supports keeping the sale.",
+        "Buyer has not asked for a refund; the 30-day return window is still open if they want to send the wallet back.",
+        "No special-case flags apply: not an AI-assistant order, not lost, delivery provable."
       ],
       "guard_notes": []
     },
@@ -186,35 +196,35 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.92,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "I don't recognize this charge.",
+      "buyer_wants": "The buyer wants to understand a $36 charge they don't recognize, which was actually placed by their own AI assistant under a standing reorder instruction.",
       "reasoning": [
-        "Buyer claims unauthorized charge but order was placed by AI assistant Atlas with clear instruction to reorder cedar candle refills up to $40/month.",
-        "Shipment was delivered to the correct address on 2026-10-03 via UPS with tracking number 1C999AA10123456787.",
-        "Tracking was uploaded to PayPal and delivery is confirmed, so evidence can be submitted to dispute the unauthorized claim."
+        "Purchase was placed by the buyer's AI assistant Atlas, which followed its instruction to reorder cedar refills up to $40/month; the $36 charge is within that limit.",
+        "Store policy: standing reorder instructions stay active until the customer cancels them, and each reorder is charged and shipped like a normal order.",
+        "UPS tracking 1Z999AA10123456787 shows delivery on 2026-10-03 to the buyer's address on file, so the order is real and received.",
+        "No duplicate charge found (single matching charge that day), and the buyer does not ask for a refund.",
+        "Evidence (assistant instructions, transaction record, proof of delivery) can win this inquiry, so the sale should be kept."
       ],
-      "guard_notes": [
-        "Unauthorised-purchase claim: converted 'share tracking' into submitting evidence."
-      ]
+      "guard_notes": []
     },
     {
       "id": "snad_outside_window",
       "title": "Complaint long after the return window",
       "hard": false,
       "expected": "SUBMIT_EVIDENCE",
-      "got": "SHARE_TRACKING",
+      "got": "OFFER_PARTIAL_REFUND",
       "correct": false,
-      "confidence": 0.85,
+      "confidence": 0.7,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for the soy candle (Fig) because it is not what was expected from the photos.",
+      "buyer_wants": "The buyer is disappointed the Fig candle looks different from the listing photos and wants some satisfaction, though they have not asked for a refund.",
       "reasoning": [
-        "Buyer claims item not as described but has not requested a refund or return.",
-        "Item was delivered to the correct address on 2026-07-07 with tracking proof.",
-        "Return window (30 days) has passed, so full refund is not eligible under store policy.",
-        "Sharing tracking details confirms delivery and may resolve the buyer's concern."
+        "Claim is subjective ('not what I expected from the photos') and the buyer has not requested a refund.",
+        "Item was delivered 91 days ago to the correct address; the 30-day return window has passed, so a return-for-refund is not available per policy.",
+        "No damage, defect, or misorder is claimed, so accepting the full $40 claim is not warranted.",
+        "A partial refund lets the buyer keep the candle and resolves the inquiry cheaply without fighting a case the evidence can't win."
       ],
       "guard_notes": []
     },
@@ -225,17 +235,20 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.8,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for the damaged walnut serving board.",
+      "buyer_wants": "A serving board without the deep scratch \u2014 they want the item made right, not a refund.",
       "reasoning": [
-        "Buyer reports item arrived with deep scratch across the middle.",
-        "Item was delivered to correct address on 2026-10-02 via UPS with tracking.",
-        "Store policy allows returns within 30 days for full refund if item is damaged.",
-        "Buyer has not requested refund, but damage claim is valid under return policy."
+        "Buyer reports a deep scratch on arrival, so the item arrived damaged and the shop is at fault, not the buyer.",
+        "buyer_asks_for_refund is false \u2014 the buyer wants the product fixed, so a replacement is the friendly fix that keeps the sale.",
+        "Delivery is confirmed (UPS, delivered to the matching address 4 days ago), so tracking or delivery evidence cannot address a condition claim \u2014 never fight a case the evidence can't win.",
+        "Store policy covers return shipping when an item arrives damaged, so a free replacement with a prepaid label is fair.",
+        "A replacement costs far less than the $85 full refund and preserves the customer relationship."
       ],
-      "guard_notes": []
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ]
     },
     {
       "id": "snad_damaged_low_value",
@@ -247,12 +260,13 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "refund for damaged item",
+      "buyer_wants": "A remedy for the Speckled ceramic mug that arrived cracked down the side.",
       "reasoning": [
-        "Item arrived damaged (cracked) as stated by buyer",
-        "Store policy: damaged items under $20 are refunded in full without return",
-        "Item price is $12 which is under $20 threshold",
-        "No need to fight this claim - policy supports full refund"
+        "Buyer reports the mug arrived cracked \u2014 a damage claim, not a true not-as-described issue.",
+        "Store policy: damaged items under $20 are refunded in full with no return required.",
+        "refund_without_return_eligible is true, and delivery was 3 days ago, within the 7-day damage reporting window.",
+        "Tracking confirms delivery to the correct address, but the issue is damage, not non-delivery, so evidence would not help.",
+        "Cheapest fair resolution: full $12.00 refund without requiring a return."
       ],
       "guard_notes": []
     },
@@ -266,12 +280,13 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "send it back",
+      "buyer_wants": "To send the blanket back for a refund because it is not her style, even though she admits the color is as described.",
       "reasoning": [
-        "Buyer wants to return the item for a refund",
-        "Item was delivered to the correct address on 2026-09-30",
-        "Within the 30-day return window for unused items",
-        "Store policy allows returns within 30 days for full refund with buyer paying return shipping"
+        "Buyer's own words: 'The color is fine I guess, just not my style' \u2014 this is buyer's remorse, not merchandise-not-as-described.",
+        "Item was delivered to the correct address 6 days ago (UPS 1Z999AA10123456785, DELIVERED), so delivery is not in dispute.",
+        "Purchase is within the 30-day return window, and store policy allows unused items to be returned for a full refund with buyer-paid return shipping.",
+        "refund_without_return_eligible is false, so a full refund requires the item back; accepting the claim outright would overpay.",
+        "Offering a return for refund is the cheapest fair path and avoids fighting a case the evidence cannot win on the stated reason."
       ],
       "guard_notes": []
     },
@@ -280,17 +295,18 @@
       "title": "Delivered to the wrong address",
       "hard": false,
       "expected": "OFFER_REPLACEMENT",
-      "got": "SUBMIT_EVIDENCE",
-      "correct": false,
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
       "confidence": 0.85,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for the wool beanie that was supposedly delivered to the wrong address.",
+      "buyer_wants": "The buyer wants the beanie they paid for, since tracking shows it was delivered to the wrong address.",
       "reasoning": [
-        "Tracking shows USPS delivered the package on 2026-09-29 with status DELIVERED.",
-        "The delivered_address_matches is false, meaning the delivery location differs from the buyer's address.",
-        "We have tracking uploaded to PayPal and proof of delivery, which supports our case.",
-        "The buyer claims delivery to wrong address but we have evidence of delivery to a different location."
+        "Tracking shows DELIVERED but delivered_address_matches is false, so submitting proof of delivery would confirm the buyer's claim rather than win the case.",
+        "Buyer did not ask for a refund (buyer_asks_for_refund is false); they want the item, so a replacement keeps the sale.",
+        "A replacement costs less than the $38.00 full refund, making it the cheapest fair fix.",
+        "Days since last scan is 7, under the 10-day lost-package threshold, but misdelivery to a wrong address still means the buyer never received the item.",
+        "Merchant is not at fault (USPS misdelivery), so no full refund is owed; a carrier claim can recover the loss."
       ],
       "guard_notes": []
     },
@@ -304,12 +320,13 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "a refund for the undelivered item",
+      "buyer_wants": "The buyer wants their money back because the ceramic mug never arrived.",
       "reasoning": [
-        "cannot_prove_delivery is true - no tracking to submit",
-        "buyer claims item never arrived",
-        "18 days since purchase with no delivery proof",
-        "store has no evidence to contest the claim"
+        "Not-received dispute with cannot_prove_delivery=true: no tracking exists to submit, so refund the buyer.",
+        "has_tracking=false and tracking_uploaded_to_paypal=false, so SHARE_TRACKING or SUBMIT_EVIDENCE cannot win this case.",
+        "likely_lost=false, but without proof of delivery PayPal would rule for the buyer anyway; refunding now avoids a formal claim and fees.",
+        "refund_issued=false, so SUBMIT_REFUND_PROOF is not applicable.",
+        "Buyer's message 'Never arrived' confirms non-delivery; a full $22.00 refund is the fair, cheapest resolution."
       ],
       "guard_notes": []
     },
@@ -320,15 +337,16 @@
       "expected": "SHARE_TRACKING",
       "got": "SHARE_TRACKING",
       "correct": true,
-      "confidence": 0.9,
+      "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for the undelivered tea towel set.",
+      "buyer_wants": "The buyer wants their tea towel set to arrive \u2014 they are just checking on a package that is still in transit.",
       "reasoning": [
-        "Tracking shows package in transit with last scan 1 day ago.",
-        "Buyer has not received item yet but tracking is active.",
-        "No evidence of lost package or delivery failure.",
-        "Within return window and no refund requested yet."
+        "Package is IN_TRANSIT with USPS and last scanned only 1 day ago \u2014 moving normally, not lost.",
+        "Only 5 days since purchase, still within a normal delivery window.",
+        "Tracking is already uploaded to PayPal and cannot_prove_delivery is false, so there is proof of shipment.",
+        "Buyer did not ask for a refund; they simply want the item, so keeping the sale with tracking details is the cheapest fair fix.",
+        "likely_lost is false, so no refund or replacement is warranted yet."
       ],
       "guard_notes": []
     },
@@ -339,12 +357,16 @@
       "expected": "SUBMIT_EVIDENCE",
       "got": "SUBMIT_EVIDENCE",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.9,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for a package they claim never arrived.",
+      "buyer_wants": "The buyer wants their money back, claiming the wool beanie was never delivered.",
       "reasoning": [
-        "Tracking shows USPS delivered the wool beanie to the correct address on 2026-09-15, 21 days ago."
+        "USPS tracking 9400111899223300112233 shows DELIVERED on 2026-09-15 to the buyer's address, which matches the order on file.",
+        "cannot_prove_delivery is false and likely_lost is false, so proof of delivery exists and the package is not treated as lost.",
+        "Tracking was already uploaded to PayPal; at CHARGEBACK stage, evidence submission is the way to contest a not-received claim.",
+        "Buyer's message asserts non-receipt, but no facts (lost package, refund request, duplicate charge) support refunding.",
+        "Records show a single matching charge same day with no duplicate, ruling out a billing error."
       ],
       "guard_notes": []
     },
@@ -358,12 +380,12 @@
       "confidence": 0.95,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "to know where their order is and why they haven't received it",
+      "buyer_wants": "The buyer wants to know where their order is, not a refund.",
       "reasoning": [
-        "Tracking shows package was delivered to the correct address on 2026-09-25",
-        "Buyer has not received the item but delivery is confirmed",
-        "No evidence of lost package or delivery failure",
-        "Buyer is asking for status update, not demanding refund"
+        "UPS tracking shows the Cedar soy candle DELIVERED on 2026-09-25 to the buyer's address, which matches the order.",
+        "Buyer's message only asks where the package is; buyer_asks_for_refund is false.",
+        "likely_lost is false and cannot_prove_delivery is false, so no refund trigger applies.",
+        "Sharing tracking details is the cheapest fair resolution and keeps the sale intact."
       ],
       "guard_notes": []
     },
@@ -374,23 +396,26 @@
       "expected": "OFFER_RETURN_FOR_REFUND",
       "got": "OFFER_RETURN_FOR_REFUND",
       "correct": true,
-      "confidence": 0.95,
+      "confidence": 0.92,
       "source": "nvidia",
       "writes_before_approval": 0,
-      "buyer_wants": "A refund for receiving the wrong size shirt.",
+      "buyer_wants": "The navy linen shirt in the medium they asked for, not the large their assistant ordered.",
       "reasoning": [
-        "The buyer's AI assistant was instructed to get a medium but ordered a large (assistant_misordered is true).",
-        "The item was delivered correctly to the right address (tracking shows DELIVERED, address matches).",
-        "The buyer is within the 30-day return window for unused items.",
-        "Store policy allows free size exchanges within 30 days of delivery."
+        "assistant_misordered is true: Atlas was instructed to buy a medium but ordered Size L, so the buyer did not get what was requested \u2014 do not fight with evidence.",
+        "Buyer does not ask for a refund (buyer_asks_for_refund false); they want the correct size, so the friendly fix is a replacement.",
+        "Store policy allows free size exchanges within 30 days of delivery; delivered 2026-10-01, only 5 days ago, well within the window.",
+        "Replacement keeps the $48 sale and costs only return shipping on a correct-size swap, the cheapest fair resolution.",
+        "Tracking shows delivery to the right address, so there is no delivery dispute to concede."
       ],
-      "guard_notes": []
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ]
     }
   ],
-  "tokens_used": 35995,
+  "tokens_used": 59808,
   "langfuse": {
-    "name": "nvidia-laguna-xs-2.1-20261007-062242",
+    "name": "nvidia-glm-5.3-flash-20261007-064723",
     "dataset": "rebuttal-disputes",
-    "url": "https://us.cloud.langfuse.com/project/cmuxe1wn005w1ad0cnzaz71j0/datasets/cmuxm7mrc07x0ad0dvm2h896y/runs/050b8f1e-bed7-4b84-87d0-eb2a9b04f40b"
+    "url": "https://us.cloud.langfuse.com/project/cmuxe1wn005w1ad0cnzaz71j0/datasets/cmuxm7mrc07x0ad0dvm2h896y/runs/81c2e151-0351-4877-8132-334125b3ff94"
   }
 }
