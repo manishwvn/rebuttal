@@ -1,0 +1,90 @@
+"""HTTP API for the merchant dashboard and PayPal webhooks.
+
+Run:  uvicorn rebuttal.app:app --reload   (from backend/)
+"""
+
+from __future__ import annotations
+
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from pydantic import BaseModel
+
+from .approval import ApprovalError
+from .runtime import Runtime
+from .scenarios import load_cases, seed_case
+
+DEMO_CASES = ["agent_wrong_size", "inr_delivered", "inr_misdelivered",
+              "snad_damaged_low_value", "unauth_agent_mandate", "cnp_refunded"]
+
+app = FastAPI(title="Rebuttal", version="0.1.0")
+rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)
+
+
+class ApproveBody(BaseModel):
+    edited_message: str | None = None
+
+
+class RejectBody(BaseModel):
+    reason: str = ""
+
+
+@app.get("/api/health")
+def health():
+    return {"ok": True, "mode": rt.mode}
+
+
+@app.get("/api/disputes")
+def list_disputes():
+    out = []
+    for d in rt.client.list_disputes():
+        p = rt.approvals.latest_for(d["dispute_id"])
+        out.append({**d, "proposal": p.to_dict() if p else None})
+    return out
+
+
+@app.post("/api/disputes/{dispute_id}/analyze")
+def analyze(dispute_id: str):
+    return rt.analyze(dispute_id).to_dict()
+
+
+@app.post("/api/proposals/{proposal_id}/approve")
+def approve(proposal_id: str, body: ApproveBody):
+    try:
+        return rt.approvals.approve(proposal_id, body.edited_message).to_dict()
+    except ApprovalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/proposals/{proposal_id}/reject")
+def reject(proposal_id: str, body: RejectBody):
+    try:
+        return rt.approvals.reject(proposal_id, body.reason).to_dict()
+    except ApprovalError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/audit/{dispute_id}")
+def audit(dispute_id: str):
+    return rt.audit.for_dispute(dispute_id)
+
+
+@app.post("/api/webhooks/paypal")
+async def paypal_webhook(request: Request, background: BackgroundTasks):
+    # TODO(week 3): verify signature via POST /v1/notifications/verify-webhook-signature
+    event = await request.json()
+    if event.get("event_type") == "CUSTOMER.DISPUTE.CREATED":
+        dispute_id = event.get("resource", {}).get("dispute_id")
+        if dispute_id:
+            background.add_task(rt.analyze, dispute_id)
+    return {"received": True}
+
+
+@app.post("/api/simulator/dispute/{case_id}")
+def simulate(case_id: str):
+    """Judge-facing simulator. Mock mode seeds a labeled case; sandbox mode comes in week 2."""
+    if rt.mock is None:
+        raise HTTPException(501, "Sandbox simulator lands in week 2 (buyer-side dispute creation).")
+    cases = {c["id"]: c for c in load_cases()}
+    if case_id not in cases:
+        raise HTTPException(404, f"Unknown case {case_id}")
+    dispute_id = seed_case(cases[case_id], len(rt.mock.disputes) + 100, rt.mock, rt.store)
+    return rt.analyze(dispute_id).to_dict()

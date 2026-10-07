@@ -1,0 +1,394 @@
+{
+  "mode": "mock / groq",
+  "cases": 20,
+  "accuracy": 0.95,
+  "standard_accuracy": 0.938,
+  "hard_accuracy": 1.0,
+  "hard_cases": 4,
+  "approval_gate_violations": 0,
+  "rows": [
+    {
+      "id": "agent_wrong_size",
+      "title": "Buyer's AI assistant ordered the wrong size",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": false,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The correct size (medium) of the shirt.",
+      "reasoning": [
+        "The purchase was made by an AI assistant (Atlas) which failed to follow the buyer's specific instruction to order a medium size.",
+        "The item received matches the listing description and the assistant's erroneous order, so the merchant is not at fault for the discrepancy.",
+        "The buyer did not explicitly request a refund, but the dispute reason implies a desire for the correct item or compensation.",
+        "Submitting the assistant's instruction as evidence proves the error originated from the buyer's side, not the merchant's fulfillment."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "inr_delivered",
+      "title": "Says not received, tracking shows delivered",
+      "hard": false,
+      "expected": "SHARE_TRACKING",
+      "got": "SHARE_TRACKING",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to know the location of their order.",
+      "reasoning": [
+        "Shipment status is DELIVERED to the correct address 11 days ago.",
+        "Tracking number 1Z999AA10123456784 is available and uploaded to PayPal.",
+        "Buyer is asking for location, not a refund.",
+        "No evidence of loss or delivery failure."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "inr_delivered_claim",
+      "title": "Escalated not-received claim, delivered",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer claims they never received the item and implies they want a resolution, though they do not explicitly request a refund in the text.",
+      "reasoning": [
+        "Shipment status is DELIVERED to the correct address 21 days ago.",
+        "cannot_prove_delivery is false, meaning valid tracking exists.",
+        "likely_lost is false, so the package is not treated as lost.",
+        "Merchant is not at fault; evidence supports the sale."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "inr_in_transit",
+      "title": "Not received, package moving normally",
+      "hard": false,
+      "expected": "SHARE_TRACKING",
+      "got": "SHARE_TRACKING",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to know why their order has not arrived yet.",
+      "reasoning": [
+        "The package is currently IN_TRANSIT with a scan from 1 day ago.",
+        "The buyer has not explicitly requested a refund, only expressed concern about the delay.",
+        "Tracking information is available and uploaded to PayPal.",
+        "The item is not marked as likely lost, so waiting for delivery is appropriate."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "inr_no_tracking",
+      "title": "Not received, no tracking",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the item to arrive or the issue resolved, though they did not explicitly request a refund.",
+      "reasoning": [
+        "cannot_prove_delivery is true, meaning there is no tracking to submit.",
+        "The dispute reason is 'not received' and the buyer states 'Never arrived'.",
+        "Per instructions, if cannot_prove_delivery is true on a not-received dispute, refund the buyer.",
+        "No evidence of delivery exists to fight the claim."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "inr_misdelivered",
+      "title": "Delivered to the wrong address",
+      "hard": false,
+      "expected": "OFFER_REPLACEMENT",
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the correct item delivered to their address or a resolution for the misdelivered package.",
+      "reasoning": [
+        "Tracking shows the package was delivered, but the address does not match the buyer's.",
+        "The buyer did not explicitly ask for a refund, only noting the delivery error.",
+        "The item is a low-cost accessory ($38) and the store policy supports replacements for shipping issues.",
+        "Offering a replacement is the cheapest fair resolution that keeps the sale and resolves the error."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "snad_changed_mind",
+      "title": "Not as described, really a change of mind",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "to return the item for a refund",
+      "reasoning": [
+        "Buyer states the item is not their style, indicating a change of mind rather than a defect.",
+        "Item was delivered 6 days ago, which is within the 30-day return window.",
+        "Store policy allows returns for unused items within 30 days for a full refund.",
+        "Buyer is responsible for return shipping as the item was not damaged or incorrect."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "snad_damaged_low_value",
+      "title": "Cheap item arrived damaged",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "Resolution for the cracked mug",
+      "reasoning": [
+        "Item arrived damaged (cracked) within the 7-day policy window.",
+        "Item price is $12.00, which is under the $20 threshold for full refund without return.",
+        "Store policy explicitly states items under $20 that arrive damaged are refunded in full without return.",
+        "Fact 'refund_without_return_eligible' is true."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "snad_damaged_high_value",
+      "title": "Expensive item arrived damaged",
+      "hard": false,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "Resolution for the deep scratch on the walnut serving board.",
+      "reasoning": [
+        "Item arrived damaged (deep scratch), which is a valid 'Not as Described' claim.",
+        "Store policy states buyer pays return shipping unless item arrived damaged.",
+        "Item is within the 30-day return window (4 days since delivery).",
+        "Refund without return is not eligible, so a return is required for a full refund."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "snad_outside_window",
+      "title": "Complaint long after the return window",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer is dissatisfied with the item's appearance compared to photos but has not explicitly requested a refund or return.",
+      "reasoning": [
+        "The item was delivered 91 days ago, which is well outside the 30-day return window specified in store policy.",
+        "The buyer's message 'Not what I expected' is subjective and does not constitute proof of material misdescription or defect.",
+        "The dispute reason is 'Not as Described', but the buyer has not provided specific evidence that the item differs from the listing description.",
+        "Since the return window has expired and no defect is proven, the merchant is not at fault, and the sale should be kept."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "unauth_agent_mandate",
+      "title": "Unrecognized charge from the buyer's own assistant",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to verify if the charge is legitimate or get a refund if it is unauthorized.",
+      "reasoning": [
+        "The purchase was made by the buyer's AI assistant 'Atlas' following a standing instruction to reorder cedar candle refills up to $40/month.",
+        "The agent followed the instruction correctly, and the amount ($36) is within the specified spending limit.",
+        "The item was delivered to the correct address 3 days ago, confirming the transaction was executed as authorized by the buyer's prior setup.",
+        "The buyer's claim of 'unauthorized' is likely due to forgetting the standing order, not actual fraud."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "unauth_delivered",
+      "title": "Unauthorized claim, delivered to account address",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to dispute the charge as unauthorized.",
+      "reasoning": [
+        "The dispute reason is UNAUTHORISED, but the item was delivered to the correct address.",
+        "Tracking status is DELIVERED with a matching address, which contradicts the claim of non-authorization.",
+        "The buyer has not explicitly requested a refund, only stated they did not make the purchase.",
+        "Submitting proof of delivery is the standard and strongest defense against unauthorized transaction claims."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "cnp_refunded",
+      "title": "Refund already issued",
+      "hard": false,
+      "expected": "SUBMIT_REFUND_PROOF",
+      "got": "SUBMIT_REFUND_PROOF",
+      "correct": true,
+      "confidence": 1.0,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the refund for the returned item.",
+      "reasoning": [
+        "The dispute reason is CREDIT_NOT_PROCESSED, but the buyer states they returned the item.",
+        "Facts indicate refund_issued is true with ID RF0002Y7741.",
+        "The most efficient resolution is to prove the refund was already processed.",
+        "No further action like return receipt is needed if the refund is already out."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "cnp_owed",
+      "title": "Return received, refund never sent",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants the refund for the returned throw blanket.",
+      "reasoning": [
+        "Facts confirm 'return_received' is true, meaning the shop has the item back.",
+        "The buyer states the return was received three weeks ago and no refund has been issued.",
+        "The dispute reason 'CREDIT_NOT_PROCESSED' aligns with a refund that was expected but not completed.",
+        "Since the return is in hand and the refund is pending, accepting the claim to process the refund is the correct and fair resolution."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "duplicate_true",
+      "title": "Charged twice",
+      "hard": false,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 1.0,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "A refund for the duplicate charge.",
+      "reasoning": [
+        "Facts confirm duplicate_charge_found is true with 2 matching charges on the same day.",
+        "The buyer reports being charged twice for a single item.",
+        "The dispute reason is DUPLICATE_TRANSACTION, which is supported by the transaction records.",
+        "Refunding the duplicate amount is the standard and fair resolution for this error."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "duplicate_false",
+      "title": "Thinks they were charged twice",
+      "hard": false,
+      "expected": "SUBMIT_EVIDENCE",
+      "got": "SUBMIT_EVIDENCE",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "Confirmation that they were not charged twice for the same order.",
+      "reasoning": [
+        "The dispute reason is DUPLICATE_TRANSACTION, but facts show duplicate_charge_found is false.",
+        "There is only 1 matching charge on the same day, confirming a single transaction.",
+        "The item is in transit with valid tracking, indicating the order is active and not a duplicate.",
+        "Submitting the transaction record proves no duplicate charge occurred."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "hard_inr_wrong_color",
+      "title": "Picked 'not received' but actually got the wrong color",
+      "hard": true,
+      "expected": "OFFER_REPLACEMENT",
+      "got": "OFFER_REPLACEMENT",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "The buyer wants to exchange the grey shirt for the navy shirt they originally ordered.",
+      "reasoning": [
+        "Buyer explicitly states they received the wrong color (grey instead of navy).",
+        "Facts confirm the item was delivered to the correct address, refuting the 'not received' dispute reason.",
+        "The buyer did not ask for a refund, but for the correct item.",
+        "Offering a replacement is the cheapest fair resolution that keeps the sale and satisfies the buyer's actual request."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "hard_stuck_wants_refund",
+      "title": "Lost package, buyer wants money back",
+      "hard": true,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "A full refund because they no longer want the item.",
+      "reasoning": [
+        "The fact 'likely_lost' is true, indicating the package is presumed lost.",
+        "The buyer explicitly requests a refund ('just want my money back').",
+        "Per instructions, if likely_lost is true, a buyer who wants money back gets a refund, not tracking details.",
+        "The item is in transit but has not been scanned in 22 days, supporting the lost status."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "hard_two_pieces",
+      "title": "Damage described without the usual words",
+      "hard": true,
+      "expected": "ACCEPT_CLAIM",
+      "got": "ACCEPT_CLAIM",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "Resolution for the item arriving broken in two pieces.",
+      "reasoning": [
+        "Buyer reports item arrived damaged (broken in two pieces).",
+        "Store policy states items under $20 arriving damaged are refunded in full without return.",
+        "Item price is $15.00, which is under the $20 threshold.",
+        "Purchase was made 5 days ago, within the 7-day window for damage claims."
+      ],
+      "guard_notes": []
+    },
+    {
+      "id": "hard_agent_right_size",
+      "title": "Assistant ordered correctly, item runs small",
+      "hard": true,
+      "expected": "OFFER_RETURN_FOR_REFUND",
+      "got": "OFFER_RETURN_FOR_REFUND",
+      "correct": true,
+      "confidence": 0.95,
+      "source": "groq",
+      "writes_before_approval": 0,
+      "buyer_wants": "A free exchange for a larger size because the shirt runs small.",
+      "reasoning": [
+        "The buyer's AI assistant correctly followed the instruction to order a Medium, so the merchant is not at fault for the order selection.",
+        "The buyer states the item 'runs small' and is 'too tight', indicating a fit issue rather than a defect or misdescription of the product itself.",
+        "Store policy explicitly offers a free exchange for apparel within 30 days of delivery for size issues.",
+        "The item was delivered 6 days ago, which is well within the 30-day return/exchange window."
+      ],
+      "guard_notes": [
+        "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+      ]
+    }
+  ],
+  "tokens_used": 26979
+}

@@ -1,0 +1,348 @@
+<title>Rebuttal Dispute Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a merchant's case desk. Summary strip, then inbox beside the open case file, then deadlines and evals. */
+:root {
+  --bg: #f2f5f8; --surface: #ffffff; --raised: #f7f9fb; --ink: #14202e; --muted: #5a6777; --line: #d8dee6;
+  --accent: #0e6b63; --accent-soft: #dcefec; --on-accent: #ffffff;
+  --good: #1d7a3d; --good-soft: #e1f3e6; --warn: #985a00; --warn-soft: #fbefd8; --bad: #b3262d; --bad-soft: #f9e1e2;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e141b; --surface: #161f29; --raised: #1b2531; --ink: #e5ebf1; --muted: #93a0ae; --line: #2a3643;
+  --accent: #4cc2b4; --accent-soft: #143936; --on-accent: #062522;
+  --good: #5bc983; --good-soft: #15321f; --warn: #e6a84a; --warn-soft: #3a2a12; --bad: #f07178; --bad-soft: #3c1a1d;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e141b; --surface: #161f29; --raised: #1b2531; --ink: #e5ebf1; --muted: #93a0ae; --line: #2a3643;
+  --accent: #4cc2b4; --accent-soft: #143936; --on-accent: #062522;
+  --good: #5bc983; --good-soft: #15321f; --warn: #e6a84a; --warn-soft: #3a2a12; --bad: #f07178; --bad-soft: #3c1a1d;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 20px 48px; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.mono { font-family: var(--mono); font-size: 0.84em; }
+.num { font-variant-numeric: tabular-nums; }
+
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-size: 1.75rem; }
+.brand span { color: var(--muted); }
+.badge { font-size: 0.78rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line); }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 2px; }
+.kpi b { font-family: var(--display); font-size: 1.55rem; font-weight: 600; }
+.kpi small { color: var(--muted); }
+
+.desk { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 16px; align-items: start; }
+.inbox { display: grid; gap: 8px; }
+.item { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 4px; padding: 11px 12px 11px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); position: relative; }
+.item:hover { border-color: var(--accent); }
+.item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.item[aria-current="true"] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.item .top { display: flex; justify-content: space-between; gap: 8px; }
+.item .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 0.84rem; }
+
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.neutral { background: var(--raised); color: var(--muted); border: 1px solid var(--line); }
+.pill.accent { background: var(--accent-soft); color: var(--accent); }
+
+.case { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 20px; display: grid; gap: 18px; min-width: 0; }
+.case-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.case-head h2 { font-size: 1.4rem; }
+.quote { margin: 0; padding: 12px 14px; background: var(--raised); border-radius: 8px; border: 1px solid var(--line); }
+.quote p { margin: 4px 0 0; font-size: 1.02rem; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.panel { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.agent { border-color: var(--accent); background: var(--accent-soft); }
+.compare { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; }
+.compare dt { color: var(--muted); font-size: 0.86rem; }
+.compare dd { margin: 0; }
+.facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.facts li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 6px; align-items: start; }
+.mark { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; margin-top: 2px; }
+.mark.yes { background: var(--good-soft); color: var(--good); }
+.mark.no { background: var(--bad-soft); color: var(--bad); }
+.mark.info { background: var(--raised); color: var(--muted); border: 1px solid var(--line); }
+
+.proposal { border: 1.5px solid var(--ink); border-radius: 8px; padding: 16px; display: grid; gap: 12px; }
+.proposal h3 { font-size: 1.25rem; }
+.conf { display: flex; align-items: center; gap: 10px; }
+.conf .track { flex: 1; max-width: 220px; height: 6px; background: var(--raised); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.conf .fill { height: 100%; background: var(--accent); }
+.proposal ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+textarea { width: 100%; min-height: 96px; resize: vertical; font: inherit; color: var(--ink); background: var(--raised);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.call { background: var(--raised); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button.primary, button.ghost { font: 600 0.95rem var(--body); border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); }
+button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: 0.55; cursor: default; }
+.result { border-radius: 8px; padding: 12px 14px; background: var(--good-soft); color: var(--ink); }
+.result.rejected { background: var(--raised); }
+
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.timeline li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; font-size: 0.9rem; }
+.timeline .step { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); padding-top: 2px; }
+.timeline .sub { color: var(--muted); font-size: 0.82rem; display: block; overflow-wrap: anywhere; }
+
+section.block { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px 20px; display: grid; gap: 14px; min-width: 0; }
+.block-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+.block-head p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.gantt { display: grid; gap: 8px; }
+.grow { display: grid; grid-template-columns: 120px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 0.86rem; }
+.gtrack { position: relative; height: 22px; background: var(--raised); border-radius: 6px; border: 1px solid var(--line); overflow: hidden; }
+.gfill { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+.gfill.good { background: var(--good-soft); border-right: 3px solid var(--good); }
+.gfill.warn { background: var(--warn-soft); border-right: 3px solid var(--warn); }
+.gfill.bad { background: var(--bad-soft); border-right: 3px solid var(--bad); }
+.gfill.done { background: var(--raised); border-right: 3px solid var(--muted); }
+.gscale { display: grid; grid-template-columns: 120px minmax(0, 1fr) 64px; gap: 10px; font-size: 0.74rem; color: var(--muted); }
+.gscale div { display: flex; justify-content: space-between; }
+
+.evals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; min-width: 560px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--raised); }
+tr:last-child td { border-bottom: 0; }
+.note { color: var(--muted); font-size: 0.86rem; margin: 0; max-width: 75ch; }
+
+@media (max-width: 900px) {
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .inbox { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .kpis, .evals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .grow, .gscale { grid-template-columns: 84px minmax(0, 1fr) 48px; }
+  .timeline li { grid-template-columns: 74px minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { .item, button { transition: border-color .15s, box-shadow .15s, background .15s; } }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand"><h1>Rebuttal</h1><span>Juniper &amp; Oak · PayPal dispute desk</span></div>
+    <span class="badge" id="modeBadge">Prototype run</span>
+  </header>
+
+  <section class="kpis" aria-label="Summary">
+    <div class="kpi"><span class="label">Waiting for you</span><b class="num" id="kWaiting">0</b><small>proposals to approve</small></div>
+    <div class="kpi"><span class="label">Next deadline</span><b class="num" id="kNext">-</b><small id="kNextWho">-</small></div>
+    <div class="kpi"><span class="label">In dispute</span><b class="num" id="kAtStake">$0</b><small>across open cases</small></div>
+    <div class="kpi"><span class="label">Sales kept</span><b class="num" id="kKept">$0</b><small>after your approvals</small></div>
+  </section>
+
+  <main class="desk">
+    <nav class="inbox" id="inbox" aria-label="Disputes"></nav>
+    <article class="case" id="case" aria-live="polite"></article>
+  </main>
+
+  <section class="block" aria-labelledby="dlTitle">
+    <div class="block-head"><h2 id="dlTitle">Response deadlines</h2><p>Hours left before PayPal decides without you. The full build uses a Bryntum Scheduler board here.</p></div>
+    <div class="gantt" id="gantt"></div>
+  </section>
+
+  <section class="block" aria-labelledby="evTitle">
+    <div class="block-head"><h2 id="evTitle">How often the agent picks the right resolution</h2><p id="evMode"></p></div>
+    <div class="evals" id="evKpis"></div>
+    <div class="tablewrap"><table><thead><tr><th>Case</th><th>Correct resolution</th><th>Agent chose</th><th>Result</th></tr></thead><tbody id="evRows"></tbody></table></div>
+    <p class="note" id="evNote"></p>
+  </section>
+
+  <p class="note">This page replays a recorded run of the Rebuttal prototype against its mock PayPal sandbox. Approve and Reject update this page only; nothing is sent to PayPal from here. The same code runs against the real sandbox once API keys are added.</p>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const REASON = {
+  MERCHANDISE_OR_SERVICE_NOT_RECEIVED: "Not received",
+  MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED: "Not as described",
+  UNAUTHORISED: "Unauthorized",
+  CREDIT_NOT_PROCESSED: "Refund not received",
+  DUPLICATE_TRANSACTION: "Charged twice",
+};
+const RESOLUTION = {
+  SHARE_TRACKING: "Share tracking with the buyer",
+  SUBMIT_EVIDENCE: "Submit evidence to PayPal",
+  OFFER_REPLACEMENT: "Offer a free replacement",
+  OFFER_PARTIAL_REFUND: "Offer a partial refund",
+  OFFER_RETURN_FOR_REFUND: "Refund after the item is returned",
+  ACCEPT_CLAIM: "Accept and refund in full",
+  SUBMIT_REFUND_PROOF: "Send PayPal proof of the refund",
+};
+const OUTCOME = {
+  OFFER_ACCEPTED: "Buyer accepted your offer. Case closed, sale kept.",
+  RESOLVED_SELLER_FAVOUR: "PayPal closed the case in your favor.",
+  RESOLVED_BUYER_FAVOUR: "Case closed with a full refund to the buyer.",
+};
+const ENDPOINT = { send_message: "send-message", make_offer: "make-offer", accept_claim: "accept-claim", provide_evidence: "provide-evidence" };
+const KEEPS_SALE = new Set(["OFFER_ACCEPTED", "RESOLVED_SELLER_FAVOUR"]);
+
+const state = { selected: DATA.cases[0].dispute_id, decided: {} }; // decided[id] = "approved" | "rejected"
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = v => "$" + Number(v).toFixed(2);
+const hours = h => h >= 48 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : `${Math.round(h)}h`;
+const urgency = h => h < 48 ? "bad" : h < 96 ? "warn" : "good";
+const byId = id => DATA.cases.find(c => c.dispute_id === id);
+
+function renderKpis() {
+  const open = DATA.cases.filter(c => !state.decided[c.dispute_id]);
+  document.getElementById("kWaiting").textContent = open.length;
+  const next = [...open].sort((a, b) => a.proposal.case_summary.hours_left - b.proposal.case_summary.hours_left)[0];
+  document.getElementById("kNext").textContent = next ? hours(next.proposal.case_summary.hours_left) : "None";
+  document.getElementById("kNextWho").textContent = next ? `${next.dispute_id} · ${REASON[next.reason]}` : "all cases handled";
+  document.getElementById("kAtStake").textContent = money(open.reduce((s, c) => s + c.amount, 0));
+  const kept = DATA.cases.filter(c => state.decided[c.dispute_id] === "approved" && KEEPS_SALE.has(c.final_outcome))
+    .reduce((s, c) => s + c.amount, 0);
+  document.getElementById("kKept").textContent = money(kept);
+}
+
+function renderInbox() {
+  const el = document.getElementById("inbox");
+  el.innerHTML = DATA.cases.map(c => {
+    const h = c.proposal.case_summary.hours_left, d = state.decided[c.dispute_id];
+    const status = d === "approved" ? `<span class="pill good">Sent</span>` : d === "rejected" ? `<span class="pill neutral">Rejected</span>`
+      : `<span class="pill ${urgency(h)}">${hours(h)} left</span>`;
+    const agent = c.proposal.case_summary.facts.is_agent_purchase ? `<span class="pill accent">AI assistant order</span>` : "";
+    return `<button class="item" type="button" data-id="${esc(c.dispute_id)}" aria-current="${c.dispute_id === state.selected}">
+      <span class="top"><strong>${esc(REASON[c.reason])}</strong><span class="num">${money(c.amount)}</span></span>
+      <span class="meta"><span class="mono">${esc(c.dispute_id)}</span>${status}${agent}</span>
+      <span class="meta">${esc(RESOLUTION[c.proposal.decision.resolution])}</span>
+    </button>`;
+  }).join("");
+  el.querySelectorAll(".item").forEach(b => b.addEventListener("click", () => { state.selected = b.dataset.id; render(); }));
+}
+
+function factRows(f) {
+  const rows = [];
+  const add = (ok, text) => rows.push(`<li><span class="mark ${ok === null ? "info" : ok ? "yes" : "no"}" aria-hidden="true">${ok === null ? "i" : ok ? "✓" : "✕"}</span><span>${text}</span></li>`);
+  add(f.tracking_uploaded_to_paypal, f.tracking_uploaded_to_paypal ? "Tracking is on the PayPal transaction" : "No tracking on the PayPal transaction");
+  if (f.has_tracking) {
+    add(f.shipment_status === "DELIVERED", `${esc(f.carrier)} <span class="mono">${esc(f.tracking_number)}</span>: ${f.shipment_status === "DELIVERED" ? `delivered ${esc(f.delivered_on)}` : `in transit, last scan ${f.days_since_last_scan} days ago`}`);
+    if ("delivered_address_matches" in f) add(f.delivered_address_matches, f.delivered_address_matches ? "Delivered to the address on the order" : "Delivered to a different address than the order");
+  }
+  if ("within_return_window" in f) add(null, f.within_return_window ? "Inside the 30-day return window" : "Outside the 30-day return window");
+  if (f.refund_issued) add(true, `Refund already issued (<span class="mono">${esc(f.refund_ids.join(", "))}</span>)`);
+  if (f.matching_charges_same_day > 1) add(false, `${f.matching_charges_same_day} matching charges on the purchase day`);
+  add(null, `Purchased ${f.days_since_purchase} days ago · ${esc(f.item)}`);
+  return rows.join("");
+}
+
+function renderCase() {
+  const c = byId(state.selected), p = c.proposal, cs = p.case_summary, f = cs.facts, d = p.decision;
+  const decided = state.decided[c.dispute_id];
+  const act = p.actions[0];
+  const call = `POST /v1/customer/disputes/${c.dispute_id}/${ENDPOINT[act.kind]}` + (act.params.offer_type ? `  ·  offer_type ${act.params.offer_type}` : "")
+    + (act.params.evidences ? `  ·  ${act.params.evidences[0].evidence_type} + evidence PDF` : "");
+  const agent = f.is_agent_purchase ? `
+    <div class="panel agent">
+      <span class="label">Bought by the buyer's AI assistant</span>
+      <dl class="compare">
+        <dt>Assistant</dt><dd>${esc(f.agent_name)}</dd>
+        <dt>Told to buy</dt><dd>“${esc(f.agent_instruction)}”</dd>
+        <dt>Actually ordered</dt><dd>${esc(f.item)}</dd>
+      </dl>
+      <span class="pill ${f.agent_followed_instruction ? "good" : "bad"}">${f.agent_followed_instruction ? "Order matched the instruction" : "Order did not match the instruction"}</span>
+    </div>` : "";
+  const audit = c.audit.filter(a => decided === "approved" || !["approve", "execute"].includes(a.step)).map(a => {
+    let sub = "";
+    if (a.step === "gather") sub = a.detail.tool_calls.map(esc).join("<br>");
+    if (a.step === "decide") sub = `${esc(a.detail.source)} · ${esc(a.detail.resolution)} · confidence ${a.detail.confidence}`;
+    if (a.step === "propose") sub = esc(a.detail.actions.join("; "));
+    if (a.step === "approve") sub = "Approved by merchant";
+    if (a.step === "execute") sub = esc(a.detail.summary);
+    return `<li><span class="step">${esc(a.step)}</span><span>${a.step === "gather" ? "Collected the case file" : a.step === "decide" ? "Chose a resolution" : a.step === "propose" ? "Prepared PayPal action" : a.step === "approve" ? "Merchant approved" : "Sent to PayPal"}<span class="sub">${sub}</span></span></li>`;
+  }).join("");
+  const outcome = c.final_outcome ? OUTCOME[c.final_outcome] : "Message sent. Waiting on the buyer's reply.";
+  const result = decided === "approved"
+    ? `<div class="result"><strong>Sent to PayPal.</strong> ${esc(outcome)}</div>`
+    : decided === "rejected" ? `<div class="result rejected"><strong>Rejected.</strong> Nothing was sent. The case stays open for you to handle.</div>` : "";
+
+  document.getElementById("case").innerHTML = `
+    <div class="case-head">
+      <div style="display:grid;gap:4px">
+        <span class="label">${esc(c.dispute_id)} · ${c.stage === "INQUIRY" ? "Inquiry (before a claim)" : "Claim"}</span>
+        <h2>${esc(REASON[c.reason])} · ${money(c.amount)}</h2>
+        <span style="color:var(--muted)">${esc(cs.buyer)} · ${esc(f.item)}</span>
+      </div>
+      <span class="pill ${urgency(cs.hours_left)}">Respond within ${hours(cs.hours_left)}</span>
+    </div>
+    <blockquote class="quote"><span class="label">Buyer wrote</span><p>“${esc(cs.buyer_messages.at(-1))}”</p></blockquote>
+    <div class="grid2">
+      ${agent}
+      <div class="panel"><span class="label">What the records show</span><ul class="facts">${factRows(f)}</ul></div>
+      ${f.is_agent_purchase ? "" : `<div class="panel"><span class="label">Store policies used</span>${cs.policies.map(t => `<span>${esc(t)}</span>`).join("")}</div>`}
+    </div>
+    <div class="proposal">
+      <span class="label">Rebuttal proposes</span>
+      <h3>${esc(RESOLUTION[d.resolution])}</h3>
+      <div class="conf"><span class="label">Confidence</span><span class="track"><span class="fill" style="width:${Math.round(d.confidence * 100)}%;display:block"></span></span><span class="num">${Math.round(d.confidence * 100)}%</span></div>
+      <ul>${d.reasoning.map(r => `<li>${esc(r)}</li>`).join("")}</ul>
+      <label class="label" for="draft-${esc(c.dispute_id)}">Message to the buyer (you can edit it)</label>
+      <textarea id="draft-${esc(c.dispute_id)}" ${decided ? "disabled" : ""}>${esc(d.message_to_buyer)}</textarea>
+      <div class="call"><span class="label">PayPal call on approval</span><div class="mono">${esc(call)}</div></div>
+      ${result || `<div class="actions"><button class="primary" type="button" id="approve">Approve and send</button><button class="ghost" type="button" id="reject">Reject</button></div>`}
+    </div>
+    <div><span class="label">Audit trail</span><ul class="timeline" style="margin-top:8px">${audit}</ul></div>`;
+
+  const a = document.getElementById("approve"), r = document.getElementById("reject");
+  if (a) a.addEventListener("click", () => { state.decided[c.dispute_id] = "approved"; render(); });
+  if (r) r.addEventListener("click", () => { state.decided[c.dispute_id] = "rejected"; render(); });
+}
+
+function renderGantt() {
+  const max = 240;
+  const rows = [...DATA.cases].sort((a, b) => a.proposal.case_summary.hours_left - b.proposal.case_summary.hours_left).map(c => {
+    const h = c.proposal.case_summary.hours_left, done = !!state.decided[c.dispute_id];
+    return `<div class="grow"><span class="mono">${esc(c.dispute_id)}</span>
+      <div class="gtrack" title="${hours(h)} left"><div class="gfill ${done ? "done" : urgency(h)}" style="width:${Math.min(100, h / max * 100)}%"></div></div>
+      <span class="num">${done ? "handled" : hours(h)}</span></div>`;
+  }).join("");
+  document.getElementById("gantt").innerHTML = rows + `<div class="gscale"><span></span><div><span>now</span><span>5 days</span><span>10 days</span></div><span></span></div>`;
+}
+
+function renderEvals() {
+  const e = DATA.evals;
+  if (!e) return;
+  const pct = v => Math.round(v * 100) + "%";
+  document.getElementById("evMode").textContent = `${e.cases} labeled disputes · offline rules baseline (no AI model in this run)`;
+  document.getElementById("evKpis").innerHTML = [
+    ["Overall", pct(e.accuracy), `${e.rows.filter(r => r.correct).length} of ${e.cases} cases`],
+    ["Standard cases", pct(e.standard_accuracy), "facts decide the answer"],
+    ["Hard cases", pct(e.hard_accuracy), `${e.hard_cases} cases where wording matters`],
+    ["Sent without approval", String(e.approval_gate_violations), "PayPal writes before you approve"],
+  ].map(([l, v, s]) => `<div class="kpi"><span class="label">${l}</span><b class="num">${v}</b><small>${s}</small></div>`).join("");
+  const rows = [...e.rows].sort((a, b) => a.correct - b.correct);
+  document.getElementById("evRows").innerHTML = rows.map(r => `<tr><td>${esc(r.title)}${r.hard ? ' <span class="pill accent">hard</span>' : ""}</td>
+    <td>${esc(RESOLUTION[r.expected])}</td><td>${esc(RESOLUTION[r.got])}</td>
+    <td><span class="pill ${r.correct ? "good" : "bad"}">${r.correct ? "Right" : "Wrong"}</span></td></tr>`).join("");
+  document.getElementById("evNote").textContent = "The offline baseline matches keywords and rules. It misses the hard cases because the buyer's words change the right answer: a buyer who picked \"not received\" but got the wrong color, a lost package where the buyer asks for money instead of a replacement, and damage described without the usual words. Turning on the AI model is meant to fix exactly these, and the same suite measures whether it does.";
+}
+
+function render() {
+  document.getElementById("modeBadge").textContent = "Recorded prototype run · mock PayPal sandbox";
+  renderKpis(); renderInbox(); renderCase(); renderGantt(); renderEvals();
+}
+render();
+</script>

@@ -1,0 +1,546 @@
+[
+  {
+    "id": "agent_wrong_size",
+    "title": "Buyer's AI assistant ordered the wrong size",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 8,
+    "days_open": 1,
+    "buyer_message": "I asked for a medium. This is a large. Not what I ordered.",
+    "item": {
+      "sku": "LIN-SHIRT",
+      "name": "Linen shirt",
+      "variant": "Navy / Size L",
+      "price": 48.0
+    },
+    "ship_to": "418 Maple Ave, Austin, TX 78704",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223344556677",
+      "status": "DELIVERED",
+      "delivered_to": "418 Maple Ave, Austin, TX 78704",
+      "days_after_purchase": 3
+    },
+    "agent_purchase": {
+      "agent": "Atlas (buyer's AI shopping assistant)",
+      "instruction": "Get my brother the navy linen shirt in medium, under $60.",
+      "constraints": {
+        "variant": "Size M",
+        "max_price": 60
+      }
+    },
+    "expected": "OFFER_RETURN_FOR_REFUND",
+    "hard": false,
+    "why": "We shipped exactly what was ordered (L). The buyer's assistant was told medium and picked large. PayPal allows only REFUND / REFUND_WITH_RETURN offers on this dispute, so the offer is a full refund once the return is scanned, with the medium shipped then. Store policy covers assistant mistakes, which keeps the sale and the customer."
+  },
+  {
+    "id": "inr_delivered",
+    "title": "Says not received, tracking shows delivered",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 15,
+    "days_open": 7,
+    "buyer_message": "Haven't received my order yet. Where is it?",
+    "item": {
+      "sku": "SOY-CANDLE",
+      "name": "Soy candle",
+      "variant": "Cedar",
+      "price": 32.0
+    },
+    "ship_to": "77 Elm St, Denver, CO 80203",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456784",
+      "status": "DELIVERED",
+      "delivered_to": "77 Elm St, Denver, CO 80203",
+      "days_after_purchase": 4
+    },
+    "expected": "SHARE_TRACKING",
+    "hard": false,
+    "why": "Delivered to the address on the order. Sharing the proof usually ends the inquiry."
+  },
+  {
+    "id": "inr_delivered_claim",
+    "title": "Escalated not-received claim, delivered",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "CHARGEBACK",
+    "days_since_purchase": 26,
+    "days_open": 12,
+    "buyer_message": "I already told you I never got it.",
+    "item": {
+      "sku": "WOOL-BEANIE",
+      "name": "Wool beanie",
+      "variant": "Charcoal",
+      "price": 38.0
+    },
+    "ship_to": "5 Harbor Rd, Portland, ME 04101",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223300112233",
+      "status": "DELIVERED",
+      "delivered_to": "5 Harbor Rd, Portland, ME 04101",
+      "days_after_purchase": 5
+    },
+    "expected": "SUBMIT_EVIDENCE",
+    "hard": false,
+    "why": "Claim stage: messaging no longer helps. Proof of delivery to the order address wins."
+  },
+  {
+    "id": "inr_in_transit",
+    "title": "Not received, package moving normally",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 5,
+    "days_open": 0,
+    "buyer_message": "Ordered 5 days ago, still nothing.",
+    "item": {
+      "sku": "TEA-TOWEL",
+      "name": "Tea towel set",
+      "variant": "Sage",
+      "price": 26.0
+    },
+    "ship_to": "903 Lake Dr, Madison, WI 53703",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223399887766",
+      "status": "IN_TRANSIT",
+      "delivered_to": null,
+      "days_after_purchase": 4
+    },
+    "expected": "SHARE_TRACKING",
+    "hard": false,
+    "why": "Still inside normal delivery time and moving. Share tracking and the expected date."
+  },
+  {
+    "id": "inr_no_tracking",
+    "title": "Not received, no tracking",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 18,
+    "days_open": 2,
+    "buyer_message": "Never arrived.",
+    "item": {
+      "sku": "CER-MUG",
+      "name": "Ceramic mug",
+      "variant": "Speckled",
+      "price": 22.0
+    },
+    "ship_to": "12 Ridge Ln, Boise, ID 83702",
+    "shipment": null,
+    "expected": "ACCEPT_CLAIM",
+    "hard": false,
+    "why": "No proof of shipment, so the case can't be won. Refunding now avoids escalation."
+  },
+  {
+    "id": "inr_misdelivered",
+    "title": "Delivered to the wrong address",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 11,
+    "days_open": 2,
+    "buyer_message": "Tracking says delivered but not to my address.",
+    "item": {
+      "sku": "WOOL-BEANIE",
+      "name": "Wool beanie",
+      "variant": "Rust",
+      "price": 38.0
+    },
+    "ship_to": "418 Maple Ave, Austin, TX 78704",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223311223344",
+      "status": "DELIVERED",
+      "delivered_to": "77 Pine St, Austin, TX 78704",
+      "days_after_purchase": 4
+    },
+    "expected": "OFFER_REPLACEMENT",
+    "hard": false,
+    "why": "Carrier delivered elsewhere; the seller is liable. A replacement keeps the sale."
+  },
+  {
+    "id": "snad_changed_mind",
+    "title": "Not as described, really a change of mind",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 10,
+    "days_open": 1,
+    "buyer_message": "The color is fine I guess, just not my style. Can I send it back?",
+    "item": {
+      "sku": "THROW-BLK",
+      "name": "Throw blanket",
+      "variant": "Oatmeal",
+      "price": 54.0
+    },
+    "ship_to": "61 Birch Ct, Raleigh, NC 27601",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456785",
+      "status": "DELIVERED",
+      "delivered_to": "61 Birch Ct, Raleigh, NC 27601",
+      "days_after_purchase": 4
+    },
+    "expected": "OFFER_RETURN_FOR_REFUND",
+    "hard": false,
+    "why": "Inside the 30-day return window; the item is as listed. A normal return is fair and cheaper than a dispute."
+  },
+  {
+    "id": "snad_damaged_low_value",
+    "title": "Cheap item arrived damaged",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 6,
+    "days_open": 0,
+    "buyer_message": "Arrived cracked down the side.",
+    "item": {
+      "sku": "CER-MUG",
+      "name": "Ceramic mug",
+      "variant": "Speckled",
+      "price": 12.0
+    },
+    "ship_to": "8 Cedar St, Tucson, AZ 85701",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223355667788",
+      "status": "DELIVERED",
+      "delivered_to": "8 Cedar St, Tucson, AZ 85701",
+      "days_after_purchase": 3
+    },
+    "expected": "ACCEPT_CLAIM",
+    "hard": false,
+    "why": "Under $20: policy refunds without a return, and return shipping would cost more than the item."
+  },
+  {
+    "id": "snad_damaged_high_value",
+    "title": "Expensive item arrived damaged",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 7,
+    "days_open": 1,
+    "buyer_message": "Board arrived with a deep scratch across the middle.",
+    "item": {
+      "sku": "WAL-BOARD",
+      "name": "Walnut serving board",
+      "variant": "Large",
+      "price": 85.0
+    },
+    "ship_to": "300 Oak Blvd, Columbus, OH 43215",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456786",
+      "status": "DELIVERED",
+      "delivered_to": "300 Oak Blvd, Columbus, OH 43215",
+      "days_after_purchase": 3
+    },
+    "expected": "OFFER_RETURN_FOR_REFUND",
+    "hard": false,
+    "why": "Damaged in transit; a replacement keeps the sale and the merchant can claim from the carrier. PayPal's sandbox only allows refund offer types (REFUND, REFUND_WITH_RETURN) on not-as-described inquiries, so the replacement becomes a return-for-refund offer."
+  },
+  {
+    "id": "snad_outside_window",
+    "title": "Complaint long after the return window",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 95,
+    "days_open": 1,
+    "buyer_message": "Not what I expected from the photos.",
+    "item": {
+      "sku": "SOY-CANDLE",
+      "name": "Soy candle",
+      "variant": "Fig",
+      "price": 40.0
+    },
+    "ship_to": "14 Spruce Way, Eugene, OR 97401",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223366778899",
+      "status": "DELIVERED",
+      "delivered_to": "14 Spruce Way, Eugene, OR 97401",
+      "days_after_purchase": 4
+    },
+    "expected": "SUBMIT_EVIDENCE",
+    "hard": false,
+    "why": "Months past the 30-day window, no defect claimed, item matches the listing. Defend with the listing and delivery proof."
+  },
+  {
+    "id": "unauth_agent_mandate",
+    "title": "Unrecognized charge from the buyer's own assistant",
+    "reason": "UNAUTHORISED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 6,
+    "days_open": 4,
+    "buyer_message": "I don't recognize this charge.",
+    "item": {
+      "sku": "CANDLE-REFILL",
+      "name": "Candle refill pack",
+      "variant": "Cedar",
+      "price": 36.0
+    },
+    "ship_to": "77 Elm St, Denver, CO 80203",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456787",
+      "status": "DELIVERED",
+      "delivered_to": "77 Elm St, Denver, CO 80203",
+      "days_after_purchase": 3
+    },
+    "agent_purchase": {
+      "agent": "Atlas (buyer's AI shopping assistant)",
+      "instruction": "Reorder my cedar candle refills whenever I'm running low, up to $40 a month.",
+      "constraints": {
+        "variant": "Cedar",
+        "max_price": 40
+      }
+    },
+    "expected": "SUBMIT_EVIDENCE",
+    "hard": false,
+    "why": "The buyer's own assistant bought it under a standing instruction, within its limit, and it was delivered to the buyer. The intent record is strong evidence."
+  },
+  {
+    "id": "unauth_delivered",
+    "title": "Unauthorized claim, delivered to account address",
+    "reason": "UNAUTHORISED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 14,
+    "days_open": 2,
+    "buyer_message": "I didn't make this purchase.",
+    "item": {
+      "sku": "LTH-WALLET",
+      "name": "Leather wallet",
+      "variant": "Tan",
+      "price": 70.0
+    },
+    "ship_to": "22 Walnut St, Omaha, NE 68102",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456788",
+      "status": "DELIVERED",
+      "delivered_to": "22 Walnut St, Omaha, NE 68102",
+      "days_after_purchase": 4
+    },
+    "expected": "SUBMIT_EVIDENCE",
+    "hard": false,
+    "why": "Shipped with tracking to the address on the PayPal transaction and delivered there."
+  },
+  {
+    "id": "cnp_refunded",
+    "title": "Refund already issued",
+    "reason": "CREDIT_NOT_PROCESSED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 30,
+    "days_open": 8,
+    "buyer_message": "Returned it, still no refund.",
+    "item": {
+      "sku": "THROW-BLK",
+      "name": "Throw blanket",
+      "variant": "Slate",
+      "price": 54.0
+    },
+    "ship_to": "61 Birch Ct, Raleigh, NC 27601",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456789",
+      "status": "DELIVERED",
+      "delivered_to": "61 Birch Ct, Raleigh, NC 27601",
+      "days_after_purchase": 4
+    },
+    "refund": {
+      "amount": 54.0,
+      "days_ago": 5
+    },
+    "expected": "SUBMIT_REFUND_PROOF",
+    "hard": false,
+    "why": "The refund went out 5 days ago. Proof of refund closes it."
+  },
+  {
+    "id": "cnp_owed",
+    "title": "Return received, refund never sent",
+    "reason": "CREDIT_NOT_PROCESSED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 40,
+    "days_open": 1,
+    "buyer_message": "You received my return three weeks ago and still no refund.",
+    "item": {
+      "sku": "THROW-BLK",
+      "name": "Throw blanket",
+      "variant": "Oatmeal",
+      "price": 54.0
+    },
+    "ship_to": "9 Willow Way, Austin, TX 78702",
+    "shipment": {
+      "carrier": "UPS",
+      "number": "1Z999AA10123456790",
+      "status": "DELIVERED",
+      "delivered_to": "9 Willow Way, Austin, TX 78702",
+      "days_after_purchase": 4
+    },
+    "return_shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223377001122",
+      "status": "DELIVERED",
+      "days_ago": 21
+    },
+    "expected": "ACCEPT_CLAIM",
+    "hard": false,
+    "why": "The return reached the shop three weeks ago. The refund is owed."
+  },
+  {
+    "id": "duplicate_true",
+    "title": "Charged twice",
+    "reason": "DUPLICATE_TRANSACTION",
+    "stage": "INQUIRY",
+    "days_since_purchase": 3,
+    "days_open": 0,
+    "buyer_message": "I was charged twice for one candle.",
+    "item": {
+      "sku": "SOY-CANDLE",
+      "name": "Soy candle",
+      "variant": "Cedar",
+      "price": 30.0
+    },
+    "ship_to": "77 Elm St, Denver, CO 80203",
+    "shipment": null,
+    "duplicate_charge": true,
+    "expected": "ACCEPT_CLAIM",
+    "hard": false,
+    "why": "Two identical charges two minutes apart for one order. Refund the duplicate."
+  },
+  {
+    "id": "duplicate_false",
+    "title": "Thinks they were charged twice",
+    "reason": "DUPLICATE_TRANSACTION",
+    "stage": "INQUIRY",
+    "days_since_purchase": 3,
+    "days_open": 0,
+    "buyer_message": "Charged twice?",
+    "item": {
+      "sku": "SOY-CANDLE",
+      "name": "Soy candle",
+      "variant": "Fig",
+      "price": 30.0
+    },
+    "ship_to": "77 Elm St, Denver, CO 80203",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223322110099",
+      "status": "IN_TRANSIT",
+      "delivered_to": null,
+      "days_after_purchase": 2
+    },
+    "duplicate_charge": false,
+    "expected": "SUBMIT_EVIDENCE",
+    "hard": false,
+    "why": "Only one charge exists for this buyer. Show the transaction record."
+  },
+  {
+    "id": "hard_inr_wrong_color",
+    "title": "Picked 'not received' but actually got the wrong color",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 6,
+    "days_open": 0,
+    "buyer_message": "Got it yesterday but it's the wrong color. I ordered navy and got grey.",
+    "item": {
+      "sku": "LIN-SHIRT",
+      "name": "Linen shirt",
+      "variant": "Navy / Size M",
+      "price": 48.0
+    },
+    "ship_to": "33 Aspen Ct, Boulder, CO 80302",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223344001122",
+      "status": "DELIVERED",
+      "delivered_to": "33 Aspen Ct, Boulder, CO 80302",
+      "days_after_purchase": 5
+    },
+    "expected": "OFFER_REPLACEMENT",
+    "hard": true,
+    "why": "The buyer chose the wrong reason. The package arrived; the real complaint is a wrong item, likely a packing error. Sending tracking proof would anger them and lose the case."
+  },
+  {
+    "id": "hard_stuck_wants_refund",
+    "title": "Lost package, buyer wants money back",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 24,
+    "days_open": 3,
+    "buyer_message": "It's been over three weeks. I don't need it anymore, I just want my money back.",
+    "item": {
+      "sku": "TEA-TOWEL",
+      "name": "Tea towel set",
+      "variant": "Sage",
+      "price": 28.0
+    },
+    "ship_to": "18 Pecan St, Tulsa, OK 74103",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223388990011",
+      "status": "IN_TRANSIT",
+      "delivered_to": null,
+      "days_after_purchase": 2
+    },
+    "expected": "ACCEPT_CLAIM",
+    "hard": true,
+    "why": "Lost in transit; policy lets the buyer choose replacement or refund, and they said refund. A replacement offer ignores what they asked for."
+  },
+  {
+    "id": "hard_two_pieces",
+    "title": "Damage described without the usual words",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 5,
+    "days_open": 0,
+    "buyer_message": "It came in two pieces.",
+    "item": {
+      "sku": "BUD-VASE",
+      "name": "Bud vase",
+      "variant": "Clear",
+      "price": 15.0
+    },
+    "ship_to": "4 Juniper Ln, Santa Fe, NM 87501",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223399001122",
+      "status": "DELIVERED",
+      "delivered_to": "4 Juniper Ln, Santa Fe, NM 87501",
+      "days_after_purchase": 3
+    },
+    "expected": "ACCEPT_CLAIM",
+    "hard": true,
+    "why": "It arrived broken. Under $20, policy refunds without a return. Asking a buyer to mail back broken glass is wrong."
+  },
+  {
+    "id": "hard_agent_right_size",
+    "title": "Assistant ordered correctly, item runs small",
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "days_since_purchase": 9,
+    "days_open": 1,
+    "buyer_message": "My assistant ordered the right size but it runs small. Too tight.",
+    "item": {
+      "sku": "LIN-SHIRT",
+      "name": "Linen shirt",
+      "variant": "Navy / Size M",
+      "price": 48.0
+    },
+    "ship_to": "418 Maple Ave, Austin, TX 78704",
+    "shipment": {
+      "carrier": "USPS",
+      "number": "9400111899223344998877",
+      "status": "DELIVERED",
+      "delivered_to": "418 Maple Ave, Austin, TX 78704",
+      "days_after_purchase": 3
+    },
+    "agent_purchase": {
+      "agent": "Atlas (buyer's AI shopping assistant)",
+      "instruction": "Order the navy linen shirt in medium.",
+      "constraints": {
+        "variant": "Size M",
+        "max_price": 60
+      }
+    },
+    "expected": "OFFER_RETURN_FOR_REFUND",
+    "hard": true,
+    "why": "The assistant did what it was told, so this isn't an assistant mistake. It's an ordinary fit return inside the window."
+  }
+]

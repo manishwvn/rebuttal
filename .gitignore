@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+audit.jsonl
+spike_report.json
+node_modules/
+dist/
+spike_retry_report.json
+spike_fresh_report.json
+.venv/
+.DS_Store
