@@ -1,0 +1,283 @@
+[
+ {
+  "id": "ho_agent_wrong_color",
+  "title": "Buyer's assistant ordered the wrong colour",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 9,
+  "days_open": 1,
+  "buyer_message": "I told my assistant black. This hoodie is grey.",
+  "item": {
+   "sku": "HOOD-CTN",
+   "name": "Cotton hoodie",
+   "variant": "Heather Grey / M",
+   "price": 62.0
+  },
+  "ship_to": "55 Birch St, Portland, OR 97205",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900112233",
+   "status": "DELIVERED",
+   "delivered_to": "55 Birch St, Portland, OR 97205",
+   "days_after_purchase": 4
+  },
+  "agent_purchase": {
+   "agent": "Atlas (buyer's AI shopping assistant)",
+   "instruction": "Buy me the cotton hoodie in black, size medium, under $70.",
+   "constraints": {
+    "variant": "Black / M",
+    "max_price": 70
+   }
+  },
+  "expected": "OFFER_RETURN_FOR_REFUND",
+  "hard": false,
+  "why": "We shipped what the assistant ordered (grey); the assistant was told black. Policy offers a free exchange for assistant mistakes, but PayPal only allows refund-type offers here, so offer a refund on return and ship black once the return is scanned."
+ },
+ {
+  "id": "ho_inr_porch",
+  "title": "Says it never arrived, tracking shows delivered to the right address",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 10,
+  "days_open": 0,
+  "buyer_message": "Never showed up. Maybe someone took it from the porch?",
+  "item": {
+   "sku": "PLANTER-L",
+   "name": "Ceramic planter",
+   "variant": "White / Large",
+   "price": 39.0
+  },
+  "ship_to": "12 Cedar Ct, Raleigh, NC 27601",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900223344",
+   "status": "DELIVERED",
+   "delivered_to": "12 Cedar Ct, Raleigh, NC 27601",
+   "days_after_purchase": 4
+  },
+  "expected": "SHARE_TRACKING",
+  "hard": false,
+  "why": "Delivered to the order address. At inquiry stage, sharing the delivery proof is the right first step; the buyer can then file with the carrier."
+ },
+ {
+  "id": "ho_claim_no_tracking",
+  "title": "Escalated claim, nothing ever shipped",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "CHARGEBACK",
+  "days_since_purchase": 28,
+  "days_open": 12,
+  "buyer_message": "Three weeks, no package, no reply. I want my money back.",
+  "item": {
+   "sku": "WALL-ART",
+   "name": "Framed print",
+   "variant": "Dunes / 12x16",
+   "price": 75.0
+  },
+  "ship_to": "301 Pine Rd, Tucson, AZ 85701",
+  "shipment": null,
+  "expected": "ACCEPT_CLAIM",
+  "hard": false,
+  "why": "No shipment on record and it is already a claim. It cannot be won; refunding stops it going further."
+ },
+ {
+  "id": "ho_lost_wants_replacement",
+  "title": "Lost package, buyer asks for another one",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 19,
+  "days_open": 1,
+  "buyer_message": "Tracking hasn't moved in over two weeks. Can you just send me another one?",
+  "item": {
+   "sku": "TEA-TOWEL",
+   "name": "Tea towel set",
+   "variant": "Rust",
+   "price": 26.0
+  },
+  "ship_to": "8 Harbor Ln, Mobile, AL 36602",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900334455",
+   "status": "IN_TRANSIT",
+   "delivered_to": null,
+   "days_after_purchase": 2
+  },
+  "expected": "OFFER_REPLACEMENT",
+  "hard": true,
+  "why": "No movement for well over 10 days counts as lost. Policy lets the buyer pick replacement or refund, and they asked for a replacement. Refunding instead ignores the request and loses the sale."
+ },
+ {
+  "id": "ho_split_lamp",
+  "title": "Expensive item broken, described without the usual words",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 6,
+  "days_open": 0,
+  "buyer_message": "The base came split down the middle and the lamp wobbles. Not usable.",
+  "item": {
+   "sku": "LAMP-CER",
+   "name": "Ceramic table lamp",
+   "variant": "Sand",
+   "price": 85.0
+  },
+  "ship_to": "40 Oak Hill Dr, Boise, ID 83702",
+  "shipment": {
+   "carrier": "UPS",
+   "number": "1Z999AA10123459900",
+   "status": "DELIVERED",
+   "delivered_to": "40 Oak Hill Dr, Boise, ID 83702",
+   "days_after_purchase": 3
+  },
+  "expected": "OFFER_RETURN_FOR_REFUND",
+  "hard": true,
+  "why": "It arrived broken, though the buyer never says 'broken'. Over $20, so policy is replace or refund with a return (the shop can claim from the carrier). PayPal allows only refund-type offers, so refund on return."
+ },
+ {
+  "id": "ho_snapped_mug",
+  "title": "Cheap item broken, described without the usual words",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 4,
+  "days_open": 0,
+  "buyer_message": "The handle snapped off as I took it out of the box.",
+  "item": {
+   "sku": "MUG-STONE",
+   "name": "Stoneware mug",
+   "variant": "Moss",
+   "price": 14.0
+  },
+  "ship_to": "7 Lark St, Madison, WI 53703",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900445566",
+   "status": "DELIVERED",
+   "delivered_to": "7 Lark St, Madison, WI 53703",
+   "days_after_purchase": 3
+  },
+  "expected": "ACCEPT_CLAIM",
+  "hard": true,
+  "why": "It arrived broken. Under $20, policy refunds in full with no return. Asking for a broken mug back costs more than the mug."
+ },
+ {
+  "id": "ho_colour_preference",
+  "title": "Colour looks different from the photos, inside the window",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 12,
+  "days_open": 0,
+  "buyer_message": "The blue is darker than in the photos. I'd rather send it back.",
+  "item": {
+   "sku": "THROW-BLK",
+   "name": "Throw blanket",
+   "variant": "Ocean",
+   "price": 54.0
+  },
+  "ship_to": "19 Elm Pl, Columbus, OH 43215",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900556677",
+   "status": "DELIVERED",
+   "delivered_to": "19 Elm Pl, Columbus, OH 43215",
+   "days_after_purchase": 4
+  },
+  "expected": "OFFER_RETURN_FOR_REFUND",
+  "hard": false,
+  "why": "No defect, item matches the listing, inside the 30-day window. A normal return for a refund is fair and cheaper than fighting."
+ },
+ {
+  "id": "ho_refund_already_sent",
+  "title": "Asks for a refund that went out two days ago",
+  "reason": "CREDIT_NOT_PROCESSED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 35,
+  "days_open": 0,
+  "buyer_message": "Your warehouse got my return ages ago and I still have nothing.",
+  "item": {
+   "sku": "SOY-CANDLE",
+   "name": "Soy candle",
+   "variant": "Fig",
+   "price": 40.0
+  },
+  "ship_to": "66 Ridge Rd, Omaha, NE 68102",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900667788",
+   "status": "DELIVERED",
+   "delivered_to": "66 Ridge Rd, Omaha, NE 68102",
+   "days_after_purchase": 4
+  },
+  "return_shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900778899",
+   "status": "DELIVERED",
+   "days_ago": 9
+  },
+  "refund": {
+   "amount": 40.0,
+   "days_ago": 2
+  },
+  "expected": "SUBMIT_REFUND_PROOF",
+  "hard": false,
+  "why": "The full refund was issued two days ago and may not have posted yet. Showing the refund record closes it."
+ },
+ {
+  "id": "ho_unauth_assistant_reorder",
+  "title": "Doesn't recognise a reorder their assistant placed",
+  "reason": "UNAUTHORISED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 5,
+  "days_open": 2,
+  "buyer_message": "I didn't buy this.",
+  "item": {
+   "sku": "COFFEE-BEAN",
+   "name": "Whole bean coffee",
+   "variant": "Dark roast / 1 lb",
+   "price": 18.0
+  },
+  "ship_to": "230 Main St, Burlington, VT 05401",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900889900",
+   "status": "DELIVERED",
+   "delivered_to": "230 Main St, Burlington, VT 05401",
+   "days_after_purchase": 2
+  },
+  "agent_purchase": {
+   "agent": "Atlas (buyer's AI shopping assistant)",
+   "instruction": "Reorder my dark roast beans every month, max $25.",
+   "constraints": {
+    "variant": "Dark roast / 1 lb",
+    "max_price": 25
+   }
+  },
+  "expected": "SUBMIT_EVIDENCE",
+  "hard": false,
+  "why": "The buyer's own assistant placed it under a standing monthly instruction, within the limit, delivered to the buyer's address. The instruction record is the evidence."
+ },
+ {
+  "id": "ho_duplicate_two_orders",
+  "title": "Says charged twice, but only one charge exists",
+  "reason": "DUPLICATE_TRANSACTION",
+  "stage": "INQUIRY",
+  "days_since_purchase": 2,
+  "days_open": 0,
+  "buyer_message": "I see two charges from you this week.",
+  "item": {
+   "sku": "BUD-VASE",
+   "name": "Bud vase",
+   "variant": "Amber",
+   "price": 15.0
+  },
+  "ship_to": "5 River St, Savannah, GA 31401",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400111899229900990011",
+   "status": "IN_TRANSIT",
+   "delivered_to": null,
+   "days_after_purchase": 1
+  },
+  "duplicate_charge": false,
+  "expected": "SUBMIT_EVIDENCE",
+  "hard": false,
+  "why": "Only one charge exists for this order. Show the transaction record."
+ }
+]

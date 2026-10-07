@@ -25,9 +25,13 @@ from langgraph.checkpoint.memory import InMemorySaver
 from rebuttal.agent.llm import PROVIDERS, ModelCallFailed
 from rebuttal.config import Settings, load_settings
 from rebuttal.runtime import Runtime
-from rebuttal.scenarios import load_cases
+from rebuttal.scenarios import load_cases, seed_case
 
 HERE = Path(__file__).resolve().parent
+# Two labeled sets. The held-out one was written independently of the guard and the facts code and is never used for
+# tuning: it is only run and reported.
+SETS = {"main": HERE / "cases.json", "holdout": HERE / "holdout.json"}
+DATASETS = {"main": None, "holdout": "rebuttal-disputes-holdout"}  # Langfuse dataset names (None = the default)
 
 
 def pct(value: float | None) -> str:
@@ -62,7 +66,8 @@ def slug(text: str) -> str:
 def save_run(summary: dict) -> Path:
     """Keep every valid run as evals/results/<provider>-<model>-<date>.json (a same-day rerun gets -2, -3, ...)."""
     results_dir().mkdir(exist_ok=True)
-    base = f"{summary['provider']}-{slug(summary['model'])}-{summary['date'].replace('-', '')}"
+    tag = "-holdout" if summary.get("set") == "holdout" else ""
+    base = f"{summary['provider']}-{slug(summary['model'])}{tag}-{summary['date'].replace('-', '')}"
     path, n = results_dir() / f"{base}.json", 2
     while path.exists():
         path, n = results_dir() / f"{base}-{n}.json", n + 1
@@ -70,36 +75,66 @@ def save_run(summary: dict) -> Path:
     return path
 
 
+def _cell(row: dict | None) -> str:
+    if row is None:
+        return "n/a"
+    text = "yes" if row["correct"] else f"**{row['got']}**"
+    raw = row.get("raw")
+    return text if raw is None or raw == row["got"] else f"{text} (model: {raw})"
+
+
+def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str]) -> list[str]:
+    lines = [f"## {title}", "", intro, "",
+             "| Date | Provider | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens "
+             "| Gate violations | Langfuse experiment |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for r in runs:
+        lf = (r.get("langfuse") or {}).get("name", "")
+        final = f"{pct(r['accuracy'])} ({round(r['accuracy'] * r['cases'])}/{r['cases']})"
+        if r.get("raw_accuracy") is None:
+            alone, changed = "final only", "n/a"
+        else:
+            alone = f"{pct(r['raw_accuracy'])} ({round(r['raw_accuracy'] * r['cases'])}/{r['cases']})"
+            changed = f"{r['guard_changes']}/{r['cases']} ({pct(r['guard_changes'] / r['cases'])})"
+        lines.append(f"| {r['date']} | {r['provider']} | {r['model']} | {alone} | {final} | "
+                     f"{pct(r['standard_accuracy'])} | {pct(r['hard_accuracy'])} of {r['hard_cases']} | {changed} | "
+                     f"{r['tokens_used']:,} | {r['approval_gate_violations']} | {lf} |")
+    names = [f"{r['provider']}/{slug(r['model'])} {r['date'][5:]}" for r in runs]
+    lines += ["", "Per case: `yes` = the final action matches the label; otherwise the final action is shown, and "
+              "`(model: X)` means the model alone chose X before the guard changed it. Runs marked final only "
+              "have no raw choice.", "",
+              "| Case | Expected | " + " | ".join(names) + " |", "|---|---|" + "---|" * len(runs)]
+    for cid in [row["id"] for row in runs[-1]["rows"]]:
+        cells, expected, hard = [], "", False
+        for r in runs:
+            row = next((x for x in r["rows"] if x["id"] == cid), None)
+            if row:
+                expected, hard = row["expected"], row["hard"]
+            cells.append(_cell(row))
+        flag = " (judgment call)" if cid in judgment else " (hard)" if hard else ""
+        lines.append(f"| {cid}{flag} | {expected} | " + " | ".join(cells) + " |")
+    if judgment:
+        lines += ["", "Judgment calls:", ""] + [f"- `{cid}`: {note}" for cid, note in judgment.items()]
+    return lines
+
+
 def write_results_md() -> None:
-    """RESULTS.md: one line per saved run, a case-by-run matrix, and the judgment-call notes."""
+    """RESULTS.md: the main set and the held-out set, each with one line per saved run and a case-by-run matrix."""
     runs = sorted((json.loads(p.read_text()) | {"file": p.name} for p in results_dir().glob("*.json")),
                   key=lambda r: (r["date"], r["file"]))
     lines = ["# Eval results", "",
-             "Every valid run is kept in `evals/results/<provider>-<model>-<date>.json`. A run that hit a rate or quota "
-             "limit is invalid and is never saved. Rules baseline = no model.", "",
-             "| Date | Provider | Model | Overall | Standard | Hard | Tokens | Gate violations | Langfuse experiment |",
-             "|---|---|---|---|---|---|---|---|---|"]
-    for r in runs:
-        lf = (r.get("langfuse") or {}).get("name", "")
-        lines.append(f"| {r['date']} | {r['provider']} | {r['model']} | {pct(r['accuracy'])} ({round(r['accuracy'] * r['cases'])}/{r['cases']}) "
-                     f"| {pct(r['standard_accuracy'])} | {pct(r['hard_accuracy'])} of {r['hard_cases']} | "
-                     f"{r['tokens_used']:,} | {r['approval_gate_violations']} | {lf} |")
-    if runs:
-        names = [f"{r['provider']}/{slug(r['model'])} {r['date'][5:]}" for r in runs]
-        lines += ["", "## Per case (yes = matches the label; otherwise what the run chose)", "",
-                  "| Case | Expected | " + " | ".join(names) + " |", "|---|---|" + "---|" * len(runs)]
-        ids = [row["id"] for row in runs[-1]["rows"]]
-        for cid in ids:
-            cells, expected, hard = [], "", False
-            for r in runs:
-                row = next((x for x in r["rows"] if x["id"] == cid), None)
-                if row:
-                    expected, hard = row["expected"], row["hard"]
-                cells.append("n/a" if not row else "yes" if row["correct"] else f"**{row['got']}**")
-            flag = " (judgment call)" if cid in JUDGMENT_CALLS else " (hard)" if hard else ""
-            lines.append(f"| {cid}{flag} | {expected} | " + " | ".join(cells) + " |")
-    lines += ["", "## Judgment calls", ""]
-    lines += [f"- `{cid}`: {note}" for cid, note in JUDGMENT_CALLS.items()]
+             "Every valid run is kept in `evals/results/<provider>-<model>[-holdout]-<date>.json`. A run that hit a rate "
+             "or quota limit is invalid and is never saved. Rules baseline = no model. **Model alone** is the model's own "
+             "choice before `guard()`; **final** is what the agent would propose after the guard."]
+    main = [r for r in runs if r.get("set", "main") == "main"]
+    holdout = [r for r in runs if r.get("set") == "holdout"]
+    if main:
+        lines += [""] + _section(main, "Main set (evals/cases.json)",
+                                 "20 labeled disputes. The guard rules and the facts were developed against these.",
+                                 JUDGMENT_CALLS)
+    if holdout:
+        lines += [""] + _section(holdout, "Held-out (not used for tuning)",
+                                 "evals/holdout.json: 10 disputes written independently of the guard and facts code. "
+                                 "Run and reported only; no code is tuned against these results.", {})
     (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
 
 
@@ -110,18 +145,21 @@ class InvalidRun(RuntimeError):
 def run_case(case: dict, settings: Settings, *, force_rules: bool, tracing: bool = False,
              provider: str | None = None) -> tuple[dict, int, str]:
     """Analyse one labeled case through the graph, up to the approval gate. Returns (row, tokens used, mode)."""
-    rt = Runtime(settings=settings, seed_cases=[case["id"]], force_rules=force_rules, tracing=tracing,
+    rt = Runtime(settings=settings, seed_cases=[], force_rules=force_rules, tracing=tracing,
                  checkpointer=InMemorySaver(), provider=provider, strict=True)
-    dispute_id = rt.client.list_disputes()[0]["dispute_id"]
+    dispute_id = seed_case(case, 0, rt.mock, rt.store)  # works for any case set, not just cases.json
     # Every eval case is dispute PP-D-2000 in its own sandbox, so tag traces with the case id instead.
     trace = {"tags": ["eval", f"case:{case['id']}"],
              "metadata": {"case_id": case["id"], "hard": bool(case.get("hard")),
                           "langfuse_session_id": f"eval:{case['id']}"}}
     p = rt.analyze(dispute_id, config_extra=trace)
+    # The model's own choice, before guard(): the "decide" line of the audit trail.
+    raw = next(r["detail"]["resolution"] for r in rt.audit.for_dispute(dispute_id) if r["step"] == "decide")
     row = {
         "id": case["id"], "title": case["title"], "hard": case.get("hard", False),
         "expected": case["expected"], "got": p.decision.resolution,
         "correct": p.decision.resolution == case["expected"],
+        "raw": raw, "raw_correct": raw == case["expected"], "guard_changed": raw != p.decision.resolution,
         "confidence": p.decision.confidence, "source": p.decision.source,
         "writes_before_approval": len(rt.mock.write_calls()),
         "buyer_wants": p.decision.buyer_wants, "reasoning": p.decision.reasoning,
@@ -132,9 +170,9 @@ def run_case(case: dict, settings: Settings, *, force_rules: bool, tracing: bool
 
 
 def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, langfuse: bool = False,
-        provider: str | None = None) -> dict:
+        provider: str | None = None, case_set: str = "main") -> dict:
     settings = eval_settings()
-    cases = [c for c in load_cases() if not only or c["id"] in only]
+    cases = [c for c in load_cases(SETS[case_set]) if not only or c["id"] in only]
     rows: list[dict] = []
     tokens_total, mode, experiment = 0, "", None
     invalid: list[str] = []  # why the run is invalid (first failure); later cases are skipped
@@ -170,15 +208,16 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
             raise SystemExit("--langfuse runs the whole dataset; drop --only.")
         by_id = {c["id"]: c for c in cases}
         probe = Runtime(settings=settings, seed_cases=[], force_rules=force_rules, tracing=False, provider=provider)
-        name = f"{probe.reasoner.name}-{probe.reasoner.model_name.split('/')[-1]}-" \
+        name = f"{probe.reasoner.name}-{probe.reasoner.model_name.split('/')[-1]}{'-holdout' if case_set == 'holdout' else ''}-" \
                f"{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
-        tracing.upload_dataset(cases)
+        dataset = DATASETS[case_set] or tracing.DATASET_NAME
+        tracing.upload_dataset(cases, dataset)
         result = tracing.run_experiment(
-            name=name, task=lambda case: run_one(by_id[case["id"]]),
+            name=name, task=lambda case: run_one(by_id[case["id"]]), dataset_name=dataset,
             description="evals/run.py --langfuse: every labeled dispute analysed up to the approval gate",
             metadata={"mode": probe.mode, "cases": len(cases)})
         tracing.flush()
-        experiment = {"name": name, "dataset": tracing.DATASET_NAME,
+        experiment = {"name": name, "dataset": dataset,
                       "url": getattr(result, "dataset_run_url", None)}
     else:
         for n, case in enumerate(cases):
@@ -201,7 +240,9 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
     summary = {
         "mode": mode, "cases": len(rows), "accuracy": acc(rows),
         "standard_accuracy": acc([r for r in rows if not r["hard"]]),
-        "hard_accuracy": acc(hard), "hard_cases": len(hard),
+        "hard_accuracy": acc(hard), "hard_cases": len(hard), "set": case_set,
+        "raw_accuracy": acc([{"correct": r["raw_correct"]} for r in rows]),
+        "guard_changes": sum(r["guard_changed"] for r in rows),
         "approval_gate_violations": sum(r["writes_before_approval"] for r in rows),
         "rows": rows, "tokens_used": tokens_total, "langfuse": experiment,
     }
@@ -221,6 +262,8 @@ if __name__ == "__main__":
     ap.add_argument("--only", help="comma-separated case ids (results files are overwritten with just these)")
     ap.add_argument("--langfuse", action="store_true",
                     help="trace every case and record the run as a Langfuse experiment (needs the Langfuse keys)")
+    ap.add_argument("--set", dest="case_set", choices=list(SETS), default="main",
+                    help="main = cases.json; holdout = the held-out set (never used for tuning)")
     ap.add_argument("--rebuild-md", action="store_true", help="regenerate RESULTS.md from evals/results/ and exit")
     ap.add_argument("--provider", choices=PROVIDERS, help="pin the model provider (needs its key in backend/.env)")
     args = ap.parse_args()
@@ -229,10 +272,11 @@ if __name__ == "__main__":
         raise SystemExit(0)
     try:
         s = run(force_rules=args.rules, pause=args.pause, only=set(args.only.split(",")) if args.only else None,
-                langfuse=args.langfuse, provider=args.provider)
+                langfuse=args.langfuse, provider=args.provider, case_set=args.case_set)
     except InvalidRun as exc:
         raise SystemExit(f"EVAL INVALID, no results written: {exc}")
-    print(f"{s['mode']}: {pct(s['accuracy'])} overall, {pct(s['standard_accuracy'])} standard, "
+    print(f"{s['mode']} [{s['set']}]: model alone {pct(s['raw_accuracy'])}, guard changed {s['guard_changes']}/{s['cases']}, "
+          f"final {pct(s['accuracy'])} overall, {pct(s['standard_accuracy'])} standard, "
           f"{pct(s['hard_accuracy'])} hard ({s['hard_cases']}), gate violations {s['approval_gate_violations']}")
     if s["tokens_used"]:
         print(f"tokens used: {s['tokens_used']:,}")
