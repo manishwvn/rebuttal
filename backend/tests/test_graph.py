@@ -179,7 +179,8 @@ from rebuttal.runtime import Runtime
 from rebuttal.persistence import make_checkpointer
 rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True, checkpointer=make_checkpointer({str(db)!r}))
 """
-    env = {"PATH": "/usr/bin:/bin", "REBUTTAL_MOCK": "1", "PAYPAL_ENV": "sandbox", "HOME": str(tmp_path)}
+    env = {"PATH": "/usr/bin:/bin", "REBUTTAL_MOCK": "1", "PAYPAL_ENV": "sandbox", "HOME": str(tmp_path),
+           "DATABASE_URL": "", "REBUTTAL_CHECKPOINT_URL": ""}
     first = subprocess.run([sys.executable, "-c", common + 'print(rt.analyze("PP-D-2000").id)'],
                            cwd=BACKEND, env=env, capture_output=True, text=True, timeout=120)
     assert first.returncode == 0, first.stderr[-2000:]

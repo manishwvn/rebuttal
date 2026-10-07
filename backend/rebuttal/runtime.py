@@ -50,7 +50,7 @@ class Runtime:
         rules_only = force_rules or self.settings.reasoner == "rules"
         self.reasoner = (None if rules_only else build_reasoner(self.settings, provider=provider, strict=strict)) or RuleReasoner()
 
-        self.audit = AuditLog(self.settings.audit_path if audit_to_file else None)
+        self.audit = AuditLog(self.settings.audit_path if audit_to_file else None, self.settings.database_url)
         self.agent = DisputeAgent(
             client=self.client, store=self.store, reasoner=self.reasoner, audit=self.audit, clock=self.clock,
             checkpointer=checkpointer or make_checkpointer(self.settings.checkpoint_target),

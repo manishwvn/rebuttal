@@ -46,7 +46,13 @@ class RejectBody(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "mode": rt.mode, "auth": bool(API_TOKEN)}
+    # With a database configured this also runs `SELECT 1`, so the daily keep-alive ping keeps a free Supabase
+    # project from being paused for inactivity.
+    try:
+        database = rt.audit.ping()
+    except Exception:  # noqa: BLE001 - health must answer even when the database is down
+        return {"ok": False, "mode": rt.mode, "auth": bool(API_TOKEN), "database": False}
+    return {"ok": True, "mode": rt.mode, "auth": bool(API_TOKEN), "database": database}
 
 
 @app.get("/api/disputes", dependencies=protected)

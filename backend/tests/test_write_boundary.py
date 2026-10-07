@@ -79,7 +79,7 @@ def test_the_manual_sandbox_tools_use_the_write_permit_explicitly():
 
 def test_the_demo_only_ever_runs_on_the_mock():
     source = (BACKEND / "scripts" / "demo.py").read_text()
-    assert "replace(load_settings(), mock=True)" in source and "assert rt.mock is not None" in source
+    assert "replace(load_settings(), mock=True, database_url=None" in source and "assert rt.mock is not None" in source
 
 
 def test_the_write_method_list_covers_every_mutating_client_method():

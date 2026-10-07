@@ -9,3 +9,8 @@ os.environ["REBUTTAL_REASONER"] = "rules"
 
 # And no test may build a real-sandbox runtime, whatever REBUTTAL_MOCK says in backend/.env.
 os.environ["REBUTTAL_MOCK"] = "1"
+
+# Nor may any test touch the online database that backend/.env points at (DATABASE_URL): checkpoints and the audit
+# log stay in memory. The live Postgres check is the separate script tests/live_postgres.py.
+os.environ["DATABASE_URL"] = ""
+os.environ["REBUTTAL_CHECKPOINT_URL"] = ""

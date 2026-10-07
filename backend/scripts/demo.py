@@ -22,7 +22,7 @@ EVALS = Path(__file__).resolve().parents[1] / "evals" / "results.json"
 
 def main() -> None:
     # The demo approves every proposal itself, so it only ever runs on the in-memory mock, whatever REBUTTAL_MOCK says.
-    rt = Runtime(settings=replace(load_settings(), mock=True), seed_cases=DEMO_CASES)
+    rt = Runtime(settings=replace(load_settings(), mock=True, database_url=None, checkpoint_target=None), seed_cases=DEMO_CASES)
     assert rt.mock is not None
     cases = []
     for d in rt.client.list_disputes():

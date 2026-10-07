@@ -2,7 +2,7 @@
 
 - unset in mock mode, or ":memory:"  -> InMemorySaver (state resets with the mock sandbox; tests and evals)
 - a file path or sqlite:///file.db    -> SqliteSaver (local development, one process)
-- postgres:// or postgresql:// URL    -> PostgresSaver (Render; needs the `postgres` extra: uv sync --extra postgres)
+- postgres:// or postgresql:// URL    -> PostgresSaver (Supabase or any Postgres; needs the `postgres` extra: uv sync --extra postgres)
 
 A checkpoint holds the paused proposal, so with a durable saver an approval can arrive after a restart or redeploy.
 """
@@ -22,6 +22,8 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 
+from .audit import open_pool
+
 POSTGRES_SCHEMES = ("postgres://", "postgresql://")
 
 
@@ -40,15 +42,14 @@ def make_checkpointer(target: str | None) -> BaseCheckpointSaver:
 def _postgres_saver(url: str) -> BaseCheckpointSaver:
     try:
         from langgraph.checkpoint.postgres import PostgresSaver
-        from psycopg.rows import dict_row
-        from psycopg_pool import ConnectionPool
     except ImportError as exc:
         raise RuntimeError("Postgres checkpointing needs the 'postgres' extra: uv sync --extra postgres") from exc
-    # The connection settings PostgresSaver requires (autocommit, dict rows, no prepared statements).
-    pool = ConnectionPool(conninfo=url, max_size=10, open=True,
-                          kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row})
+    pool = open_pool(url)  # the connection settings PostgresSaver requires
     saver = PostgresSaver(pool)
     saver.setup()  # creates the checkpoint tables on first use; safe to repeat
+    with pool.connection() as conn:  # Supabase exposes `public` tables over its REST API: RLS with no policy closes that
+        for table in ("checkpoints", "checkpoint_blobs", "checkpoint_writes", "checkpoint_migrations"):
+            conn.execute(f"ALTER TABLE IF EXISTS {table} ENABLE ROW LEVEL SECURITY")
     return saver
 
 
@@ -96,7 +97,7 @@ class FileDisputeLocks(DisputeLocks):
 class PostgresDisputeLocks(DisputeLocks):
     """A session-level Postgres advisory lock per dispute (any instance sharing the database). Each held lock uses
     its own short-lived connection, not the checkpointer's pool, so locks cannot starve the graph of connections.
-    Not yet exercised against a live Postgres."""
+    Exercised against a live Supabase database (session pooler) in tests/live_postgres.py."""
 
     def __init__(self, conninfo: str) -> None:
         super().__init__()

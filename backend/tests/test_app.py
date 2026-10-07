@@ -57,3 +57,8 @@ def test_the_api_token_is_enforced_when_set_and_the_webhook_and_health_stay_open
     assert ok.status_code == 200 and ok.json()["status"] == "PENDING"
     event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
     assert client.post("/api/webhooks/paypal", json=event).status_code == 200  # signature check is planned
+
+
+def test_health_reports_no_database_when_none_is_configured(client):
+    body = client.get("/api/health").json()
+    assert body["ok"] is True and body["database"] is None

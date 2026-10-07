@@ -38,7 +38,8 @@ def eval_settings() -> Settings:
     settings = load_settings()
     if not settings.mock:
         settings = type(settings)(**{**settings.__dict__, "mock": True})  # evals always use the mock
-    return settings
+    # Evals never touch the online database: every case is dispute PP-D-2000 in a throwaway sandbox.
+    return type(settings)(**{**settings.__dict__, "database_url": None, "checkpoint_target": None})
 
 
 class InvalidRun(RuntimeError):

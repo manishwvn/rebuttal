@@ -37,6 +37,7 @@ class Settings:
     groq_api_key: str | None
     groq_model: str
     audit_path: Path
+    database_url: str | None = None  # a postgres:// DATABASE_URL: checkpoints and the audit log live there
     checkpoint_target: str | None = None  # None = in memory; see persistence.py
     provider: str | None = None  # REBUTTAL_PROVIDER=groq|nvidia|anthropic pins the model provider
     reasoner: str = "auto"  # "rules" (REBUTTAL_REASONER=rules) never calls a model, whatever keys are set
@@ -80,6 +81,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         groq_api_key=os.getenv("GROQ_API_KEY") or None,
         groq_model=os.getenv("GROQ_MODEL", DEFAULT_GROQ_MODEL),
         audit_path=Path(os.getenv("REBUTTAL_AUDIT_PATH", "audit.jsonl")),
+        database_url=database_url if database_url.startswith(("postgres://", "postgresql://")) else None,
         checkpoint_target=checkpoint_target,
         provider=(os.getenv("REBUTTAL_PROVIDER") or "").strip().lower() or None,
         reasoner=os.getenv("REBUTTAL_REASONER", "auto").strip().lower(),
