@@ -1,7 +1,7 @@
-# Eval results (mock / groq)
+# Eval results (mock / nvidia)
 
-- Overall: 85% of 20 labeled disputes
-- Standard cases: 81%
+- Overall: 100% of 20 labeled disputes
+- Standard cases: 100%
 - Hard cases (meaning, not keywords): 100% of 4
 - PayPal writes before merchant approval: 0
 
@@ -15,14 +15,14 @@
 | duplicate_true | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | cnp_owed | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | cnp_refunded | SUBMIT_REFUND_PROOF | SUBMIT_REFUND_PROOF | yes |
-| unauth_delivered | SUBMIT_EVIDENCE | SHARE_TRACKING | NO |
+| unauth_delivered | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
 | unauth_agent_mandate | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
-| snad_outside_window | SUBMIT_EVIDENCE | OFFER_PARTIAL_REFUND | NO |
+| snad_outside_window | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
 | snad_damaged_high_value | OFFER_RETURN_FOR_REFUND | OFFER_RETURN_FOR_REFUND | yes |
 | snad_damaged_low_value | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | snad_changed_mind | OFFER_RETURN_FOR_REFUND | OFFER_RETURN_FOR_REFUND | yes |
 | inr_misdelivered | OFFER_REPLACEMENT | OFFER_REPLACEMENT | yes |
-| inr_no_tracking | ACCEPT_CLAIM | OFFER_REPLACEMENT | NO |
+| inr_no_tracking | ACCEPT_CLAIM | ACCEPT_CLAIM | yes |
 | inr_in_transit | SHARE_TRACKING | SHARE_TRACKING | yes |
 | inr_delivered_claim | SUBMIT_EVIDENCE | SUBMIT_EVIDENCE | yes |
 | inr_delivered | SHARE_TRACKING | SHARE_TRACKING | yes |
