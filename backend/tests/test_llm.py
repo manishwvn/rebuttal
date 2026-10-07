@@ -120,7 +120,7 @@ def test_throttle_is_reserved_before_and_settled_after_each_call(case):
 
 def settings(**kw):
     return Settings(**{**load_settings().__dict__, "mock": True, "reasoner": "auto", "anthropic_api_key": None,
-                       "groq_api_key": None, "nvidia_api_key": None, **kw})
+                       "groq_api_key": None, "nvidia_api_key": None, "muse_api_key": None, **kw})
 
 
 def test_providers_are_picked_in_order_anthropic_groq_nvidia_rules():
@@ -222,3 +222,12 @@ def test_provider_can_be_pinned_and_needs_its_key():
     with pytest.raises(ValueError, match="unknown provider"):
         build_reasoner(both, provider="openai")
     assert build_reasoner(both, strict=True).strict
+
+
+def test_muse_is_last_in_order_and_uses_native_json_schema():
+    assert build_reasoner(settings(muse_api_key="m")).name == "muse"
+    assert build_reasoner(settings(muse_api_key="m", groq_api_key="g")).name == "groq"  # Groq stays the default
+    r = build_reasoner(settings(muse_api_key="m", groq_api_key="g"), provider="muse")
+    assert r.name == "muse" and r.model_name == "muse-spark-1.3-contributor"
+    assert str(r.chat_model.openai_api_base) == "https://api.meta.ai/v1"
+    assert r.chat_model.reasoning_effort == "minimal"

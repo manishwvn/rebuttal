@@ -3,7 +3,7 @@
 Only the `decide` step talks to a model. The model reads the buyer's words and the pre-computed facts and returns a
 `DecisionOut`; everything else (facts, guard, planning, PayPal calls) stays deterministic code.
 
-Provider order, picked by which key is set: Anthropic, then Groq, then NVIDIA (OpenAI-compatible), else the rules
+Provider order, picked by which key is set: Anthropic, then Groq, then NVIDIA, then Meta Muse (both OpenAI-compatible), else the rules
 baseline. Temperature is 0 everywhere (LangChain sends 1e-8 to Groq, which rejects 0). Groq's free tier is paced by
 `TokenBudget`. Anthropic and Groq use their native JSON-schema output; NVIDIA uses forced tool calling.
 """
@@ -32,6 +32,7 @@ from .reasoner import (
 )
 
 NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+MUSE_BASE_URL = "https://api.meta.ai/v1"  # Meta Model API, OpenAI-compatible
 ResolutionName = Literal[tuple(RESOLUTIONS)]  # type: ignore[valid-type]
 
 
@@ -198,6 +199,20 @@ def _groq_budget() -> TokenBudget:
     return _GROQ_BUDGET
 
 
+# Meta Muse Spark 1.3 contributor tier: 100 requests/min per team. Prompts and outputs may be used by Meta to improve
+# its products (contributor terms), so it is for sandbox and synthetic data only, never real buyers.
+MUSE_LIMITS = {"tpm": 10**9, "rpm": 60}
+MUSE_MAX_TOKENS = 1500  # reasoning tokens bill and count as output
+_MUSE_BUDGET: TokenBudget | None = None
+
+
+def _muse_budget() -> TokenBudget:
+    global _MUSE_BUDGET
+    if _MUSE_BUDGET is None:
+        _MUSE_BUDGET = TokenBudget(**MUSE_LIMITS)
+    return _MUSE_BUDGET
+
+
 # NVIDIA build free tier: 40 requests/min (no published token limit). Stay a little under it.
 NVIDIA_LIMITS = {"tpm": 10**9, "rpm": 30}
 _NVIDIA_BUDGET: TokenBudget | None = None
@@ -210,7 +225,7 @@ def _nvidia_budget() -> TokenBudget:
     return _NVIDIA_BUDGET
 
 
-PROVIDERS = ("anthropic", "groq", "nvidia")
+PROVIDERS = ("anthropic", "groq", "nvidia", "muse")
 
 
 def build_reasoner(settings: Settings, *, provider: str | None = None, strict: bool = False) -> ModelReasoner | None:
@@ -256,5 +271,17 @@ def _build(settings: Settings, want) -> ModelReasoner | None:
         return ModelReasoner(name="nvidia", model_name=settings.nvidia_model, max_output_tokens=4096,
                              chat_model=chat, throttle=_nvidia_budget(),
                              structured=chat.with_structured_output(DecisionOut, method="function_calling",
+                                                                    include_raw=True))
+    if want("muse") and settings.muse_api_key:
+        from langchain_openai import ChatOpenAI
+
+        # reasoning_effort "minimal" keeps it fast. The API accepts only tool_choice "auto", so forced tool calling
+        # (function_calling) is out; native json_schema output is used instead.
+        chat = ChatOpenAI(model=settings.muse_model, api_key=settings.muse_api_key, base_url=MUSE_BASE_URL,
+                          temperature=TEMPERATURE, max_tokens=MUSE_MAX_TOKENS, timeout=90, max_retries=1,
+                          reasoning_effort="minimal")
+        return ModelReasoner(name="muse", model_name=settings.muse_model, max_output_tokens=MUSE_MAX_TOKENS,
+                             chat_model=chat, throttle=_muse_budget(),
+                             structured=chat.with_structured_output(DecisionOut, method="json_schema",
                                                                     include_raw=True))
     return None

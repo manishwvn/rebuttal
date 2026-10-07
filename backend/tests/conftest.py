@@ -14,3 +14,4 @@ os.environ["REBUTTAL_MOCK"] = "1"
 # log stay in memory. The live Postgres check is the separate script tests/live_postgres.py.
 os.environ["DATABASE_URL"] = ""
 os.environ["REBUTTAL_CHECKPOINT_URL"] = ""
+os.environ["REBUTTAL_API_TOKEN"] = ""  # the real token in backend/.env must not turn the open-API tests into 401s
