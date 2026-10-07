@@ -10,8 +10,11 @@ transactions, store policies and (for AI-assistant purchases) the assistant's pu
 facts in code; decides the cheapest fair resolution; drafts the buyer message or evidence; and waits for the
 merchant to approve. Hero demo case: `agent_wrong_size` in `backend/evals/cases.json`.
 
-Prizes we aim at: Most Impactful / Best Use of PayPal + AI / Best Use of Agentic Commerce, plus one sponsor prize
-(Bryntum, AG Grid or APIMatic). Judges score Technological Implementation, Design, Impact, Innovation, Presentation
+Prizes we aim at: Most Impactful / Best Use of PayPal + AI / Best Use of Agentic Commerce, plus sponsor prizes:
+**AG Grid is the main target** (AG Studio dashboard with custom widgets, theming and the Studio Agent Framework;
+AG Grid confirmed on Discord that unlicensed use with the watermark isn't penalized), **APIMatic** (document its use,
+below), and **Bryntum as backup only**. The 3-minute video is a top priority: script by Oct 12, rough cut by end of
+Week 3, final in Week 5. Feature freeze Nov 3, submit Nov 10. See "Prize strategy" in `PLAN.md`. Judges score Technological Implementation, Design, Impact, Innovation, Presentation
 equally, often from the video alone.
 
 ## Rules that never bend
@@ -64,4 +67,5 @@ uvicorn rebuttal.app:app --reload
 ## Tooling
 
 Use the PayPal AI Toolkit plugin (github.com/paypal/AI-Toolkit) and the APIMatic Context Plugin for PayPal when
-writing PayPal integration code. Note in the README where APIMatic helped (needed for its sponsor prize).
+writing PayPal integration code. Keep a running list of where APIMatic helped (endpoint shapes, request bodies, error handling) and put it in the
+README; the APIMatic prize depends on it.
