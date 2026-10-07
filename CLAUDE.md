@@ -3,6 +3,16 @@
 PayPal AI Hackathon entry. Deadline Nov 12, 2026, 12:00 PM PT; we submit Nov 10. Plan and gates: `PLAN.md`.
 Pitch, video script and the judge review that picked this idea: `docs/pitches.md`.
 
+## Workflow
+
+- **At session start read `STATUS.md`. At the end of every task update `STATUS.md`.**
+- **Work on a branch per task and open a PR; never push code straight to `main`.** Docs-only STATUS updates ride on
+  the task's PR. CI (`.github/workflows/tests.yml`) must pass before merge.
+- **Code-minimizing skills (for example Ponytail) must never remove tests, guard rules, or the approval boundary.**
+  Safety code that looks redundant is deliberate; leave it.
+- Use the `reviewer` agent (`.claude/agents/reviewer.md`) before merging a non-trivial change and the `chores` agent
+  for small edits, formatting and docs.
+
 ## What we're building
 
 A dispute-prevention agent for small PayPal merchants. On a new dispute it gathers the order, tracking,
