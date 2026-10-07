@@ -18,6 +18,7 @@ import httpx
 
 _DISPUTE_PATH = re.compile(r"^/v1/customer/disputes/([^/]+)(?:/([a-z-]+))?$")
 _ORDER_PATH = re.compile(r"^/v2/checkout/orders/([^/]+)$")
+_CAPTURE_PATH = re.compile(r"^/v2/payments/captures/([^/]+)$")
 # Seller actions the real sandbox rejected with ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE
 # on an INQUIRY dispute in UNDER_REVIEW.
 _SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "escalate"}
@@ -158,6 +159,15 @@ class MockPayPal:
             if order is None:
                 return _error(404, "RESOURCE_NOT_FOUND", f"No order {order_match.group(1)}")
             return _json(200, order)
+
+        capture_match = _CAPTURE_PATH.match(path)
+        if capture_match and method == "GET":  # same shape as the real sandbox: the order id sits in supplementary_data
+            for order in self.orders.values():
+                for unit in order["purchase_units"]:
+                    for cap in unit["payments"]["captures"]:
+                        if cap["id"] == capture_match.group(1):
+                            return _json(200, {**cap, "supplementary_data": {"related_ids": {"order_id": order["id"]}}})
+            return _error(404, "RESOURCE_NOT_FOUND", f"No capture {capture_match.group(1)}")
 
         if path == "/v1/reporting/transactions" and method == "GET":
             params = request.url.params

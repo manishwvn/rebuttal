@@ -15,7 +15,7 @@ from .config import Settings, load_settings
 from .paypal.client import PayPalClient
 from .paypal.mock import MockPayPal
 from .persistence import make_checkpointer
-from .scenarios import DEMO_NOW, load_cases, seed_case
+from .scenarios import DEMO_NOW, fixture_order, load_cases, seed_case
 from .store import MerchantStore
 
 
@@ -34,7 +34,7 @@ class Runtime:
         """`checkpointer`: a LangGraph saver; default comes from settings (in memory in mock mode).
         `tracing`: True/False forces Langfuse tracing on/off; None means on when Langfuse keys are set."""
         self.settings = settings or load_settings()
-        self.store = MerchantStore()
+        self.store = MerchantStore(fixtures=fixture_order)
         self.mock: MockPayPal | None = None
 
         if self.settings.mock:

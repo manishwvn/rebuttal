@@ -77,11 +77,21 @@ uv add <package>                         # add a dependency (never pip install, 
 
 The backend is a uv project: `backend/pyproject.toml`, `backend/uv.lock` (commit both), `backend/.python-version`.
 
-## Next tasks, in order
+## Current state and next tasks
 
-1. Run the spike with Manish; fix whatever the real sandbox does differently; update the mock.
-2. Turn on Claude mode; get ≥ 90% overall and ≥ 3/4 hard cases without editing the expected answers.
-3. Week 2–5 items in `PLAN.md`.
+Live: the backend runs on Render (free plan, `https://rebuttal-oq3g.onrender.com`) against the real PayPal sandbox
+(`REBUTTAL_MOCK=0`), with Groq as the model, Supabase Postgres for checkpoints and the audit log, and a registered
+webhook (`CUSTOMER.DISPUTE.*`, signature-verified). Proven end to end on Oct 7: a buyer-filed sandbox dispute produced
+a verified webhook, then gather > decide > guard > propose, and paused at the approval interrupt with no PayPal write.
+A live order maps to a merchant record when its invoice is `RB-<case id>-<n>`: make one with
+`uv run python -u -m scripts.make_test_order --case agent_wrong_size` (see `scripts/make_test_order.py`).
+
+Next, in order:
+
+1. Frontend (`frontend/`, none yet): inbox of disputes, case view (facts, reasoning, drafted message), approve / edit /
+   reject against `/api/proposals/*`, using the `preview/` page as the design target.
+2. AG Grid dashboard (AG Studio, custom widgets, theming): the main sponsor-prize target.
+3. Video script by Oct 12; rough cut by end of Week 3. Then the remaining Week 2-5 items in `PLAN.md`.
 
 ## Tooling
 

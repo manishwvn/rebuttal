@@ -217,3 +217,39 @@ def test_no_tracking_on_a_not_received_dispute_means_a_refund_not_a_replacement(
     for model_choice in ("OFFER_REPLACEMENT", "SUBMIT_EVIDENCE"):
         d = guard(Decision(model_choice, 0.9, [], "", "m", "e", source="claude"), case)
         assert d.resolution == "ACCEPT_CLAIM" and any("can't be proven" in n for n in d.guard_notes)
+
+
+def test_a_live_sandbox_order_made_by_make_test_order_gathers_the_hero_case_record():
+    """An order whose invoice is RB-<case>-<n> (not seeded by hand) resolves to the case's merchant record, its PayPal
+    order id comes from the capture, and the assistant-intent facts are there."""
+    from datetime import timedelta
+
+    from rebuttal.paypal.client import PayPalClient
+    from rebuttal.paypal.mock import MockPayPal
+    from rebuttal.scenarios import iso, live_invoice_id
+    from rebuttal.store import MerchantStore
+    from rebuttal.scenarios import fixture_order
+
+    mock = MockPayPal()
+    client = PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret", transport=mock.transport())
+    store = MerchantStore(fixtures=fixture_order)  # nothing seeded by hand
+    invoice = live_invoice_id("agent_wrong_size", 1791368378)
+    mock.add_order("8MD03238YM8593329", "7UM591057M790460L")
+    mock.add_tracker("8MD03238YM8593329", "7UM591057M790460L", "9400111899223344556677", "DELIVERED")
+    mock.add_dispute({
+        "dispute_id": "PP-R-LIVE-1", "create_time": iso(DEMO_NOW), "update_time": iso(DEMO_NOW),
+        "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED", "status": "WAITING_FOR_SELLER_RESPONSE",
+        "dispute_life_cycle_stage": "INQUIRY", "dispute_amount": {"currency_code": "USD", "value": "48.00"},
+        "disputed_transactions": [{"seller_transaction_id": "7UM591057M790460L", "invoice_number": invoice,
+                                   "custom": invoice, "buyer": {"name": "Sandbox Buyer"}}],
+        "messages": [{"posted_by": "BUYER", "time_posted": iso(DEMO_NOW), "content": "I asked for a medium."}],
+    })
+    case = gather("PP-R-LIVE-1", client.read_only(), store, DEMO_NOW)
+    assert case.facts["order_found"] is True
+    assert case.order.order_id == "8MD03238YM8593329" and case.order.buyer_name == "Sandbox Buyer"
+    assert case.facts["tracking_uploaded_to_paypal"] is True
+    assert case.facts["is_agent_purchase"] is True and case.facts["assistant_misordered"] is True
+    assert case.order.demo_fixture and case.facts["demo_fixture"] is True
+    assert any("DEMO FIXTURE" in c for c in case.tool_calls)
+    assert store.by_invoice("JO-9999") is None and store.by_invoice("RB-no_such_case-1") is None  # real orders do not match
+    assert mock.write_calls() == []

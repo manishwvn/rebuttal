@@ -8,6 +8,7 @@ told to buy. Disputes link back here through the invoice number we set as
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -47,6 +48,7 @@ class MerchantOrder:
     refunds: list[dict] = field(default_factory=list)
     return_shipment: Shipment | None = None
     order_id: str | None = None  # PayPal order id; needed to read trackers from the order
+    demo_fixture: bool = False  # True: built from a labeled case for a live sandbox order, not a real shop record
 
     def to_dict(self) -> dict:
         """JSON-safe snapshot (datetimes as ISO strings), used in graph state and checkpoints."""
@@ -56,7 +58,7 @@ class MerchantOrder:
             "ship_to": self.ship_to, "shipment": self.shipment.to_dict() if self.shipment else None,
             "intent": self.intent, "refunds": self.refunds,
             "return_shipment": self.return_shipment.to_dict() if self.return_shipment else None,
-            "order_id": self.order_id,
+            "order_id": self.order_id, "demo_fixture": self.demo_fixture,
         }
 
     @classmethod
@@ -74,18 +76,27 @@ class MerchantOrder:
 
 
 class MerchantStore:
+    """The shop's order records. `fixtures` is an optional resolver `(invoice_id, hint) -> MerchantOrder | None` that
+    supplies a record for invoices nobody added by hand: it lets a live sandbox order (made by scripts/make_test_order.py)
+    resolve to a seeded demo record on a host with no local files, such as Render. `hint` carries what the dispute
+    knows: `now`, `capture_id`, `buyer_name`."""
+
     name = "Juniper & Oak"
 
-    def __init__(self) -> None:
+    def __init__(self, fixtures: Callable[[str, dict], MerchantOrder | None] | None = None) -> None:
         self._by_invoice: dict[str, MerchantOrder] = {}
         self._by_capture: dict[str, MerchantOrder] = {}
+        self._fixtures = fixtures
 
     def add(self, order: MerchantOrder) -> None:
         self._by_invoice[order.invoice_id] = order
         self._by_capture[order.capture_id] = order
 
-    def by_invoice(self, invoice_id: str | None) -> MerchantOrder | None:
-        return self._by_invoice.get(invoice_id or "")
+    def by_invoice(self, invoice_id: str | None, hint: dict | None = None) -> MerchantOrder | None:
+        found = self._by_invoice.get(invoice_id or "")
+        if found is None and invoice_id and self._fixtures:
+            found = self._fixtures(invoice_id, hint or {})
+        return found
 
     def by_capture(self, capture_id: str | None) -> MerchantOrder | None:
         return self._by_capture.get(capture_id or "")

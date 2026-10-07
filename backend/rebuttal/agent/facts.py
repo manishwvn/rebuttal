@@ -8,7 +8,7 @@ matched what its user asked for.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import replace, dataclass, field
 from datetime import datetime, timedelta
 
 from .. import policies
@@ -88,8 +88,18 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
     calls.append(f"GET /v1/customer/disputes/{dispute_id}")
     txn = (dispute.get("disputed_transactions") or [{}])[0]
     capture_id = txn.get("seller_transaction_id")
-    order = store.by_invoice(txn.get("invoice_number")) or store.by_capture(capture_id)
+    hint = {"now": now, "capture_id": capture_id, "buyer_name": (txn.get("buyer") or {}).get("name")}
+    order = store.by_invoice(txn.get("invoice_number"), hint) or store.by_capture(capture_id)
     calls.append(f"merchant orders: lookup invoice {txn.get('invoice_number')}")
+    if order and not order.order_id and capture_id:
+        # A live order's PayPal order id is not in the merchant record; the capture says which order it belongs to.
+        try:
+            order = replace(order, order_id=client.get_capture_order_id(capture_id))
+            calls.append(f"GET /v2/payments/captures/{capture_id} (order id)")
+        except PayPalError as exc:  # trackers then stay "not checked", like a 403 on transaction search
+            calls.append(f"GET /v2/payments/captures/{capture_id}: {exc.status}, order id unknown, tracking not checked")
+    if order and order.demo_fixture:
+        calls.append("merchant record is a DEMO FIXTURE built from a labeled case, not a real shop record")
 
     trackers: list[dict] | None = None  # None = not checked
     transactions: list[dict] | None = None  # None = not checked or unavailable
@@ -137,7 +147,7 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
 
 
 def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()) -> dict:
-    f: dict = {"order_found": order is not None,
+    f: dict = {"order_found": order is not None, "demo_fixture": bool(order and order.demo_fixture),
                "tracking_uploaded_to_paypal": None if trackers is None else bool(trackers)}
     if order is None:
         return f

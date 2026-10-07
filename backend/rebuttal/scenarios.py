@@ -7,6 +7,8 @@ In sandbox mode the same cases drive scripts/seed_sandbox.py (week 2).
 from __future__ import annotations
 
 import json
+import re
+from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -32,6 +34,11 @@ def load_cases(path: Path = CASES_PATH) -> list[dict]:
     return json.loads(path.read_text())
 
 
+@lru_cache(maxsize=1)
+def _default_cases() -> tuple[dict, ...]:
+    return tuple(load_cases())
+
+
 def _money(value: float) -> dict:
     return {"currency_code": "USD", "value": f"{value:.2f}"}
 
@@ -49,19 +56,20 @@ def _txn(txn_id: str, when: datetime, amount: float, email: str, invoice: str) -
     }
 
 
-def seed_case(case: dict, index: int, mock: MockPayPal, store: MerchantStore, now: datetime = DEMO_NOW) -> str:
-    """Create the order, payment, tracking and dispute for one case. Returns dispute_id."""
-    name, email = BUYERS[index % len(BUYERS)]
-    purchased = now - timedelta(days=case["days_since_purchase"])
-    opened = now - timedelta(days=case.get("days_open", 1), hours=3)
-    invoice = f"JO-{3000 + index}"
-    capture_id = f"8MC{index:03d}58471P{index:03d}X"
-    order_id = f"5O{index:03d}19047A{index:03d}Z"
-    dispute_id = f"PP-D-{2000 + index}"
-    item = dict(case["item"], qty=1)
-    amount = item["price"]
+LIVE_INVOICE = re.compile(r"^RB-([A-Za-z0-9_]+)-(\d+)$")
 
-    mock.add_order(order_id, capture_id)
+
+def live_invoice_id(case_id: str, stamp: int) -> str:
+    """The invoice id scripts/make_test_order.py puts on a sandbox order so the store can find the case's record."""
+    return f"RB-{case_id}-{stamp}"
+
+
+def build_order(case: dict, *, index: int, invoice: str, capture_id: str, order_id: str | None, now: datetime,
+                buyer: tuple[str, str]) -> MerchantOrder:
+    """The merchant record a labeled case describes, placed `days_since_purchase` days before `now`."""
+    purchased = now - timedelta(days=case["days_since_purchase"])
+    item = dict(case["item"], qty=1)
+
     shipment = None
     if case.get("shipment"):
         s = case["shipment"]
@@ -70,8 +78,6 @@ def seed_case(case: dict, index: int, mock: MockPayPal, store: MerchantStore, no
             delivered_to=s.get("delivered_to"),
             event_at=purchased + timedelta(days=s["days_after_purchase"]),
         )
-        mock.add_tracker(order_id, capture_id, s["number"],
-                         "DELIVERED" if s["status"] == "DELIVERED" else "SHIPPED")
 
     return_shipment = None
     if case.get("return_shipment"):
@@ -92,15 +98,57 @@ def seed_case(case: dict, index: int, mock: MockPayPal, store: MerchantStore, no
             "agent": a["agent"],
             "user_instruction": a["instruction"],
             "constraints": a.get("constraints", {}),
-            "submitted_item": {"sku": item["sku"], "variant": item["variant"], "price": amount},
+            "submitted_item": {"sku": item["sku"], "variant": item["variant"], "price": item["price"]},
             "recorded_at": iso(purchased),
         }
 
-    store.add(MerchantOrder(
-        invoice_id=invoice, capture_id=capture_id, created=purchased, buyer_name=name,
-        buyer_email=email, items=[item], ship_to=case["ship_to"], shipment=shipment,
+    return MerchantOrder(
+        invoice_id=invoice, capture_id=capture_id, created=purchased, buyer_name=buyer[0],
+        buyer_email=buyer[1], items=[item], ship_to=case["ship_to"], shipment=shipment,
         intent=intent, refunds=refunds, return_shipment=return_shipment, order_id=order_id,
-    ))
+    )
+
+
+def fixture_order(invoice: str, hint: dict) -> MerchantOrder | None:
+    """Merchant record for a live sandbox order whose invoice id is `RB-<case id>-<digits>` (see
+    scripts/make_test_order.py). The record comes from evals/cases.json, which ships with the backend, so it works on
+    Render. It is a demo fixture: the order is placed `days_since_purchase` days before the dispute is gathered, with
+    the case's shipment and (for AI-assistant cases) the assistant's purchase intent. Real orders do not match. Fixture records are flagged `demo_fixture`, which
+    shows in the case facts, the audit trail and the proposal. Limits: `created` is relative to when the dispute is
+    gathered and the buyer email is a placeholder, so duplicate-charge facts are not reliable for these orders."""
+    match = LIVE_INVOICE.fullmatch(invoice)
+    if not match:
+        return None
+    case = next((c for c in _default_cases() if c["id"] == match.group(1)), None)
+    if case is None:
+        return None
+    order = build_order(case, index=int(match.group(2)) % 10_000, invoice=invoice,
+                        capture_id=hint.get("capture_id") or "", order_id=None,
+                        now=hint.get("now") or datetime.now(timezone.utc),
+                        buyer=(hint.get("buyer_name") or BUYERS[0][0], hint.get("buyer_email") or BUYERS[0][1]))
+    order.demo_fixture = True
+    return order
+
+
+def seed_case(case: dict, index: int, mock: MockPayPal, store: MerchantStore, now: datetime = DEMO_NOW) -> str:
+    """Create the order, payment, tracking and dispute for one case. Returns dispute_id."""
+    name, email = BUYERS[index % len(BUYERS)]
+    purchased = now - timedelta(days=case["days_since_purchase"])
+    opened = now - timedelta(days=case.get("days_open", 1), hours=3)
+    invoice = f"JO-{3000 + index}"
+    capture_id = f"8MC{index:03d}58471P{index:03d}X"
+    order_id = f"5O{index:03d}19047A{index:03d}Z"
+    dispute_id = f"PP-D-{2000 + index}"
+    item = dict(case["item"], qty=1)
+    amount = item["price"]
+
+    mock.add_order(order_id, capture_id)
+    order = build_order(case, index=index, invoice=invoice, capture_id=capture_id, order_id=order_id, now=now,
+                        buyer=(name, email))
+    if order.shipment:
+        mock.add_tracker(order_id, capture_id, order.shipment.number,
+                         "DELIVERED" if order.shipment.status == "DELIVERED" else "SHIPPED")
+    store.add(order)
 
     mock.add_transaction(_txn(capture_id, purchased, amount, email, invoice))
     if case.get("duplicate_charge"):

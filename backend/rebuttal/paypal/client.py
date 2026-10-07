@@ -257,6 +257,11 @@ class PayPalClient:
     def get_order(self, order_id: str) -> dict:
         return self._request("GET", f"/v2/checkout/orders/{order_id}")
 
+    def get_capture_order_id(self, capture_id: str) -> str | None:
+        """The order a captured payment belongs to (supplementary_data.related_ids.order_id). Read only."""
+        capture = self._request("GET", f"/v2/payments/captures/{capture_id}")
+        return ((capture.get("supplementary_data") or {}).get("related_ids") or {}).get("order_id")
+
     def capture_order(self, order_id: str) -> dict:
         return self._request(
             "POST",
