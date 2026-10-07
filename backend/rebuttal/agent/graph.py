@@ -80,10 +80,20 @@ def build_graph(*, client: PayPalClient, store: MerchantStore, reasoner, audit: 
 
     def guard(state: GraphState) -> dict:
         case = CaseFile.from_dict(state["case"])
+        # The dispute may have moved since gather (UNDER_REVIEW has no allowed options; WAITING_FOR_SELLER_RESPONSE
+        # does): check the decision against PayPal's current list. A failed read keeps what gather saw.
+        try:
+            current = reader.get_dispute(case.dispute_id)
+        except (PayPalError, httpx.TransportError):
+            current = None
+        if current is not None and (current.get("allowed_response_options") or None) != (case.allowed_response_options or None):
+            case.allowed_response_options = current.get("allowed_response_options") or None  # even if now empty
+            case.status = current.get("status", case.status)
+            case.tool_calls.append("re-read the dispute before the guard: allowed_response_options changed")
         decision = apply_guard(Decision.from_dict(state["decision"]), case)
         if decision.guard_notes:
             audit.log(case.dispute_id, "guard", {"notes": decision.guard_notes})
-        return {"decision": decision.to_dict()}
+        return {"decision": decision.to_dict(), "case": case.to_dict()}
 
     def plan(state: GraphState) -> dict:
         case = CaseFile.from_dict(state["case"])

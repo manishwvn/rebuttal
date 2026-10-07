@@ -43,11 +43,29 @@ PAYPAL_REQUIRES: dict[str, tuple[str, str]] = {
 PAYPAL_ALTERNATIVES = ("OFFER_RETURN_FOR_REFUND", "ACCEPT_CLAIM")
 
 
+# PayPal omits allowed_response_options while a dispute is UNDER_REVIEW (a webhook can fire then). For the one case the
+# real sandbox has shown us, a "not as described" dispute that is not yet a chargeback, REFUND and REFUND_WITH_RETURN
+# offers are accepted and REPLACEMENT offers are rejected as INVALID_OFFER_TYPE (spike, and the live run of Oct 7). With
+# no list from PayPal we check against exactly that, never a replacement. For other reasons nothing is proven, so
+# there is no restriction here; `execute` and PayPal still refuse what is not allowed at send time.
+PROVEN_NOT_AS_DESCRIBED = {"accept_claim": {"accept_claim_types": ["PARTIAL_REFUND", "REFUND_WITH_RETURN", "REFUND"]},
+                           "make_offer": {"offer_types": ["REFUND", "REFUND_WITH_RETURN"]}}
+
+
+def effective_options(options: dict | None, reason: str = "", stage: str = "") -> tuple[dict | None, bool]:
+    """(the options to check against, True if PayPal gave none and the proven fallback is used). None = unrestricted."""
+    if options:
+        return options, False
+    if reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED" and stage != "CHARGEBACK":
+        return PROVEN_NOT_AS_DESCRIBED, True
+    return None, False
+
+
 def paypal_allows(resolution: str, case: CaseFile) -> bool:
-    """False only when PayPal told us (allowed_response_options) it won't accept this resolution."""
-    options = case.allowed_response_options
+    """False when PayPal's allowed_response_options (or, if it gave none, the proven fallback) rule it out."""
+    options, _ = effective_options(case.allowed_response_options, case.reason, case.stage)
     need = PAYPAL_REQUIRES.get(resolution)
-    if options is None or need is None:
+    if need is None or options is None:
         return True
     action, kind = need
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
@@ -305,11 +323,18 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         if instead:
             decision.resolution = instead
             decision.message_to_buyer = draft_message(instead, case)  # the old text promised something else
-            notes.append(f"PayPal does not allow {wanted} on this dispute (allowed_response_options); "
-                         f"proposing {instead} instead.")
+            if wanted == "OFFER_REPLACEMENT" and "right one" not in decision.message_to_buyer:
+                # The replacement promise rides in the offer note, since PayPal won't take a replacement offer.
+                decision.message_to_buyer += (" If you'd like a replacement instead, just say so and we'll ship it "
+                                              "as soon as the return is scanned.")
+            _, fallback = effective_options(case.allowed_response_options, case.reason, case.stage)
+            source = ("PayPal's allowed options were not available (dispute under review?), so only the offer "
+                      "types the sandbox is known to accept were considered" if fallback
+                      else "PayPal does not allow it (allowed_response_options)")
+            notes.append(f"{wanted} is not possible on this dispute: {source}; proposing {instead} instead.")
         else:
             decision.confidence = min(decision.confidence, 0.3)
-            notes.append(f"PayPal does not allow {wanted} on this dispute and offers no close alternative; "
+            notes.append(f"{wanted} is not possible on this dispute and there is no close alternative; "
                          "the merchant must resolve it in Resolution Center.")
     if decision.resolution == "OFFER_PARTIAL_REFUND":
         pct = int(decision.partial_refund_pct or 15)

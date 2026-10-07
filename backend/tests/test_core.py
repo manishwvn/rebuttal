@@ -143,9 +143,9 @@ def test_guard_only_proposes_what_paypal_allows(rt):
     d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "OFFER_REPLACEMENT" and d.confidence <= 0.3  # nothing allowed: flag, don't invent
 
-    case.allowed_response_options = None  # PayPal gave no list: no restriction
+    case.allowed_response_options = None  # PayPal gave no list: only what the sandbox is known to accept, never a replacement
     d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
-    assert d.resolution == "OFFER_REPLACEMENT"
+    assert d.resolution == "OFFER_RETURN_FOR_REFUND"
 
 
 def test_mock_rejects_offer_types_paypal_does_not_allow(rt):

@@ -71,8 +71,10 @@ class MockPayPal:
 
     # ----------------------------------------------------------- seeding
     def add_dispute(self, dispute: dict) -> None:
-        dispute.setdefault("allowed_response_options",
-                           allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
+        # Like the real sandbox, PayPal lists the seller's options only while it waits for the seller (UNDER_REVIEW: none).
+        if dispute.get("status", "WAITING_FOR_SELLER_RESPONSE") == "WAITING_FOR_SELLER_RESPONSE":
+            dispute.setdefault("allowed_response_options",
+                               allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
         self.disputes[dispute["dispute_id"]] = dispute
         self._event("CUSTOMER.DISPUTE.CREATED", dispute)
 

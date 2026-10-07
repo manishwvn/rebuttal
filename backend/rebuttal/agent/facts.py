@@ -71,6 +71,24 @@ class CaseFile:
         })
 
 
+def buyer_statements(dispute: dict) -> list[str]:
+    """Everything the buyer has said, from the three places the real PayPal dispute holds it: the buyer's notes on the
+    claim (`disputed_transactions[].items[].notes`, where "I would like a refund" lives), `evidences[]` the buyer
+    submitted, and `messages[]` (the conversation). Claim notes and evidence come first because they are filed with the
+    claim, so the last entry is the buyer's latest message; exact repeats are dropped (PayPal copies the opening
+    message into `evidences`)."""
+    found = []
+    for txn in dispute.get("disputed_transactions") or []:
+        found += [item.get("notes") for item in txn.get("items") or []]
+    found += [e.get("notes") for e in dispute.get("evidences") or [] if e.get("source") == "SUBMITTED_BY_BUYER"]
+    found += [m.get("content") for m in dispute.get("messages", []) if m.get("posted_by") == "BUYER"]
+    out: list[str] = []
+    for text in found:
+        if text and text.strip() and text.strip() not in out:
+            out.append(text.strip())
+    return out
+
+
 def seller_activity(dispute: dict) -> dict:
     """What the seller side already did on this dispute. `execute` compares against it, not against clocks, to tell
     whether its own message or offer has already landed."""
@@ -120,7 +138,7 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
     amount = float(dispute["dispute_amount"]["value"])
     # The sandbox omits seller_response_due_date on some disputes (e.g. INQUIRY / UNDER_REVIEW).
     due = parse_time(dispute["seller_response_due_date"]) if dispute.get("seller_response_due_date") else None
-    buyer_messages = [m["content"] for m in dispute.get("messages", []) if m.get("posted_by") == "BUYER"]
+    buyer_messages = buyer_statements(dispute)
 
     facts = _compute_facts(order, trackers, transactions, amount, now, buyer_messages)
     query = " ".join([dispute["reason"].replace("_", " "), *buyer_messages,
@@ -174,14 +192,15 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
         else:
             f["within_return_window"] = True
 
-    last_msg = (buyer_messages[-1] if buyer_messages else "").lower()
-    f["buyer_asks_for_refund"] = any(w in last_msg for w in policies.REFUND_WORDS)
+    # Words from anything the buyer said: the refund request may sit in the claim notes, not the latest message.
+    said = " ".join(buyer_messages).lower()
+    f["buyer_asks_for_refund"] = any(w in said for w in policies.REFUND_WORDS)
     # Shipped, not delivered, and no carrier scan for LOST_PACKAGE_DAYS: treat the package as lost.
     f["likely_lost"] = bool(s and s.status != "DELIVERED"
                             and f["days_since_last_scan"] >= policies.LOST_PACKAGE_DAYS)
     # Damaged and under the small-item threshold: refund in full, no return required.
     f["refund_without_return_eligible"] = (item["price"] < policies.SMALL_ITEM_REFUND_THRESHOLD
-                                           and any(w in last_msg for w in policies.DAMAGE_WORDS))
+                                           and any(w in said for w in policies.DAMAGE_WORDS))
 
     f["refund_issued"] = bool(order.refunds)
     if order.refunds:

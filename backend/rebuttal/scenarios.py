@@ -172,8 +172,13 @@ def seed_case(case: dict, index: int, mock: MockPayPal, store: MerchantStore, no
             "invoice_number": invoice,
             "custom": invoice,
             "buyer": {"name": name},
-            "items": [{"item_name": f'{item["name"]} ({item["variant"]})', "item_quantity": "1"}],
+            "items": [{"item_name": f'{item["name"]} ({item["variant"]})', "item_description": item["name"],
+                       "item_quantity": "1", "reason": case["reason"], "notes": case["buyer_message"],
+                       "item_type": "PRODUCT"}],
         }],
         "messages": [{"posted_by": "BUYER", "time_posted": iso(opened), "content": case["buyer_message"]}],
+        # The real sandbox echoes the buyer's opening message as a CREATE evidence.
+        "evidences": [{"evidence_type": "CREATE", "notes": case["buyer_message"], "source": "SUBMITTED_BY_BUYER",
+                       "date": iso(opened), "dispute_life_cycle_stage": case["stage"]}],
     })
     return dispute_id

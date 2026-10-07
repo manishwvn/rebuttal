@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from .agent.facts import CaseFile, seller_activity
 from .agent.pipeline import Proposal, build_evidence_pdf
-from .agent.reasoner import Decision
+from .agent.reasoner import Decision, effective_options
 from .audit import AuditLog
 from .paypal.client import PayPalClient, PayPalError, permit_writes
 
@@ -106,8 +106,9 @@ def already_applied(dispute: dict, action: dict, baseline: dict) -> bool:
 def not_allowed_now(dispute: dict, action: dict) -> str | None:
     """Why PayPal would refuse this action on the dispute as it is now, if its own list of allowed responses says
     so (the dispute may have moved on while the proposal waited, or after a crash that did send). None = go ahead."""
-    options = dispute.get("allowed_response_options")
-    if not options:
+    options, _ = effective_options(dispute.get("allowed_response_options"), dispute.get("reason", ""),
+                                   dispute.get("dispute_life_cycle_stage", ""))  # none listed: the proven fallback
+    if options is None:
         return None
     kind, params = action["kind"], action["params"]
     if kind == "accept_claim" and "accept_claim" not in options:
