@@ -296,6 +296,13 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
         notes.append("The buyer's assistant ordered a different variant than instructed; offering the friendly "
                      "fix instead of fighting with evidence.")
+    if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+            and f.get("buyer_reports_damage") and f.get("refund_without_return_eligible") is False):
+        # Damage alone does not waive the return: only a small item is refunded without one (policies).
+        decision.resolution = "OFFER_RETURN_FOR_REFUND"
+        decision.message_to_buyer = draft_message("OFFER_RETURN_FOR_REFUND", case)
+        notes.append("The buyer reports damage, but this item is above the refund-without-return threshold, so the "
+                     "policy is a full refund once the return arrives; converted 'ACCEPT_CLAIM' accordingly.")
     if (decision.resolution in ("SUBMIT_EVIDENCE", "OFFER_REPLACEMENT") and f.get("cannot_prove_delivery")
             and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"):
         # Nothing to show PayPal, and nothing shipped to replace: refund.

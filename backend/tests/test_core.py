@@ -253,3 +253,17 @@ def test_a_live_sandbox_order_made_by_make_test_order_gathers_the_hero_case_reco
     assert any("DEMO FIXTURE" in c for c in case.tool_calls)
     assert store.by_invoice("JO-9999") is None and store.by_invoice("RB-no_such_case-1") is None  # real orders do not match
     assert mock.write_calls() == []
+
+
+def test_guard_turns_accept_claim_on_a_high_value_damaged_item_into_return_for_refund():
+    rt = Runtime(seed_cases=["snad_damaged_high_value", "snad_damaged_low_value", "snad_changed_mind"], force_rules=True)
+    high, low, mind = (gather(d["dispute_id"], rt.client, rt.store, DEMO_NOW) for d in rt.client.list_disputes())
+    assert high.facts["buyer_reports_damage"] is True and high.facts["refund_without_return_eligible"] is False
+    d = guard(Decision("ACCEPT_CLAIM", 0.95, [], "", "We refunded you", "", source="groq"), high)
+    assert d.resolution == "OFFER_RETURN_FOR_REFUND"
+    assert any("above the refund-without-return threshold" in n for n in d.guard_notes)
+    # A small damaged item is refunded outright, and a claim with no damage is not touched by this rule.
+    assert low.facts["refund_without_return_eligible"] is True
+    assert guard(Decision("ACCEPT_CLAIM", 0.95, [], "", "m", "", source="groq"), low).resolution == "ACCEPT_CLAIM"
+    assert not mind.facts["buyer_reports_damage"]
+    assert guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="groq"), mind).guard_notes == []

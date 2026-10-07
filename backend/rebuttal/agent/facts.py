@@ -199,8 +199,9 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
     f["likely_lost"] = bool(s and s.status != "DELIVERED"
                             and f["days_since_last_scan"] >= policies.LOST_PACKAGE_DAYS)
     # Damaged and under the small-item threshold: refund in full, no return required.
+    f["buyer_reports_damage"] = any(w in said for w in policies.DAMAGE_WORDS)
     f["refund_without_return_eligible"] = (item["price"] < policies.SMALL_ITEM_REFUND_THRESHOLD
-                                           and any(w in said for w in policies.DAMAGE_WORDS))
+                                           and f["buyer_reports_damage"])
 
     f["refund_issued"] = bool(order.refunds)
     if order.refunds:
