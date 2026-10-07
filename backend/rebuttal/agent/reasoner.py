@@ -201,7 +201,7 @@ Goal: the cheapest fair resolution. Keep the sale when the merchant isn't at fau
 Read the buyer's own words carefully: they often pick the wrong dispute reason, and what they ask for matters.
 Facts in the case file were computed by code from PayPal and the shop's records; treat them as true.
 If the purchase was made by the buyer's AI shopping assistant, compare its instruction with what it ordered.
-Three facts decide specific cases: if cannot_prove_delivery is true on a not-received dispute, there is no tracking to submit, so refund the buyer; if likely_lost is true, treat the package as lost, so a buyer who wants money back gets a refund, not tracking details; if refund_without_return_eligible is true, refund in full without asking for a return.
+Four facts decide specific cases: if assistant_misordered is true, the buyer's own AI assistant ordered something other than its instruction; do not fight it with evidence, offer the friendly fix; if cannot_prove_delivery is true on a not-received dispute, there is no tracking to submit, so refund the buyer; if likely_lost is true, treat the package as lost, so a buyer who wants money back gets a refund, not tracking details; if refund_without_return_eligible is true, refund in full without asking for a return.
 Reply with ONLY a JSON object, no prose."""
 
 OUTPUT_SPEC = {
@@ -398,6 +398,13 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         return fallback("Proposed sharing tracking, but there is no tracking.")
     if decision.resolution == "SUBMIT_REFUND_PROOF" and not f.get("refund_issued"):
         return fallback("Proposed refund proof, but no refund exists.")
+    if (decision.resolution == "SUBMIT_EVIDENCE" and f.get("assistant_misordered")
+            and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"):
+        # Proposed as a replacement; the PayPal check below turns it into return-for-refund where needed.
+        decision.resolution = "OFFER_REPLACEMENT"
+        decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
+        notes.append("The buyer's assistant ordered a different variant than instructed; offering the friendly "
+                     "fix instead of fighting with evidence.")
     if (decision.resolution == "SUBMIT_EVIDENCE" and f.get("cannot_prove_delivery")
             and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"):
         decision.resolution = "ACCEPT_CLAIM"

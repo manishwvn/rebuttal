@@ -302,3 +302,17 @@ def test_guard_refunds_when_delivery_cannot_be_proven():
     assert d.resolution == "ACCEPT_CLAIM" and any("can't be proven" in n for n in d.guard_notes)
     _, shipped = _case_facts("inr_delivered")
     assert shipped.facts["cannot_prove_delivery"] is False
+
+
+def test_assistant_misordered_fact_and_guard():
+    rt, case = _case_facts("agent_wrong_size")
+    assert case.facts["assistant_misordered"] is True
+    d = guard(Decision("SUBMIT_EVIDENCE", 0.95, [], "", "m", "evidence", source="claude"), case)
+    assert d.resolution == "OFFER_RETURN_FOR_REFUND"  # replacement is converted: PayPal allows refund offers only
+    assert any("assistant ordered a different variant" in n for n in d.guard_notes)
+    assert "ship the right one as soon as the return is scanned" in d.message_to_buyer
+    _, right = _case_facts("hard_agent_right_size")
+    assert right.facts["assistant_misordered"] is False
+    assert guard(Decision("SUBMIT_EVIDENCE", 0.9, [], "", "m", "e", source="claude"), right).resolution == "SUBMIT_EVIDENCE"
+    _, plain = _case_facts("inr_delivered")
+    assert plain.facts["assistant_misordered"] is False

@@ -156,6 +156,7 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
 
     intent = order.intent
     f["is_agent_purchase"] = intent is not None
+    f["assistant_misordered"] = False
     if intent:
         constraints = intent.get("constraints", {})
         wanted_variant = constraints.get("variant")
@@ -164,5 +165,6 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
         f["agent_name"] = intent["agent"]
         f["agent_instruction"] = intent["user_instruction"]
         f["agent_followed_instruction"] = variant_ok
+        f["assistant_misordered"] = not variant_ok  # the assistant's order didn't match its user's instruction
         f["within_agent_spending_limit"] = price_ok
     return f
