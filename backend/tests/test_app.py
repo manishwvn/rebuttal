@@ -154,6 +154,22 @@ def test_an_interrupted_paypal_call_leaves_the_proposal_approved_and_a_retry_fin
     assert sellers == ["Edited via API"]
 
 
+def test_a_paypal_error_before_anything_was_sent_is_a_readable_502_and_retry_then_sends_once(client, monkeypatch):
+    from rebuttal import approval
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    real = approval.execute_action
+    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(PayPalError(503, {})))
+    failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
+    assert failed.status_code == 502 and "approval is saved" in failed.json()["detail"]
+    waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
+    assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []  # nothing had been sent
+
+    monkeypatch.setattr(approval, "execute_action", real)
+    done = client.post(f"/api/proposals/{proposal['id']}/retry").json()
+    assert done["status"] == "EXECUTED" and len(app_module.rt.mock.write_calls()) == 1
+
+
 def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
     def still_down(proposal_id):
         raise PayPalError(503, {"name": "SERVICE_UNAVAILABLE"})
