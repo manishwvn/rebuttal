@@ -1,8 +1,33 @@
 import type { AnalyticsReport, AuditEntry, DemoSessionInfo, Dispute, Health, Proposal, SimulatorCase } from './types'
 
 // The dashboard only ever talks to the Rebuttal backend. It never calls PayPal.
-export const API_BASE = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '')
-const API_TOKEN = import.meta.env.VITE_API_TOKEN as string | undefined
+// Served by the backend (same origin) the base is empty; `npm run dev` and the e2e build point at localhost:8000.
+export const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')).replace(/\/$/, '')
+
+// The API token is typed on the sign-in screen and kept in sessionStorage only (gone when the tab closes). A
+// VITE_API_TOKEN is honoured by `npm run dev` alone: the build refuses it, and DEV is false there so it is dropped.
+const TOKEN_KEY = 'rebuttal.token'
+const DEV_TOKEN = import.meta.env.DEV ? (import.meta.env.VITE_API_TOKEN as string | undefined) : undefined
+
+export function getToken(): string | null {
+  try {
+    return window.sessionStorage.getItem(TOKEN_KEY) || DEV_TOKEN || null
+  } catch {
+    return DEV_TOKEN || null
+  }
+}
+
+export function setToken(token: string | null): void {
+  try {
+    if (token) window.sessionStorage.setItem(TOKEN_KEY, token)
+    else window.sessionStorage.removeItem(TOKEN_KEY)
+  } catch {
+    // storage blocked: the token then lives for this page only, which getToken() reports as signed out on reload
+  }
+}
+
+// Fired when a request that carried (or needed) the token is refused, so the app can return to the sign-in screen.
+export const UNAUTHORIZED_EVENT = 'rebuttal:unauthorized'
 
 export class ApiError extends Error {
   status: number
@@ -14,10 +39,11 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  init: { method?: 'GET' | 'POST'; body?: unknown; sendToken?: boolean } = {},
+  init: { method?: 'GET' | 'POST'; body?: unknown; sendToken?: boolean; token?: string } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {}
-  if (API_TOKEN && init.sendToken !== false) headers.Authorization = `Bearer ${API_TOKEN}`
+  const token = init.sendToken !== false ? (init.token ?? getToken()) : null
+  if (token) headers.Authorization = `Bearer ${token}`
   if (init.body !== undefined) headers['Content-Type'] = 'application/json'
   let response: Response
   try {
@@ -37,6 +63,7 @@ async function request<T>(
     } catch {
       // keep the status text
     }
+    if (response.status === 401 && init.sendToken !== false && init.token === undefined) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     throw new ApiError(response.status, detail)
   }
   return (await response.json()) as T
@@ -78,6 +105,17 @@ export type Api = ReturnType<typeof createApi>
 export const api = {
   ...createApi(),
   analytics: () => request<AnalyticsReport>('/api/analytics'),
+}
+
+// Checks a pasted token against a protected route without storing it. Resolves true when the backend accepts it.
+export async function verifyToken(token: string): Promise<boolean> {
+  try {
+    await request<Dispute[]>('/api/disputes', { token })
+    return true
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) return false
+    throw e
+  }
 }
 
 // The session id becomes a path segment. encodeURIComponent leaves '.' and '..' unchanged and fetch resolves them,

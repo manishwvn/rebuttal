@@ -25,8 +25,7 @@ CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard.
 
 ### Judge demo (no accounts needed)
 
-Judges can try Rebuttal without a PayPal account. The demo runs locally now and will be on Render once A5 serves the built
-frontend. The dashboard has a **Try the demo** link in its header, or you can
+Judges can try Rebuttal without a PayPal account. The backend serves the built dashboard on the same origin (sign-in with the API token; the demo needs none). The dashboard has a **Try the demo** link in its header, or you can
 add `#demo` to the dashboard address. Each visitor gets a demo session on the same service, with six seeded disputes
 (the hero case is already waiting for approval) and a simulator for the 20 labeled cases. Demo sessions use the
 in-memory PayPal mock and the rules reasoner, with no keys and no model. Each session has its own in-memory runtime

@@ -95,3 +95,6 @@ dialog.confirm .actions { justify-content: flex-end; }
   .timeline li { grid-template-columns: 74px minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: no-preference) { button { transition: background .15s, border-color .15s; } }
+
+.signin-card { max-width: 420px; margin: 48px auto; display: grid; gap: 12px; }
+.signin-card input { font: 1rem var(--body); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); }

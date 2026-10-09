@@ -9,11 +9,14 @@ import hmac
 import logging
 import os
 import time
+from pathlib import Path
 
 import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import analytics
@@ -293,3 +296,35 @@ def simulate(case_id: str):
         raise HTTPException(404, f"Unknown case {case_id}")
     dispute_id = seed_case(cases[case_id], len(rt.mock.disputes) + 100, rt.mock, rt.store)
     return rt.analyze(dispute_id).to_dict()
+
+
+def frontend_dir() -> Path | None:
+    """The built dashboard (frontend/dist), or REBUTTAL_FRONTEND_DIR. None when it has not been built."""
+    raw = os.getenv("REBUTTAL_FRONTEND_DIR", "").strip()
+    path = Path(raw) if raw else Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    return path if (path / "index.html").is_file() else None
+
+
+def mount_frontend(application: FastAPI, directory: Path | None) -> None:
+    """Serve the built dashboard from the same origin. Registered after every API route, so it can never shadow
+    one; /api/* paths that match no route stay a JSON 404 instead of falling back to the page."""
+    if directory is None:
+        return
+    root = directory.resolve()
+    root_str = os.path.realpath(root)
+    application.mount("/assets", StaticFiles(directory=root / "assets", check_dir=False), name="frontend-assets")
+
+    @application.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    def spa(path: str):
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(404, "Not Found")
+        try:
+            target = os.path.realpath(os.path.join(root_str, path))
+            if path and target.startswith(root_str + os.sep) and os.path.isfile(target):
+                return FileResponse(target)
+        except (ValueError, OSError):  # e.g. an embedded null byte
+            pass
+        return FileResponse(root / "index.html")
+
+
+mount_frontend(app, frontend_dir())
