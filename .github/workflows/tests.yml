@@ -64,7 +64,7 @@ jobs:
         run: npx playwright test
       - name: Keep the Playwright trace when a test fails
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-results
           path: frontend/test-results
