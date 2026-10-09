@@ -92,6 +92,9 @@ class FakeManager:
     def expires_in(self, session: DemoSession) -> int:
         return 1800
 
+    def charge_run(self, session: DemoSession) -> None:
+        self._fail_if_set("charge_run")
+
     def simulate(self, session: DemoSession, case_id: str) -> Proposal:
         self._fail_if_set("simulate")
         cases = {c["id"]: c for c in load_cases()}
@@ -270,7 +273,28 @@ def test_the_demo_limit_is_a_429(client, manager):
     manager.failures["simulate"] = DemoLimitReached("limit reached")
     r = client.post(f"/api/demo/{sid}/simulator/dispute/inr_no_tracking")
     assert r.status_code == 429
-    assert r.json() == {"detail": "Demo dispute limit reached for this session. Reset the demo."}
+    assert r.json() == {"detail": "Demo limit reached for this session. Reset the demo."}
+
+
+def test_a_session_that_runs_the_workflow_past_its_budget_gets_a_429_until_it_is_reset():
+    manager = DemoManager(runtime_factory=lambda: Runtime(seed_cases=SEED_CASES, force_rules=True), max_runs=6)
+    app = FastAPI()
+    app.include_router(make_demo_router(manager))
+    http = TestClient(app)
+    sid = http.post("/api/demo/sessions").json()["session_id"]
+    base = f"/api/demo/{sid}"
+    statuses = []
+    for _ in range(4):  # an analyze then a reject per loop: each one re-runs the graph and grows the session's memory
+        proposal = http.post(f"{base}/disputes/PP-D-2001/analyze")
+        statuses.append(proposal.status_code)
+        if proposal.status_code == 200:
+            statuses.append(http.post(f"{base}/proposals/{proposal.json()['id']}/reject", json={}).status_code)
+    assert statuses == [200, 200, 200, 200, 200, 200, 429]  # runs 1-6 pass, the 7th is refused; the loop stops there
+    r = http.post(f"{base}/disputes/PP-D-2001/analyze")
+    assert r.status_code == 429 and r.json() == {"detail": "Demo limit reached for this session. Reset the demo."}
+
+    assert http.post(f"{base}/reset").status_code == 200  # Reset demo restores the budget
+    assert http.post(f"{base}/disputes/PP-D-2001/analyze").status_code == 200
 
 
 def test_a_rate_limited_session_start_is_a_429_with_retry_after(client, manager):

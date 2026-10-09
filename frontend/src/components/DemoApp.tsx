@@ -31,13 +31,12 @@ interface Session {
 
 interface Problem {
   message: string
-  /** Only a 429 from the start-up session offers Try again. A failed reset is retried with Reset demo. */
-  rateLimited: boolean
+  /** A start-up failure offers Try again, which re-runs start-up. A failed reset is retried with Reset demo. */
+  canRetryStartup: boolean
 }
 
-function problemOf(e: unknown): Problem {
-  if (e instanceof ApiError && e.status === 429) return { message: e.message, rateLimited: true }
-  return { message: e instanceof Error ? e.message : String(e), rateLimited: false }
+function problemOf(e: unknown, canRetryStartup: boolean): Problem {
+  return { message: e instanceof Error ? e.message : String(e), canRetryStartup }
 }
 
 async function startSession(): Promise<Session> {
@@ -81,7 +80,7 @@ export function DemoApp() {
         setSession(next)
       },
       (e: unknown) => {
-        if (latest) setProblem(problemOf(e))
+        if (latest) setProblem(problemOf(e, true))
       },
     )
     return () => {
@@ -112,8 +111,8 @@ export function DemoApp() {
       setSession(next)
       setGeneration((n) => n + 1)
     } catch (e) {
-      // Reset demo is the retry here, so a 429 does not offer Try again (that only re-runs start-up).
-      setProblem({ ...problemOf(e), rateLimited: false })
+      // Reset demo is the retry here, so no Try again (that only re-runs start-up).
+      setProblem(problemOf(e, false))
     } finally {
       setResetting(false)
     }
@@ -152,7 +151,7 @@ export function DemoApp() {
       {problem && (
         <p role="alert" className="error" data-testid="demo-error">
           {problem.message}
-          {problem.rateLimited && (
+          {problem.canRetryStartup && (
             <>
               {' '}
               <button type="button" className="ghost" onClick={tryAgain}>

@@ -129,3 +129,19 @@ test('A rate-limited reset shows the message and offers no Try again', async ({ 
   await expect(problem).toContainText(detail)
   await expect(problem.getByRole('button', { name: 'Try again' })).toHaveCount(0)
 })
+
+test('A failed start-up offers Try again, and Try again starts the demo', async ({ page }) => {
+  let failures = 1
+  await page.route('**/api/demo/sessions', (route) => {
+    if (failures-- > 0) {
+      return route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Waking up' }) })
+    }
+    return route.continue()
+  })
+  await page.goto('/#demo')
+  const problem = page.getByTestId('demo-error')
+  await expect(problem).toBeVisible()
+  await problem.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByTestId('mode-badge')).toContainText('demo · mock')
+  await expect(page.getByTestId('demo-error')).toHaveCount(0)
+})

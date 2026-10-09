@@ -49,7 +49,7 @@ def _demo_errors() -> Iterator[None]:
     except DemoUnknownCase as exc:
         raise HTTPException(404, "Unknown case") from exc
     except DemoLimitReached as exc:
-        raise HTTPException(429, "Demo dispute limit reached for this session. Reset the demo.") from exc
+        raise HTTPException(429, "Demo limit reached for this session. Reset the demo.") from exc
     except DemoRateLimited as exc:
         raise HTTPException(429, "Too many demo sessions right now. Try again shortly.",
                             headers={"Retry-After": str(exc.retry_after)}) from exc
@@ -116,24 +116,28 @@ def make_demo_router(manager: DemoManager) -> APIRouter:
         with _demo_errors(), manager.use(session_id) as session:
             if not session.has_dispute(dispute_id):
                 raise HTTPException(404, "Unknown demo dispute")
+            manager.charge_run(session)
             return session.runtime.analyze(dispute_id).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/approve")
     def approve(session_id: str, proposal_id: str, body: Annotated[ApproveBody, Body(default_factory=ApproveBody)]) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
             _own_proposal(session, proposal_id)
+            manager.charge_run(session)
             return session.runtime.approvals.approve(proposal_id, body.edited_message).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/retry")
     def retry(session_id: str, proposal_id: str) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
             _own_proposal(session, proposal_id)
+            manager.charge_run(session)
             return session.runtime.approvals.retry(proposal_id).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/reject")
     def reject(session_id: str, proposal_id: str, body: Annotated[RejectBody, Body(default_factory=RejectBody)]) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
             _own_proposal(session, proposal_id)
+            manager.charge_run(session)
             return session.runtime.approvals.reject(proposal_id, body.reason).to_dict()
 
     @router.get("/{session_id}/proposals/pending")

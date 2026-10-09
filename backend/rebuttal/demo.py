@@ -5,7 +5,8 @@ model is ever called), an in-memory checkpointer and audit log, and no tracing o
 credentials, database and model keys blanked, and the PayPal client only talks to the mock, so the real environment
 cannot reach a demo session. Nothing is persisted: sessions live in this process's memory. DemoManager keeps the demo
 bounded: at most max_sessions sessions (the least recently used is evicted), idle and absolute expiry, a cap on disputes
-per session, and a sliding-window limit on creating or resetting sessions. Work on one session is serialised by its lock.
+per session, a budget of workflow runs per session (each run adds checkpoints and audit rows to memory, and Reset demo
+restores the budget), and a sliding-window limit on creating or resetting sessions. Work on one session is serialised by its lock.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ class DemoSessionNotFound(DemoError):
 
 
 class DemoLimitReached(DemoError):
-    """The session already holds the maximum number of disputes."""
+    """The session holds the maximum number of disputes or has used up its workflow runs."""
 
 
 class DemoUnknownCase(DemoError):
@@ -94,6 +95,7 @@ class DemoSession:
     lock: threading.RLock  # serialises all work on this session's runtime; reentrant, so a call may nest use()
     created_at: float
     last_used: float
+    runs: int = 0  # workflow runs charged to this session since it was created or last reset
 
     def has_dispute(self, dispute_id: str) -> bool:
         return dispute_id in self.runtime.mock.disputes
@@ -110,6 +112,7 @@ class DemoManager:
         idle_ttl: float = 1800.0,
         max_age: float = 7200.0,
         max_disputes: int = 16,
+        max_runs: int = 100,
         create_limit: int = 20,
         create_window: float = 60.0,
         clock: Callable[[], float] = time.monotonic,
@@ -118,6 +121,7 @@ class DemoManager:
         self.idle_ttl = idle_ttl
         self.max_age = max_age
         self.max_disputes = max_disputes
+        self.max_runs = max_runs
         self._max_sessions = max_sessions
         self._create_limit = create_limit
         self._create_window = create_window
@@ -161,7 +165,16 @@ class DemoManager:
             self._admit_locked(self._clock())
         with self.use(session_id) as session:
             session.runtime = self._runtime_factory()
+            session.runs = 0
             return session
+
+    def charge_run(self, session: DemoSession) -> None:
+        """Counts one workflow run against the session's budget, or refuses it. Call it before every analyze, approve,
+        reject, retry or simulate, while holding the session through use(): each run adds checkpoints and audit rows to
+        the session's memory, and nothing else bounds how many a client can start."""
+        if session.runs >= self.max_runs:
+            raise DemoLimitReached(f"a demo session allows at most {self.max_runs} workflow runs")
+        session.runs += 1
 
     def simulate(self, session: DemoSession, case_id: str) -> Proposal:
         """Seed one more dispute from a labelled case and analyze it. The caller holds `session` through use()."""
@@ -171,6 +184,7 @@ class DemoManager:
         mock = session.runtime.mock
         if len(mock.disputes) >= self.max_disputes:
             raise DemoLimitReached(f"a demo session holds at most {self.max_disputes} disputes")
+        self.charge_run(session)
         # +100 keeps simulated ids clear of the seeded demo ids (PP-D-2000 to PP-D-2005).
         dispute_id = seed_case(cases[case_id], len(mock.disputes) + 100, mock, session.runtime.store)
         return session.runtime.analyze(dispute_id)

@@ -1,6 +1,6 @@
 # Judge demo mode
 
-Judges have no PayPal accounts, so Rebuttal has a demo mode that needs none. It runs on the same FastAPI service as the dashboard, under `/api/demo/...`, with a session per visitor that never reaches the real PayPal client, the real runtime or a database.
+Judges have no PayPal accounts, so Rebuttal has a demo mode that needs none. It runs on the same FastAPI service as the dashboard, under `/api/demo/...`, with a session per visitor that never reaches the real PayPal client, the real runtime or a database. The demo runs locally now and will be on Render once A5 serves the built frontend.
 
 ## How a judge uses it
 
@@ -48,6 +48,7 @@ The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 | Idle expiry | 30 minutes | The session expires and its state is gone. |
 | Maximum age | 2 hours | The session expires, even when in use. A reset does not restart it. |
 | Disputes per session | 16 | Creating more returns 429. |
+| Workflow runs per session | 100 | Analyze, approve, reject, retry and simulate each count as one run. Every run adds checkpoints and audit rows to the session's memory, so the 101st returns 429 until the visitor clicks **Reset demo**, which restores the budget. |
 | Session creations and resets | 20 per minute, whole service | Returns 429 with `Retry-After`. |
 | Edited message | 2000 characters | Longer bodies are refused. |
 | Reject reason | 500 characters | Longer bodies are refused. |

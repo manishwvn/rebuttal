@@ -67,12 +67,12 @@ A6, judge demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/dep
 - **Judge demo mode (A6, branch `feat/demo-mode`):** "Try the demo" (`/#demo`) gives each visitor a private mock-only
   Runtime (mock PayPal, rules reasoner, in-memory checkpoints and audit, no database, no tracing) behind the public
   `/api/demo/{session}/...` routes, with hard bounds (40 sessions, 30 min idle, 2 h max age, 16 disputes, 20 creates or
-  resets a minute). `rebuttal/demo.py` and `demo_api.py` import nothing from the app, and `app.py` passes nothing from
+  resets a minute, 100 workflow runs per session). `rebuttal/demo.py` and `demo_api.py` import nothing from the app, and `app.py` passes nothing from
   `rt` into the demo; `approval.py`, `paypal/`, `facts.py`, `reasoner.py` and `config.py` are untouched, and the
   approve button still runs the one `execute` node, on the mock. Every other `/api` route keeps the token
   (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
   `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
-- **Tests:** 374 pass (backend), 22 Playwright specs; the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 376 pass (backend), 25 Playwright tests (23 run, 2 skipped); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 

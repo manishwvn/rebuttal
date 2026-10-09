@@ -89,6 +89,21 @@ pass. Then look at `https://rebuttal-oq3g.onrender.com/api/disputes` (with the b
 (Alternative with no deployed app: a repository **secret** `SUPABASE_DB_URL` with the Supabase URL; the workflow then
 queries the database directly. Leave `APP_HEALTH_URL` unset in that case.)
 
+## Public demo routes
+
+The `/api/demo/...` routes take no token, by design: judges have no PayPal accounts. They reach only per-visitor mock
+sessions, never the real sandbox, the database or the approval queue (see [demo-mode.md](demo-mode.md)). Because they
+are open, they are bounded:
+
+- 40 live sessions; the least recently used is evicted when a 41st starts.
+- 20 session creations or resets per minute for the whole service. So one client can use up the window and lock judges
+  out for up to a minute, or push their sessions out through eviction. Accepted for the hackathon; there is no
+  per-client limit.
+- 16 disputes and 100 workflow runs per session (analyze, approve, reject, retry, simulate). Each run adds to the
+  session's memory, so the budget keeps one client from filling the 512 MB of the free plan, which the webhook and
+  approval queue share. Reset demo restores it.
+- Sessions live in memory only and expire after 30 minutes idle or 2 hours of age.
+
 ## Notes and open items
 
 - **Free plan trade-offs:** the service sleeps after 15 idle minutes and wakes on the next request, which takes about

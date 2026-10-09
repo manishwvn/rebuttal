@@ -8,8 +8,7 @@ import { SimulatorPanel } from './SimulatorPanel'
 // An error with no text still gets a banner: an empty message would render an empty alert.
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e)) || 'The request failed'
 
-// The dispute desk: the inbox and the open case. Its disputes and audit reads come from useApi(); CaseView and
-// SimulatorPanel still call the shared api client directly.
+// The dispute desk: the inbox and the open case. Its disputes and audit reads come from useApi().
 export function Desk({ simulator }: { simulator: boolean }) {
   const api = useApi()
   const [disputes, setDisputes] = useState<Dispute[] | null>(null)

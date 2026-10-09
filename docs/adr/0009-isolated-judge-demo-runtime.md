@@ -21,8 +21,8 @@ Approval in a demo session uses the same path as the real service: `ApprovalQueu
 the `execute` node in [`approval.py`](../../backend/rebuttal/approval.py). ADR 0001 still holds, and the writes land
 on the mock.
 
-Sessions are bounded: 40 live, 30 minutes idle, 2 hours maximum age, 16 disputes each, and 20 creations or resets per
-minute for the whole service. The isolation guarantees are tested in `backend/tests/test_demo_isolation.py`.
+Sessions are bounded: 40 live, 30 minutes idle, 2 hours maximum age, 16 disputes each, 100 workflow runs each, and 20
+creations or resets per minute for the whole service. The isolation guarantees are tested in `backend/tests/test_demo_isolation.py`.
 
 Alternatives rejected:
 

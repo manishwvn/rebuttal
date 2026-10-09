@@ -290,6 +290,7 @@ def test_simulate_adds_a_dispute_until_the_limit():
         assert proposal.status == "PENDING"  # analysis stops at the approval gate
         assert live.has_dispute(proposal.dispute_id)
         assert len(live.runtime.mock.disputes) == 7
+        assert live.runs == 1  # a simulation is a workflow run
         with pytest.raises(DemoLimitReached):
             manager.simulate(live, case_id)
 
@@ -335,3 +336,16 @@ def test_a_nested_reset_inside_use_on_the_same_thread_finishes():
     worker.start()
     worker.join(5)
     assert done.is_set()
+
+
+def test_charge_run_refuses_runs_past_the_budget_and_reset_restores_it():
+    manager = DemoManager(max_runs=3, runtime_factory=SimpleNamespace)
+    session = manager.create()
+    for _ in range(3):
+        manager.charge_run(session)
+    with pytest.raises(DemoLimitReached):
+        manager.charge_run(session)
+    assert session.runs == 3  # a refused run is not counted
+    manager.reset(session.id)
+    assert session.runs == 0
+    manager.charge_run(session)

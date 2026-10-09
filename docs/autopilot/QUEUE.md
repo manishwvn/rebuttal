@@ -76,6 +76,8 @@ resource, no cost). Replace `VITE_API_TOKEN` with a sign-in screen where the mer
 `sessionStorage`, never in the bundle. Update `render.yaml` build to also build the frontend (check Node is available
 in Render's Python runtime; if not, find a free alternative and document it). Done when
 `https://rebuttal-oq3g.onrender.com/` shows the sign-in screen after deploy and a Playwright test covers sign-in.
+The sign-in screen must also show a "Try the demo" link (`href="#demo"`): `DemoApp` needs no token, so judges reach it
+without one. `VITE_API_TOKEN` must never be set in a public frontend build.
 
 ### A6 Judge demo mode — size M — in review (PR #33) — priority now (rules: judges must be able to try it; testing credentials go in the submission)
 Judges must be able to try Rebuttal without PayPal accounts. Add a demo mode on the same service: a "Try the demo"
