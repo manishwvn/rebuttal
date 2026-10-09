@@ -76,8 +76,9 @@ Findings:
 - Missing field. Its `list_transactions` does not pass `fields=all`.
 
 What is planned, not in the repo yet: `backend/rebuttal/agent/toolkit.py`, a read-only adapter with the toolkit's tool
-shape. It would expose `get_dispute`, `list_transactions`, `get_order_trackers` and `get_capture_order_id` under the
-toolkit's names, running over `client.read_only()`. `PayPalClient` has no `list_transactions` today, so the adapter
+shape. It would expose `get_dispute` and `list_transactions` under the toolkit's names, plus `get_order_trackers` and
+`get_capture_order_id`, which the toolkit does not name (its closest tool is `get_shipment_tracking`), all running over
+`client.read_only()`. `PayPalClient` has no `list_transactions` today, so the adapter
 would wrap the existing `search_transactions`. The adapter is not wired into `gather_facts`: `backend/rebuttal/agent/facts.py`
 still calls `PayPalClient` directly. `execute` in `rebuttal/approval.py` is the only writer in the agent
 graph and the API; the manual sandbox and demo scripts in `backend/scripts/` are the exception.
