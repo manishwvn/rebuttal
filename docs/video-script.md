@@ -24,14 +24,14 @@ Bryntum board; both are cut because the judge review said the script was overloa
 | 4 | 0:46-1:10 | 24 s | The decision and the guard | 46 | 1.9 | Tech, Innovation (PayPal + AI) |
 | 5 | 1:10-1:34 | 24 s | Edit, approve, one PayPal call | 41 | 1.7 | Design, Tech (PayPal) |
 | 6 | 1:34-1:52 | 18 s | Cutaway A: the safety design | 39 | 2.2 | Tech, Impact |
-| 7 | 1:52-2:10 | 18 s | Cutaway B: the eval numbers | 38 | 2.1 | Tech (PayPal + AI), Presentation |
+| 7 | 1:52-2:10 | 18 s | Cutaway B: the eval numbers | 40 | 2.2 | Tech (PayPal + AI), Presentation |
 | 8 | 2:10-2:24 | 14 s | [PLANNED] AG Studio dashboard | 19 | 1.4 | Design, Impact (AG Grid prize) |
 | 9 | 2:24-2:45 | 21 s | Close: impact, what is real and what is demo | 47 | 2.2 | Impact, Presentation |
-| | | **165 s** | | **325** | **2.0 avg** | |
+| | | **165 s** | | **327** | **2.0 avg** | |
 
-Pace check: 325 words in 165 s is 118 words per minute on average; the fastest single row is 2.46 words per second
+Pace check: 327 words in 165 s is 119 words per minute on average; the fastest single row is 2.46 words per second
 (148 wpm, the 2:32-2:45 row). Counts are computed from the narration cells, not estimated.
-The slack is on purpose: the viewer needs silent moments to read the screen. Without segment 8: 306 words in 151 s.
+The slack is on purpose: the viewer needs silent moments to read the screen. Without segment 8: 308 words in 151 s.
 
 Burned-in captions (added in editing, not in the app):
 
@@ -79,7 +79,7 @@ AG Grid, APIMatic.
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
 | 0:46-0:56 | Same scroll. Right panel "Why this proposal": "Reasoner (groq)" = "Offer a free replacement"; "Final action" (bold) = "Refund after the item is returned"; a confidence bar with a percentage. Cursor rests on the Reasoner line, then moves to Final action. [VERIFY at record time: the Reasoner line must read the replacement and the source must read groq; see 4.1.] | “Now the decision. The model's first instinct is a free replacement, which would keep the sale.” | Tech (PayPal + AI), Innovation |
-| 0:56-1:10 | Zoom on the amber box "Guard adjusted this": "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead." Then scroll to the black-bordered proposal card: heading "Offer full refund of $48.00 after return", the dashed call line `POST /v1/customer/disputes/PP-D-2000/make-offer · offer_type REFUND_WITH_RETURN`, and the message box (Hi Priya, sorry about the mix-up… we'll ship the right one as soon as the return is scanned). | “But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right size.” | Tech (guard), Innovation, Best Use of PayPal |
+| 0:56-1:10 | Zoom on the amber box "Guard adjusted this": "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead." Then scroll to the black-bordered proposal card: heading "Offer full refund of $48.00 after return", the dashed call line `POST /v1/customer/disputes/PP-D-2000/make-offer · offer_type REFUND_WITH_RETURN`, and the message box (Hi Priya, sorry about the mix-up… we'll ship the right one as soon as the return is scanned). | “But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.” | Tech (guard), Innovation, Best Use of PayPal |
 
 ### Segment 5: Edit, approve, one PayPal call (1:10-1:34)
 
@@ -100,12 +100,8 @@ AG Grid, APIMatic.
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 1:52-2:02 | [Static card from `backend/evals/RESULTS.md` and an `evals.run --rules` run; see 4.3.] Title "20 labeled disputes". Two columns. Left: "Rules only, no model: 85% overall, hard cases 1 of 4". Right (greyed until the next row): "Model + guard (Groq qwen/qwen3.8-27b)". Footer, small: "4 hard cases = the buyer's wording changes the right answer." | “Twenty labeled disputes. A rules-only baseline solves one of the four hard cases, where the buyer's words change the answer.” | Tech (PayPal + AI) |
-| 2:02-2:10 | Same card, right column lights up: "90% (18 of 20), hard cases 4 of 4, PayPal writes before approval: 0". Footer chips: "Single run; runs swing 80-95%. The 20 cases were used for tuning." and "Held-out set, 10 unseen cases: model alone 8/10, with the guard 10/10". | “The model plus the guard solves all four: eighteen of twenty overall, with zero PayPal writes before approval.” | Tech, Presentation |
-
-[CONDITIONAL, once the held-out run exists (STATUS next step 1): replace the footer chip with the real number and add
-"On ten cases I never tuned against, it got N." only if you can drop about 5 seconds elsewhere (cut the 1:10-1:18
-row first).]
+| 1:52-2:00 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "10 unseen disputes, never used for tuning: model alone 8 of 10, model + guard 10 of 10". Footer, small: "PayPal writes before approval: 0". | “On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.” | Tech (PayPal + AI) |
+| 2:00-2:10 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 90% (18 of 20), hard cases 4 of 4." Footer chips: "85-90% across two Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
 
 ### Segment 8: [PLANNED] AG Studio dashboard (2:10-2:24)
 
@@ -120,8 +116,8 @@ runs 2:31. Do not describe AG Studio in the voice-over unless the shot exists.
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 2:24-2:32 | [Static card.] Large text: "The agent does the digging. The merchant makes the call." Under it, the hero in one line: "$48 order, AI assistant ordered L, told M: refund after return, the right size promised, approved in one click." | “Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.” | Impact, Presentation (Most Impactful) |
-| 2:32-2:45 | [Static card, two columns.] Real: "PayPal sandbox API, signed webhooks, Render deployment, Groq model, Supabase Postgres, AG Grid inbox, 20-case eval, write-boundary tests." Demo: "This recording runs on a mock sandbox. Order records and the assistant's instruction are seeded demo data. Sandbox only: no live money." End line: "github.com/manishwvn/rebuttal, MIT licence". Small credits line: "PayPal Disputes, Orders and Webhooks APIs · LangGraph · AG Grid · Render · Supabase · Langfuse". [CONDITIONAL, add "APIMatic Context Plugin for PayPal" to the credits only when `docs/apimatic-log.md` has real entries; its table is empty on Oct 9.] | “This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.” | Tech, Impact, Presentation (honesty) |
+| 2:24-2:32 | [Static card.] Large text: "The agent does the digging. The merchant makes the call." Under it, the hero in one line: "$48 order, AI assistant ordered L, told M: refund after return, the right item promised, approved after one confirm." | “Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.” | Impact, Presentation (Most Impactful) |
+| 2:32-2:45 | [Static card, two columns.] Real: "PayPal sandbox API, signed webhooks, Render, held-out eval." Demo: "Mock sandbox, seeded orders. Sandbox only: no live money." End line: "github.com/manishwvn/rebuttal, MIT licence". Small credits line: "PayPal APIs · LangGraph · AG Grid · Render · Supabase · Langfuse". [CONDITIONAL, add "APIMatic Context Plugin for PayPal" to the credits only when `docs/apimatic-log.md` has real entries; its table is empty on Oct 9.] | “This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.” | Tech, Impact, Presentation (honesty) |
 
 [PLANNED, optional 3-4 s insert for 2:38 onward once task A5 ships: the dashboard served from the Render service
 showing the live sandbox dispute at "Pending". Mask the API token; never show it.]
@@ -189,7 +185,7 @@ the replacement and the guard converted it.
 | 10 | 1:28-1:34 | Click "Approve and send" in the dialog. Wait for the dialog to hide, then smooth-scroll `audit-trail` to the end of the viewport. | `case-status` reads "Executed"; row status cell reads "Executed"; audit `data-step` values equal gather, decide, guard, propose, approve, execute, record; audit text contains "Merchant approved with an edited message". |
 | 11 | 1:34-1:44 | Cutaway card A (static page, 4.3). | n/a |
 | 12 | 1:44-1:52 | Terminal clip T1 (4.3). | Last line contains "24 passed" [VERIFY]. |
-| 13 | 1:52-2:10 | Cutaway card B (static page, 4.3), two states (left only, then both columns). | Numbers equal the verified table in 4.3. |
+| 13 | 1:52-2:10 | Cutaway card B (static page, 4.3), two states (the held-out result, then the main set added). | Numbers equal the verified table in 4.3. |
 | 14 | 2:10-2:24 | **[PLANNED]** AG Studio view. Not scriptable yet. | n/a |
 | 15 | 2:24-2:45 | Close cards C and D (static pages, 4.3). | n/a |
 
@@ -254,13 +250,13 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | Facts are computed in code | `backend/rebuttal/agent/facts.py` | Verified |
 | "The model's first instinct is a free replacement" | Live Oct 7: Groq chose OFFER_REPLACEMENT, guard converted it (STATUS). Rules baseline does the same in mock. | Verified live; **[VERIFY]** in mock plus Groq at record time (shot 6 asserts it) |
 | "PayPal only allows refund offers on this dispute" | The guard reads PayPal's `allowed_response_options`; `evals/cases.json` `why`; the mock mirrors the sandbox | Verified for this dispute type. Whether any replacement offer type exists is an open Discord question, so the narration says "on this dispute" |
-| The buyer message "promises the right size" | After the guard, the message is a fixed template (`draft_message` in `reasoner.py`), not model text | Verified. Do not say the model wrote it. |
+| The buyer message "promises the right item" | After the guard, the message is a fixed template (`draft_message` in `reasoner.py`), not model text | Verified. Do not say the model wrote it. |
 | One approval, one PayPal call, audit trail | `approval.py` `execute`; e2e test `hero case…approve with an edited message` | Verified (mock) |
 | Only one step in the app can write to PayPal | `approval.py`, `permit_writes()`, `test_write_boundary.py`. Named manual scripts (`spike_sandbox`, `make_test_order`) are outside the app | Verified; wording says "in the app" |
 | 20 labeled disputes, 4 hard | `evals/cases.json` | Verified |
-| 90% (18 of 20), hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, run `groq-qwen3.8-27b-20261007-112629` | Verified; single run, runs swing 80-95%, the set was used for tuning (shown on the card). The guard rule `f4cb66d` came after that run, so current code is unmeasured. |
+| 90% (18 of 20), hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, run `groq-qwen3.8-27b-20261007-112629` | Verified; single run, 85-90% across the two Groq runs in `evals/RESULTS.md` (shown on the card), the set was used for tuning (the voice-over says "we tuned on"). The guard rule `f4cb66d` came after that run, so current code is unmeasured. |
 | Rules-only baseline solves 1 of 4 hard cases | `evals.run --rules` on this commit, Oct 9: 85% overall, 25% hard | Verified |
-| Held-out result | `evals/holdout.json`, run Oct 9 (`groq-qwen3.8-27b-holdout-20261009-054233`) | Verified: model alone 80%, final 100%, 0 gate violations |
+| Held-out result | `evals/holdout.json`, run Oct 9 (`groq-qwen3.8-27b-holdout-20261009-054233`) | Verified: model alone 80%, final 100%, 0 gate violations. The voice-over leads with this. If holdout2 (task B3) comes out worse, report both held-out sets, not just this one. |
 | Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live", dispute `PP-R-SVN-10190455` | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
 | Inbox is built with AG Grid | `frontend/src/components/Inbox.tsx` (AG Grid Community) | Verified |
 | AG Studio dashboard, Studio agent | none yet | **[PLANNED]** B1, B2 |
@@ -274,13 +270,12 @@ For Manish or the lead:
 
 1. Decide Groq (needs a key in `backend/.env` and a take that shows the guard beat) versus the rules variant for the
    final recording of segment 4. The Groq run is the stronger "PayPal + AI" evidence.
-2. Run the held-out eval (A2) before the final cut and fill the card chip; do not change code afterwards.
-3. APIMatic: log real uses in `docs/apimatic-log.md` (candidate uses are listed there) before saying anything about it.
-4. Segment 8 depends on B1 and B2; the freeze is Nov 3.
-5. Fix or document quirk Q3 (dev-mode confirm dialog). Regenerate `docs/screenshots/hero-case.png` from the seeded
+2. APIMatic: log real uses in `docs/apimatic-log.md` (candidate uses are listed there) before saying anything about it.
+3. Segment 8 depends on B1 and B2; the freeze is Nov 3.
+4. Fix or document quirk Q3 (dev-mode confirm dialog). Regenerate `docs/screenshots/hero-case.png` from the seeded
    PP-D-2000 (its spec uses the Simulator) so it does not show the false duplicate-charge mark (quirk Q1).
-6. Approve the ffmpeg downloads for B4 (4.3).
-7. Optional: one real approve on a live sandbox dispute, then add one sentence to segment 9.
+5. Approve the ffmpeg downloads for B4 (4.3).
+6. Optional: one real approve on a live sandbox dispute, then add one sentence to segment 9.
 
 ## 7. Narration only (for text to speech)
 
@@ -303,7 +298,7 @@ The store shipped exactly what was ordered, to the right address. Every one of t
 [4, 0:46]
 Now the decision. The model's first instinct is a free replacement, which would keep the sale.
 ...
-But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right size.
+But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.
 ...
 [5, 1:10]
 I add a line in my own words, then approve.
@@ -318,9 +313,9 @@ Why trust it? Only one step in the app can write to PayPal, and it won't run wit
 Analysis runs on a read-only client, and tests scan the code for any other route to a write.
 ...
 [7, 1:52]
-Twenty labeled disputes. A rules-only baseline solves one of the four hard cases, where the buyer's words change the answer.
+On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.
 ...
-The model plus the guard solves all four: eighteen of twenty overall, with zero PayPal writes before approval.
+On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.
 ...
 [8, 2:10, PLANNED, record only if the AG Studio shot exists]
 In AG Studio, the merchant sees what disputes cost and what was kept, and asks questions in plain English.

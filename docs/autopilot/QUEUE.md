@@ -34,16 +34,6 @@ cutaways, the eval number on screen. Columns: time, what is on screen (exact UI 
 which judging criterion it serves (Tech, Design, Impact, Innovation, Presentation). Include a shot list the
 automated recorder (B4) can follow step by step.
 
-### A7 Approve dialog closes at once under `npm run dev` — size S — todo
-Found by the A4 dry run: in the Vite dev server the Approve confirm dialog closes immediately (likely a React
-StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
-a Playwright test against the dev server, fix the effect, keep StrictMode on.
-
-### A8 Re-run the main eval on current code — size S — todo — after Oct 10
-The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
-once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
-`docs/video-script.md`. Change no agent code because of the result.
-
 ### A5 Dashboard on the live service with a login — size M — todo
 Serve the built frontend from the FastAPI app on the existing Render service (same origin: no CORS, no new Render
 resource, no cost). Replace `VITE_API_TOKEN` with a sign-in screen where the merchant pastes the API token; keep it in
@@ -56,6 +46,17 @@ Judges must be able to try Rebuttal without PayPal accounts. Add a demo mode on 
 button that runs the hero case and the other demo cases against the in-memory mock sandbox in a separate, isolated
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
 behind the token. Reviewer must confirm the isolation. Document it in the README.
+
+### A7 Approve dialog closes at once under `npm run dev` — size S — todo
+Found by the A4 dry run: in the Vite dev server the Approve confirm dialog closes immediately (likely a React
+StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
+a Playwright test against the dev server, fix the effect, keep StrictMode on.
+
+### A8 Re-run the main eval on current code — size S — todo — after Oct 10
+The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
+once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
+`docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
+two do not share one day's Groq quota.
 
 ### B1 AG Studio dashboard, first pass — size L — todo — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:
