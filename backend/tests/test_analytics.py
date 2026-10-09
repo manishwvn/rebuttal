@@ -2,11 +2,13 @@
 
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from rebuttal import analytics
 from rebuttal import app as app_module
+from rebuttal.paypal.client import PayPalError
 from rebuttal.runtime import Runtime
 
 NOW = datetime(2026, 10, 6, 15, 0, tzinfo=timezone.utc)  # the mock's clock (scenarios.DEMO_NOW)
@@ -278,6 +280,14 @@ def test_hours_left_rounds_to_a_tenth_and_accepts_both_utc_spellings():
     assert {d["dispute_id"]: d["hours_left"] for d in analytics.deadlines(rows, NOW)} == {"PP-D-1": 1.6, "PP-D-2": 0.5}
 
 
+def test_a_due_date_that_cannot_be_parsed_leaves_only_that_dispute_out():
+    rows = analytics.build_rows([
+        make_dispute("PP-D-1", due="soon"),
+        make_dispute("PP-D-2", due=paypal_time(NOW + timedelta(hours=5))),
+    ], {}, {})
+    assert [d["dispute_id"] for d in analytics.deadlines(rows, NOW)] == ["PP-D-2"]
+
+
 # ------------------------------------------------------------------ the API
 @pytest.fixture
 def client(monkeypatch):
@@ -357,3 +367,45 @@ def test_reading_the_analytics_never_writes_to_paypal(client):
     assert len(app_module.rt.mock.write_calls()) == writes_before
     new_calls = app_module.rt.mock.calls[calls_before:]
     assert all(method == "GET" or path == "/v1/oauth2/token" for method, path in new_calls)
+
+
+# ------------------------------------------------------------------ PayPal failures and the due-date cache
+@pytest.mark.parametrize("error", [PayPalError(429, {"name": "RATE_LIMIT_REACHED"}, "dbg-1"),
+                                   httpx.ConnectTimeout("timed out")])
+def test_a_failed_dispute_list_is_a_readable_502_on_every_analytics_route(client, monkeypatch, error):
+    def fail(self, **params):
+        raise error
+    monkeypatch.setattr(type(app_module.rt.client.read_only()), "list_disputes", fail)
+    for path in ROUTES:
+        response = client.get(path)
+        assert response.status_code == 502, path
+        assert "PayPal" in response.json()["detail"]
+
+
+def test_one_failed_due_date_read_leaves_that_dispute_without_a_deadline(client, monkeypatch):
+    real = type(app_module.rt.client.read_only()).get_dispute
+
+    def flaky(self, dispute_id):
+        if dispute_id == "PP-D-2001":
+            raise PayPalError(503, {"name": "SERVICE_UNAVAILABLE"}, "dbg-2")
+        return real(self, dispute_id)
+    monkeypatch.setattr(type(app_module.rt.client.read_only()), "get_dispute", flaky)
+    response = client.get("/api/analytics")
+    assert response.status_code == 200
+    assert {d["dispute_id"] for d in response.json()["deadlines"]} == {"PP-D-2000", "PP-D-2002"}
+    assert len(response.json()["rows"]) == 3  # the failing dispute still has its row
+
+
+def test_due_dates_are_reused_until_they_expire_and_a_failed_read_is_not_cached(client, monkeypatch):
+    def reads() -> int:
+        return len([c for c in app_module.rt.mock.calls if c[0] == "GET" and not c[1].endswith("/disputes")])
+    client.get("/api/analytics")
+    after_first = reads()
+    assert after_first == len(SEEDED)  # one read per waiting dispute
+    client.get("/api/analytics")
+    assert reads() == after_first  # the second sweep came from the cache
+    monkeypatch.setattr(app_module, "DUE_DATE_TTL", 0.0)
+    app_module.rt.due_dates.clear()
+    client.get("/api/analytics")
+    client.get("/api/analytics")
+    assert reads() == after_first + 2 * len(SEEDED)  # a TTL of zero reads every time

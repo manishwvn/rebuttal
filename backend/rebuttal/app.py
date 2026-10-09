@@ -8,6 +8,7 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import time
 
 import httpx
 from fastapi.concurrency import run_in_threadpool
@@ -157,19 +158,44 @@ def audit(dispute_id: str):
     return rt.audit.for_dispute(dispute_id)
 
 
+DUE_DATE_TTL = 60.0  # seconds a looked-up seller due date is reused by the analytics sweeps
+
+
 def _with_due_date(reader, dispute: dict) -> dict:
     """The list summary may leave out `seller_response_due_date` (the mock's does, and PayPal documents only a few list
-    fields), but the deadlines view needs it for disputes waiting on the seller: read it from the dispute itself."""
+    fields), but the deadlines view needs it for disputes waiting on the seller: read it from the dispute itself.
+    A due date is reused for `DUE_DATE_TTL` seconds, so a refresh does not cost one PayPal read per waiting dispute.
+    When that read fails the dispute is shown without a due date (and the lookup is tried again next time), because
+    one failed read should not blank the whole tab."""
     if dispute.get("seller_response_due_date") or dispute["status"] != "WAITING_FOR_SELLER_RESPONSE":
         return dispute
-    due = reader.get_dispute(dispute["dispute_id"]).get("seller_response_due_date")
+    dispute_id, now = dispute["dispute_id"], time.monotonic()
+    cached = rt.due_dates.get(dispute_id)
+    if cached and cached[0] > now:
+        due = cached[1]
+    else:
+        try:
+            due = reader.get_dispute(dispute_id).get("seller_response_due_date")
+        except (PayPalError, httpx.TransportError) as exc:
+            logger.warning("Analytics: could not read the due date of %s: %s", dispute_id, type(exc).__name__)
+            return dispute
+        rt.due_dates[dispute_id] = (now + DUE_DATE_TTL, due)
     return {**dispute, "seller_response_due_date": due}
 
 
 def _analytics_rows() -> list[dict]:
-    """Every dispute with its latest proposal and audit trail, shaped for `analytics`. Reads only."""
+    """Every dispute with its latest proposal and audit trail, shaped for `analytics`. Reads only. When PayPal cannot
+    list the disputes the tab gets a readable 502 (like the other PayPal routes), not a bare 500."""
     reader = rt.client.read_only()  # a handle whose transport refuses every write
-    disputes = [_with_due_date(reader, d) for d in reader.list_disputes()]
+    try:
+        listed = reader.list_disputes()
+    except (PayPalError, httpx.TransportError) as exc:
+        status = exc.status if isinstance(exc, PayPalError) else None
+        debug_id = exc.debug_id if isinstance(exc, PayPalError) else None
+        logger.warning("Analytics: could not list the disputes: %s status=%s debug_id=%s", type(exc).__name__, status,
+                       debug_id)
+        raise HTTPException(502, "PayPal could not be read for the analytics. Try again shortly.") from exc
+    disputes = [_with_due_date(reader, d) for d in listed]
     proposals: dict[str, dict] = {}
     audits: dict[str, list[dict]] = {}
     for d in disputes:

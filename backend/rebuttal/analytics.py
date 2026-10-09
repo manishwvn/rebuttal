@@ -77,13 +77,18 @@ def deadlines(rows: list[dict], now: datetime) -> list[dict]:
     """Open seller response deadlines, most urgent first. Overdue entries have negative `hours_left`; ties sort by
     dispute id. Only WAITING_FOR_SELLER_RESPONSE counts: it is the one status in which PayPal waits on the seller and
     the due date is the seller's clock. In the other statuses (WAITING_FOR_BUYER_RESPONSE, UNDER_REVIEW, ...) no seller
-    deadline is running, so those disputes are left out."""
-    waiting = [r for r in rows if r["paypal_status"] == "WAITING_FOR_SELLER_RESPONSE" and r["due"] is not None]
-    entries = [{
-        "dispute_id": r["dispute_id"], "reason": r["reason"], "amount": r["amount"], "status": r["status"],
-        "paypal_status": r["paypal_status"], "due": r["due"],
-        "hours_left": round((parse_time(r["due"]) - now).total_seconds() / 3600, 1),
-    } for r in waiting]
+    deadline is running, so those disputes are left out. A due date that cannot be parsed is left out too."""
+    entries = []
+    for r in rows:
+        if r["paypal_status"] != "WAITING_FOR_SELLER_RESPONSE" or r["due"] is None:
+            continue
+        try:
+            hours_left = round((parse_time(r["due"]) - now).total_seconds() / 3600, 1)
+        except ValueError:  # an unreadable due date: leave that dispute out rather than fail the whole report
+            continue
+        entries.append({
+            "dispute_id": r["dispute_id"], "reason": r["reason"], "amount": r["amount"], "status": r["status"],
+            "paypal_status": r["paypal_status"], "due": r["due"], "hours_left": hours_left})
     return sorted(entries, key=lambda e: (e["hours_left"], e["dispute_id"]))
 
 

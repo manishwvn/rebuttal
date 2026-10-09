@@ -59,7 +59,7 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
   allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
-- **Tests:** 236 pass (42 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 241 pass (47 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 
@@ -67,7 +67,10 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
 - A Studio data refresh remounts the widget (Studio resets state when `data` changes), so Refresh flashes.
 - `useAgThemeMode` duplicates the Inbox's theme-mode effect; dedupe in C1.
 - Whether the real sandbox list returns `seller_response_due_date` is unverified; the deadlines view reads it from the
-  dispute either way (one extra GET per waiting dispute).
+  dispute either way (one extra GET per waiting dispute, reused for 60 s; a failed read leaves that dispute without a
+  deadline). A failed dispute list answers 502.
+- `PayPalClient.list_disputes` is unpaginated, so the analytics (and the inbox) cover the first page PayPal returns.
+  Paging through `next_page` is a later task. Each refresh also reads the checkpoint and audit log once per dispute.
 - "Refunded" means the offer or claim reached PayPal as executed, not that the buyer accepted it. Sums ignore currency (USD).
 
 ## Next, in order

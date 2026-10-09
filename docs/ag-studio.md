@@ -110,5 +110,7 @@ Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B
 - The 45-day trial length. The trial and pricing pages we could reach do not state it, and the pricing page is sales copy.
 - Bundle size, measured in B1a: the lazy Analytics chunk is about 4.4 MB (1.2 MB gzip), and the main chunk grew about
   41 kB. Trimming (for example dropping `AllCommunityModule` from the Inbox) is a later task.
+- Dispute coverage. The analytics read one `list_disputes` call, which is not paginated (`PayPalClient.list_disputes`),
+  so the totals cover only the first page PayPal returns. Paging through `next_page` is a later task.
 - The Agent Framework with Groq. It needs the backend proxy and an adapter that we write.
 - Custom widget runtime behaviour beyond the documented API.
