@@ -1,7 +1,7 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 7, 2026 (after
-`5557632`, workflow setup merged in PR #1: STATUS.md, reviewer and chores agents, CI, branch + PR flow). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 7, 2026 (PR `feat/frontend-inbox`:
+frontend slice 1, on top of `50a8230`). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 ## Where we are
 
@@ -27,15 +27,21 @@ Read this at the start of a session; update it at the end of every task. Last up
   swings 80-95% run to run. The main set has been used for tuning. `snad_outside_window` is a judgment call.
   **Held-out set** (`evals/holdout.json`, 10 cases, written without reading the guard
   or facts code; 2 damage cases avoid the keyword list on purpose) has not run: the Groq daily limit (200k tokens) was hit.
-- **Tests:** 169 pass; the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Frontend slice 1 (PR open, `feat/frontend-inbox`):** `frontend/` is Vite + React + TS with an AG Grid Community
+  inbox, case view (assistant instruction vs shipped, facts, reasoner choice vs final action, guard note, editable
+  message), approve / edit / reject behind a confirm dialog that states the exact PayPal call, audit timeline, and a
+  mock-only simulator. Built and tested with `REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules`, no model key, no real sandbox,
+  no Supabase. 4 Playwright tests (hero approve-with-edit, reject, 409, cancel sends nothing) run in CI. Run commands: `frontend/README.md`.
+  Backend changes (additive): CORS from `REBUTTAL_CORS_ORIGINS`, `GET /api/simulator/cases` (mock only).
+- **Tests:** 173 pass (169 + 4 for CORS and the simulator list); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Next, in order
 
 1. Held-out eval once the Groq quota resets: `uv run python -m evals.run --set holdout --provider groq --langfuse`;
    report model alone vs final; change no code from the results.
-2. Frontend: React + AG Grid inbox, case view (assistant instruction vs shipped, facts, proposal, guard note),
-   approve / edit / reject with a confirm step, audit trail, mock-mode simulator; Render static site; Playwright
-   check. Build and test with `REBUTTAL_PROVIDER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens.
+2. Frontend slice 2: AG Studio dashboard (custom widgets, theming), Render static site, point the dashboard at the
+   live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
+   `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
 3. Video script by **Oct 12**; rough cut Oct 23.
 4. Render paid plan by **Nov 1** (use the $50 credit). Feature freeze Nov 3. **Submit Nov 10** (deadline Nov 12).
    Delete the Render service Dec 22.
@@ -49,6 +55,17 @@ Read this at the start of a session; update it at the end of every task. Last up
 - Which sponsor prize beyond AG Grid (APIMatic log in `docs/apimatic-log.md`; Bryntum is backup only).
 
 ## Known issues
+
+- Frontend retry: after an interrupted approve-with-edit, `Proposal.to_dict()` still carries the original text (the
+  edit lives only in the approval record), so the dashboard shows a notice instead of the text and a retry sends what
+  was approved. Exposing the approved text needs a backend change (follow-up). No e2e test for the retry path yet.
+- `VITE_API_TOKEN` is public in a built bundle: local runs only; add a login/session before deploying the dashboard.
+
+- Frontend: the AG Grid bundle is about 1.4 MB because it registers `AllCommunityModule` (marked TODO in
+  `Inbox.tsx`); trim to the modules in use before the final build. Unused Vite scaffold files remain in
+  `frontend/src/assets/` and `frontend/public/icons.svg` (delete when convenient).
+- A simulated dispute created twice from the same case shows "2 matching charges": the mock holds both same-amount
+  charges, so the duplicate-charge fact is genuine, not a UI bug.
 
 - **Groq daily quota (200k tokens) is shared** by the live service and every eval run; a heavy eval day can starve
   live analyses (they then fall back to the rules baseline and say so in the guard notes).
