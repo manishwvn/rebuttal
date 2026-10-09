@@ -159,3 +159,10 @@ export interface DeadlineRow {
   /** Negative when the deadline has passed. */
   hours_left: number
 }
+
+/** GET /api/analytics: the three parts come from one sweep of the disputes, so they agree with each other. */
+export interface AnalyticsReport {
+  rows: AnalyticsRow[]
+  summary: AnalyticsSummary
+  deadlines: DeadlineRow[]
+}

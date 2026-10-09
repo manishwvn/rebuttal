@@ -1,4 +1,4 @@
-"""The analytics: the aggregation rules (pure functions) and the three read-only /api/analytics routes."""
+"""The analytics: the aggregation rules (pure functions) and the read-only /api/analytics routes."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -11,7 +11,7 @@ from rebuttal.runtime import Runtime
 
 NOW = datetime(2026, 10, 6, 15, 0, tzinfo=timezone.utc)  # the mock's clock (scenarios.DEMO_NOW)
 SEEDED = ["agent_wrong_size", "inr_no_tracking", "snad_damaged_low_value"]  # become PP-D-2000, 2001, 2002
-ROUTES = ["/api/analytics/rows", "/api/analytics/summary", "/api/analytics/deadlines"]
+ROUTES = ["/api/analytics", "/api/analytics/rows", "/api/analytics/summary", "/api/analytics/deadlines"]
 ROW_KEYS = {"dispute_id", "reason", "paypal_status", "created", "due", "product", "amount", "status", "outcome",
             "refunded", "kept", "open", "model_resolution", "final_resolution", "agrees", "count"}
 DEADLINE_KEYS = {"dispute_id", "reason", "amount", "status", "paypal_status", "due", "hours_left"}
@@ -109,6 +109,25 @@ def test_a_partial_refund_is_capped_at_the_disputed_amount():
     offer = make_proposal(status="EXECUTED", resolution="OFFER_PARTIAL_REFUND", actions=partial_refund("7.20"))
     row = row_of(make_dispute(amount="5.00"), offer)
     assert (row["refunded"], row["kept"], row["open"]) == (5.0, 0.0, 0.0)
+
+
+def test_a_partial_refund_is_found_wherever_the_offer_sits_in_the_actions():
+    actions = [{"kind": "send_message", "params": {"message": "Hello"}}, *partial_refund("7.20")]
+    row = row_of(make_dispute(amount="48.00"),
+                 make_proposal(status="EXECUTED", resolution="OFFER_PARTIAL_REFUND", actions=actions))
+    assert (row["outcome"], row["refunded"], row["kept"]) == ("partially_refunded", 7.2, 40.8)
+
+
+@pytest.mark.parametrize("actions", [
+    [],
+    [{"kind": "send_message", "params": {"message": "Hello"}}],
+    [{"kind": "make_offer", "params": {"offer_type": "REFUND"}}],
+    [{"kind": "make_offer"}],
+], ids=["no actions", "no offer", "offer without an amount", "offer without params"])
+def test_a_partial_refund_without_a_readable_amount_counts_nothing_instead_of_failing(actions):
+    offer = make_proposal(status="EXECUTED", resolution="OFFER_PARTIAL_REFUND", actions=actions)
+    row = row_of(make_dispute(amount="48.00"), offer)
+    assert (row["refunded"], row["kept"], row["open"]) == (0.0, 48.0, 0.0)
 
 
 def test_every_row_adds_up_to_its_amount_in_cents():
@@ -305,6 +324,18 @@ def test_the_figures_follow_an_analysis_and_an_approval(client):
     assert all(by_id[i]["due"] == rows[i]["due"] and set(by_id[i]) == DEADLINE_KEYS for i in by_id)
     hours = [d["hours_left"] for d in deadlines]
     assert hours == sorted(hours)
+
+
+def test_one_report_holds_the_rows_the_summary_and_the_deadlines_from_a_single_sweep(client):
+    client.post("/api/disputes/PP-D-2001/analyze")
+    calls_before = len(app_module.rt.mock.calls)
+    report = client.get("/api/analytics").json()
+    sweep = [c for c in app_module.rt.mock.calls[calls_before:] if c[1].endswith("/disputes")]
+    assert len(sweep) == 1  # the three parts share one list_disputes call
+    assert set(report) == {"rows", "summary", "deadlines"}
+    assert report["rows"] == client.get("/api/analytics/rows").json()
+    assert report["summary"] == client.get("/api/analytics/summary").json()
+    assert report["deadlines"] == client.get("/api/analytics/deadlines").json()
 
 
 def test_the_analytics_routes_need_the_api_token_when_one_is_set(client, monkeypatch):

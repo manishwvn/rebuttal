@@ -182,6 +182,14 @@ def _analytics_rows() -> list[dict]:
 
 
 # Analytics routes: they only read (PayPal through the read-only handle, the approval queue and the audit log).
+# The dashboard loads `/api/analytics`: one sweep of the disputes feeds all three parts, so they agree with each other
+# and PayPal is read once. The three single-part routes stay for scripts and tests.
+@app.get("/api/analytics", dependencies=protected)
+def analytics_report():
+    rows, now = _analytics_rows(), rt.clock()
+    return {"rows": rows, "summary": analytics.summarize(rows, now), "deadlines": analytics.deadlines(rows, now)}
+
+
 @app.get("/api/analytics/rows", dependencies=protected)
 def analytics_rows():
     return _analytics_rows()

@@ -69,6 +69,6 @@ src/components/CaseView.tsx  assistant-vs-shipped, facts, proposal, guard note, 
 src/components/ConfirmDialog.tsx  native modal <dialog>
 src/components/SimulatorPanel.tsx  mock-only case picker
 src/components/analytics/  Analytics tab: an AG Studio 3.0.0 dashboard (unlicensed, watermark allowed) fed by
-                           /api/analytics/*; lazy-loaded. Notes: docs/ag-studio.md
+                           /api/analytics (one call); lazy-loaded. Notes: docs/ag-studio.md
 e2e/                       Playwright tests (dispute flows, and the build guard)
 ```

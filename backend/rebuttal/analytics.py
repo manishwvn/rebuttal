@@ -8,7 +8,7 @@ Outcome of a dispute (`build_rows`):
 - proposal REJECTED / FAILED                                    -> rejected / failed
 - proposal EXECUTED, by its final resolution:
     ACCEPT_CLAIM, OFFER_RETURN_FOR_REFUND                       -> refunded (the full amount is agreed)
-    OFFER_PARTIAL_REFUND                                        -> partially_refunded (the offered amount)
+    OFFER_PARTIAL_REFUND                                        -> partially_refunded (the offered amount, 0 if unreadable)
     SHARE_TRACKING, OFFER_REPLACEMENT, SUBMIT_EVIDENCE,
     SUBMIT_REFUND_PROOF                                         -> kept (we agreed no refund; for evidence PayPal
                                                                    still decides)
@@ -127,7 +127,19 @@ def _refunded(outcome: str, amount: Decimal, proposal: dict | None) -> Decimal:
     if outcome == "refunded":
         return amount
     if outcome == "partially_refunded":
-        return min(_cents(proposal["actions"][0]["params"]["amount"]["value"]), amount)
+        return min(_offered(proposal), amount)
+    return Decimal("0")
+
+
+def _offered(proposal: dict | None) -> Decimal:
+    """The amount of the proposal's `make_offer` action, wherever it sits in the action list. When no action carries
+    one (an edited or older payload), nothing is counted as refunded: only an amount we can read is reported."""
+    for action in (proposal or {}).get("actions") or []:
+        if action.get("kind") != "make_offer":
+            continue
+        value = ((action.get("params") or {}).get("amount") or {}).get("value")
+        if value is not None:
+            return _cents(value)
     return Decimal("0")
 
 

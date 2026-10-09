@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
-import type { AnalyticsRow, AnalyticsSummary, DeadlineRow } from '../../types'
+import type { AnalyticsReport } from '../../types'
 import { StudioDashboard } from './StudioDashboard'
 import { useAgThemeMode } from './useAgThemeMode'
-
-interface Report {
-  rows: AnalyticsRow[]
-  deadlines: DeadlineRow[]
-  summary: AnalyticsSummary
-}
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export function AnalyticsView() {
   useAgThemeMode()
-  const [report, setReport] = useState<Report | null>(null)
+  const [report, setReport] = useState<AnalyticsReport | null>(null)
   // Counts successful loads. It is the dashboard's key, so each load remounts Studio with the new data.
   const [loadedAt, setLoadedAt] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -25,10 +19,11 @@ export function AnalyticsView() {
   useEffect(() => {
     // Once a newer load starts, this one's response is dropped, so a slow older response cannot overwrite it.
     let current = true
-    Promise.all([api.analyticsRows(), api.analyticsSummary(), api.analyticsDeadlines()])
-      .then(([rows, summary, deadlines]) => {
+    api
+      .analytics()
+      .then((loaded) => {
         if (!current) return
-        setReport({ rows, summary, deadlines })
+        setReport(loaded)
         setLoadedAt((n) => n + 1)
         setError(null)
       })
