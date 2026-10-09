@@ -1,6 +1,6 @@
 # Eval results
 
-Every valid run is kept in `evals/results/<provider>-<model>[-holdout]-<date>.json`. A run that hit a rate or quota limit is invalid and is never saved. Rules baseline = no model. **Model alone** is the model's own choice before `guard()`; **final** is what the agent would propose after the guard.
+Every valid run is kept in `evals/results/<provider>-<model>[-holdout|-holdout2]-<date>.json`. A run that hit a rate or quota limit is invalid and is never saved. Rules baseline = no model. **Model alone** is the model's own choice before `guard()`; **final** is what the agent would propose after the guard.
 
 ## Main set (evals/cases.json)
 

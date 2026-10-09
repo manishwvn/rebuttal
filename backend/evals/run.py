@@ -55,6 +55,15 @@ JUDGMENT_CALLS = {
                            "business choice that avoids a fight over $40, so models that pick it are not clearly wrong.",
 }
 
+# Cases in the held-out sets whose miss is a known limit of the facts code, not a model failure. Same display as
+# JUDGMENT_CALLS; the labels are kept (they are the correct outcome) and nothing is tuned against them.
+HOLDOUT2_NOTES = {
+    "ho2_inr_unit_format": "Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' "
+                           "are one address, but the code that compares the ship-to with the delivered-to address "
+                           "does not normalise street suffixes or unit markers, so it can report a mismatch. We keep "
+                           "the case and the label, and do not tune against it.",
+}
+
 
 def results_dir() -> Path:
     return HERE / "results"
@@ -67,7 +76,8 @@ def slug(text: str) -> str:
 def save_run(summary: dict) -> Path:
     """Keep every valid run as evals/results/<provider>-<model>-<date>.json (a same-day rerun gets -2, -3, ...)."""
     results_dir().mkdir(exist_ok=True)
-    tag = "-" + summary["set"] if summary.get("set") in ("holdout", "holdout2") else ""
+    case_set = summary.get("set")
+    tag = "" if case_set in (None, "main") else "-" + case_set
     base = f"{summary['provider']}-{slug(summary['model'])}{tag}-{summary['date'].replace('-', '')}"
     path, n = results_dir() / f"{base}.json", 2
     while path.exists():
@@ -84,7 +94,8 @@ def _cell(row: dict | None) -> str:
     return text if raw is None or raw == row["got"] else f"{text} (model: {raw})"
 
 
-def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str]) -> list[str]:
+def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str],
+             kind: str = "judgment call") -> list[str]:
     lines = [f"## {title}", "", intro, "",
              "| Date | Provider | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens "
              "| Gate violations | Langfuse experiment |", "|---|---|---|---|---|---|---|---|---|---|---|"]
@@ -111,10 +122,10 @@ def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str])
             if row:
                 expected, hard = row["expected"], row["hard"]
             cells.append(_cell(row))
-        flag = " (judgment call)" if cid in judgment else " (hard)" if hard else ""
+        flag = f" ({kind})" if cid in judgment else " (hard)" if hard else ""
         lines.append(f"| {cid}{flag} | {expected} | " + " | ".join(cells) + " |")
     if judgment:
-        lines += ["", "Judgment calls:", ""] + [f"- `{cid}`: {note}" for cid, note in judgment.items()]
+        lines += ["", kind.capitalize() + "s:", ""] + [f"- `{cid}`: {note}" for cid, note in judgment.items()]
     return lines
 
 
@@ -123,9 +134,9 @@ def write_results_md() -> None:
     runs = sorted((json.loads(p.read_text()) | {"file": p.name} for p in results_dir().glob("*.json")),
                   key=lambda r: (r["date"], r["file"]))
     lines = ["# Eval results", "",
-             "Every valid run is kept in `evals/results/<provider>-<model>[-holdout]-<date>.json`. A run that hit a rate "
-             "or quota limit is invalid and is never saved. Rules baseline = no model. **Model alone** is the model's own "
-             "choice before `guard()`; **final** is what the agent would propose after the guard."]
+             "Every valid run is kept in `evals/results/<provider>-<model>[-holdout|-holdout2]-<date>.json`. "
+             "A run that hit a rate or quota limit is invalid and is never saved. Rules baseline = no model. "
+             "**Model alone** is the model's own choice before `guard()`; **final** is what the agent would propose after the guard."]
     main = [r for r in runs if r.get("set", "main") == "main"]
     holdout = [r for r in runs if r.get("set") == "holdout"]
     holdout2 = [r for r in runs if r.get("set") == "holdout2"]
@@ -140,7 +151,7 @@ def write_results_md() -> None:
     if holdout2:
         lines += [""] + _section(holdout2, "Held-out set 2 (not used for tuning)",
                                  "evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. "
-                                 "Run and reported only; no code is tuned against these results.", {})
+                                 "Run and reported only; no code is tuned against these results.", HOLDOUT2_NOTES, "facts limit")
     (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
 
 

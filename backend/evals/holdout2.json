@@ -99,12 +99,12 @@
  },
  {
   "id": "ho2_snad_rough_spoon",
-  "title": "Small flaw on a cheap item, buyer wants the money back",
+  "title": "Spoon cracked through and unusable, cheap item, buyer wants the money back",
   "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
   "stage": "INQUIRY",
   "days_since_purchase": 5,
   "days_open": 0,
-  "buyer_message": "middle spoon has a rough splintery patch on the handle. not what the photos showed. id like my money back tbh",
+  "buyer_message": "the middle spoon arrived cracked all the way through the bowl and it snaps when you press on it, so it is useless. not what the photos showed. please refund me, I don't want a replacement",
   "item": {
    "sku": "SPOON-3",
    "name": "Olive wood spoons",
@@ -120,8 +120,8 @@
    "days_after_purchase": 3
   },
   "expected": "ACCEPT_CLAIM",
-  "hard": false,
-  "why": "A minor defect, but the order is only $11. Under $20 policy refunds in full with no return, and arguing about a splinter costs more than the spoons. Refund and move on."
+  "hard": true,
+  "why": "The defect is plain and the item is unusable, and the buyer asks for money back, not a replacement. The order is only $11, and the store's under-$20 policy refunds in full with no return. Fighting it costs more than the spoons. Accept the claim."
  },
  {
   "id": "ho2_unauth_over_cap",

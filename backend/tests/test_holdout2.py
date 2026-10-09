@@ -66,3 +66,54 @@ def test_save_run_names_the_second_held_out_set_separately(tmp_path, monkeypatch
     assert ev.save_run({**base, "set": "holdout2"}).name == "groq-qwen3.8-27b-holdout2-20261009.json"
     assert ev.save_run({**base, "set": "holdout"}).name == "groq-qwen3.8-27b-holdout-20261009.json"
     assert ev.save_run({**base, "set": "main"}).name == "groq-qwen3.8-27b-20261009.json"
+
+
+def test_holdout2_runs_offline_on_the_rules_baseline_without_a_write():
+    """Smoke test, no model: every case is analysed up to the approval gate and nothing is written to PayPal."""
+    settings = ev.eval_settings()
+    for case in load_cases(ev.SETS["holdout2"]):
+        row, _, _ = ev.run_case(case, settings, force_rules=True)
+        assert row["writes_before_approval"] == 0, case["id"]
+
+
+def test_a_holdout2_results_file_lands_in_its_own_results_section(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.setattr(ev, "HERE", tmp_path)
+    (tmp_path / "results").mkdir()
+
+    def run_file(name, cid, set_name=None):
+        row = {"id": cid, "title": cid, "hard": False, "expected": "ACCEPT_CLAIM", "got": "ACCEPT_CLAIM",
+               "correct": True, "confidence": 0.9, "source": "x", "provider": "p", "model": "m"}
+        d = {"mode": "m", "cases": 1, "accuracy": 1.0, "standard_accuracy": 1.0, "hard_accuracy": None,
+             "hard_cases": 0, "approval_gate_violations": 0, "rows": [row], "tokens_used": 1, "langfuse": None,
+             "provider": "p", "model": "m", "date": "2026-10-09"}
+        if set_name:
+            d["set"] = set_name
+        (tmp_path / "results" / name).write_text(json.dumps(d))
+
+    run_file("main.json", "main_a")
+    run_file("ho.json", "ho_a", "holdout")
+    run_file("ho2.json", "ho2_a", "holdout2")
+    ev.write_results_md()
+    text = (tmp_path / "RESULTS.md").read_text()
+    rest, ho2 = text.split("## Held-out set 2 (not used for tuning)")
+    assert "ho2_a" in ho2 and "ho2_a" not in rest
+    assert "ho_a" in rest and "ho_a" not in ho2 and "main_a" in rest
+
+
+def test_a_holdout2_miss_is_marked_as_a_facts_limit_not_a_model_failure(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.setattr(ev, "HERE", tmp_path)
+    (tmp_path / "results").mkdir()
+    row = {"id": "ho2_inr_unit_format", "title": "t", "hard": True, "expected": "SHARE_TRACKING",
+           "got": "OFFER_REPLACEMENT", "correct": False, "confidence": 0.9, "source": "x", "provider": "p",
+           "model": "m"}
+    d = {"mode": "m", "cases": 1, "accuracy": 0.0, "standard_accuracy": None, "hard_accuracy": 0.0, "hard_cases": 1,
+         "approval_gate_violations": 0, "rows": [row], "tokens_used": 1, "langfuse": None, "provider": "p",
+         "model": "m", "date": "2026-10-09", "set": "holdout2"}
+    (tmp_path / "results" / "ho2.json").write_text(json.dumps(d))
+    ev.write_results_md()
+    text = (tmp_path / "RESULTS.md").read_text()
+    assert "ho2_inr_unit_format (facts limit)" in text and "not a model failure" in text
