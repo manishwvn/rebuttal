@@ -166,3 +166,11 @@ export interface AnalyticsReport {
   summary: AnalyticsSummary
   deadlines: DeadlineRow[]
 }
+
+/** A demo session as returned by POST /api/demo/sessions and POST /api/demo/{session_id}/reset. */
+export interface DemoSessionInfo {
+  session_id: string
+  expires_in_seconds: number
+  max_disputes: number
+  hero_dispute_id: string
+}
