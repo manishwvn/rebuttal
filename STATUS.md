@@ -6,6 +6,8 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
 `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
 
+**Prize strategy:** `docs/prize-fit.md` (prizes, rules, competition, decisions; read Oct 9 from Devpost and Discord).
+
 ## Where we are
 
 - **Live backend:** Render free plan, service `rebuttal` (render.yaml names it `rebuttal-api`), id
