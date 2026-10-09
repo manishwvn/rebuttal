@@ -46,6 +46,13 @@ marked `size: S` this cycle.
 - Check usage again before each new subagent step. If `W >= 82` mid-task, stop at a safe point: commit and push the
   work-in-progress branch, mark the task `in-progress` in `QUEUE.md` with a note, release the lock.
 
+## 2b. Fill the 5-hour window
+
+The task runs every hour (at about :12-:15). Each cycle keeps working: after a task (or a team workflow) finishes,
+check usage again and pick the next runnable work while `F < 80`, `W < 80` and the cycle has run under 50 minutes, so
+the next hourly cycle finds the lock free. The 5-hour window resets at a fixed time (see `resetsAt`); spending it fully
+before the reset is free, so never leave it idle while there is runnable work.
+
 ## 3. Pick work and run the team
 
 1. `cd /Users/manish/Documents/rebuttal && git checkout main && git pull`. Read `STATUS.md`, `docs/autopilot/QUEUE.md`

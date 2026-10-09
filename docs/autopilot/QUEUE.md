@@ -15,9 +15,32 @@ Catch basic mistakes without spending model usage. Add to `.github/workflows/tes
   `[tool.ruff]` config in `backend/pyproject.toml`; fix what it flags in the same PR, do not disable rules wholesale).
 - Frontend: confirm `npm run build` (already `tsc -b && vite build`) and `npm run lint` stay in CI; add `tsc --noEmit`
   for the e2e folder if it is not covered.
+- GitHub security and supply-chain scanners, all free for public repos: CodeQL (Python + JavaScript), OSV-Scanner,
+  OpenSSF Scorecard (badge in README), Dependabot alerts config; coverage report for the backend (pytest-cov) with
+  the number in README.
 - A test that every environment variable read by the backend (`os.getenv` / `os.environ`) is listed in
   `backend/.env.example` or explicitly allowlisted.
 Done when CI runs the new jobs on the PR and they pass.
+
+### Q2 Architecture decision records — size S — todo — priority now
+`docs/adr/`: short ADRs (context, decision, consequences) for the safety design: single PayPal write path in
+`execute`, read-only client for analysis, human approval via LangGraph interrupt, facts in code + guard over the model,
+deterministic PayPal-Request-Id, Supabase over paid Postgres, held-out evals. Link them from README. (Competitor Stood
+shows 24 ADRs; judges score Technological Implementation first in ties.)
+
+### Q3 PayPal Agent Toolkit in the agent (read-only) — size M — todo — priority now
+PayPal promotes its AI Toolkit / MCP server for this hackathon. Use the PayPal Agent Toolkit (Python package, check
+the paypal plugin and https://developer.paypal.com for the current package and dispute/transaction tools) for the
+agent's read-only lookups in `gather_facts` (show dispute, list transactions), behind the existing read-only boundary:
+the toolkit must only be given read tools, and `execute` stays the only writer. Tests prove no write tool is
+reachable from analysis. Document it in README and `docs/prize-fit.md`. Log any APIMatic plugin help in
+`docs/apimatic-log.md`.
+
+### Q4 Real-sandbox dispute creation for the judge path — size M — todo — needs USER item U1
+Create test disputes through the Disputes API with a second sandbox business account acting as buyer (it owns its own
+REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_dispute.py` (order -> capture -> create
+dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to
+`.env.example`). Replaces the password-based buyer steps (supersedes B5).
 
 ### A1 Keep the live backend awake (free) — size S — done #6
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
@@ -53,7 +76,7 @@ resource, no cost). Replace `VITE_API_TOKEN` with a sign-in screen where the mer
 in Render's Python runtime; if not, find a free alternative and document it). Done when
 `https://rebuttal-oq3g.onrender.com/` shows the sign-in screen after deploy and a Playwright test covers sign-in.
 
-### A6 Judge demo mode — size M — todo
+### A6 Judge demo mode — size M — todo — priority now (rules: judges must be able to try it; testing credentials go in the submission)
 Judges must be able to try Rebuttal without PayPal accounts. Add a demo mode on the same service: a "Try the demo"
 button that runs the hero case and the other demo cases against the in-memory mock sandbox in a separate, isolated
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
@@ -93,10 +116,16 @@ adds captions and title cards. Output `media/rebuttal-demo.mp4` (git-ignored; ke
 `scripts/make_video.sh` in git). Under 3:00. Then add a USER item: watch it, optionally re-record the narration in his
 own voice (give exact steps), and upload to YouTube as Public.
 
-### B5 Sandbox simulator for judges — size M — todo
+### B5 Sandbox simulator for judges — size M — superseded by Q4
 Research (PayPal plugin, docs) whether a test dispute can be created on the real sandbox without a buyer password.
 If yes, add it to the simulator in sandbox mode. If it needs a buyer login, make it a USER item with exact steps and
 skip the code.
+
+### E1 Second submission decision — size S — todo — after Oct 18, before Oct 20
+Rules allow several substantially different submissions, each winning up to one Grand/Honorable + one Sponsor
+prize. Only if Rebuttal's queue is on track: scope a second, different entry aimed at Bryntum ($1,000 x3) or Channel3
+($1,500) plus one honorable mention, reusing nothing user-visible from Rebuttal. Write `docs/second-entry.md` with
+the idea, effort and a go/no-go; go only if it fits before Nov 3 without slowing Rebuttal.
 
 ### C1 Design polish — size M — todo — after B1
 `frontend-design` skill pass over inbox, case view and Studio: typography, spacing, empty and loading states,
@@ -131,7 +160,11 @@ Alert: delete the Render service (judging ends Dec 15). Do not delete it yoursel
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
 
-- (none yet)
+- **U1 Second sandbox business account (5 minutes), for Q4.** developer.paypal.com > log in > Testing Tools >
+  Sandbox Accounts > Create account > Business, United States > Create. Then Apps & Credentials (Sandbox) > Create App
+  > name "rebuttal-buyer" > Merchant > pick the new business account > Create. Copy the Client ID and Secret into
+  `backend/.env` as `PAYPAL_BUYER_CLIENT_ID=` and `PAYPAL_BUYER_CLIENT_SECRET=` (never paste them in chat). Then tell
+  the lead "U1 done".
 
 ## Cut
 
