@@ -79,7 +79,7 @@ before the reset is free, so never leave it idle while there is runnable work.
      the Sonnet tech lead integrates, runs every test and opens the PR; a review panel checks the whole PR: 3
      independent Sonnet reviewers (correctness and tests, safety and money, design and docs), then an Opus principal
      engineer who verifies each finding, adds what they missed and decides; up to two Sonnet fix rounds, each
-     re-reviewed by the full panel. Token-saving tiers (Oct 9, weekly limit is the constraint): 3 audit lenses at max effort only for risky pieces
+     re-reviewed by the full panel. Token diet (Oct 9, A6 alone cost 9% of the weekly limit): at most 6 pieces per task; builders high (xhigh if hard); audits xhigh for risky pieces, medium otherwise; non-strict PRs get one combined Sonnet reviewer, a Sonnet principal and one fix round; the skill scout runs only when the lead passes `scout: true` for a new kind of work. Earlier tiers: 3 audit lenses at max effort only for risky pieces
      (hard, sensitive paths, `.claude/`, `.github/`); other code pieces get one combined audit, docs pieces one docs
      audit; the Opus principal only for strict PRs (PayPal, money, safety paths or risk high), Sonnet otherwise.
      Agents run on Anthropic's servers, so the Mac (M1, 8 CPU cores, 16 GB) only hosts their processes and runs tests;
