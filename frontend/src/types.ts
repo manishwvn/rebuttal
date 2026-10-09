@@ -111,3 +111,51 @@ export interface SimulatorCase {
   reason: string
   agent_purchase: boolean
 }
+
+// Analytics: GET /api/analytics/rows, /summary and /deadlines. Money is USD; per row, refunded + kept + open == amount.
+export type AnalyticsStatus = 'NOT_ANALYZED' | 'PENDING' | 'APPROVED' | 'EXECUTED' | 'REJECTED' | 'FAILED' | 'INTERRUPTED'
+
+export type AnalyticsOutcome = 'not_analyzed' | 'awaiting_merchant' | 'rejected' | 'failed' | 'refunded' | 'partially_refunded' | 'kept'
+
+export interface AnalyticsRow {
+  dispute_id: string
+  /** PayPal reason code, e.g. MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED. */
+  reason: string
+  paypal_status: string
+  created: string
+  due: string | null
+  product: string
+  amount: number
+  status: AnalyticsStatus
+  outcome: AnalyticsOutcome
+  refunded: number
+  kept: number
+  open: number
+  model_resolution: string | null
+  final_resolution: string | null
+  agrees: 0 | 1 | null
+  /** Always 1, so summing it counts disputes. */
+  count: number
+}
+
+export interface AnalyticsSummary {
+  generated_at: string
+  totals: { disputes: number; analyzed: number; executed: number }
+  by_status: Record<string, number>
+  by_reason: { reason: string; count: number; amount: number }[]
+  by_product: { product: string; count: number; amount: number }[]
+  money: { currency: 'USD'; disputed: number; refunded: number; kept: number; open: number }
+  /** rate is 0..1, or null when nothing has been compared. */
+  agreement: { compared: number; agreed: number; rate: number | null; guard_changes: number }
+}
+
+export interface DeadlineRow {
+  dispute_id: string
+  reason: string
+  amount: number
+  status: string
+  paypal_status: string
+  due: string
+  /** Negative when the deadline has passed. */
+  hours_left: number
+}

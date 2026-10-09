@@ -1,0 +1,46 @@
+/* The Desk / Analytics tab bar and the Analytics view. Colours come from the tokens in index.css and App.css. */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  font: 600 0.95rem var(--body);
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  padding: 10px 16px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.tab:hover {
+  color: var(--ink);
+}
+.tab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* The Desk panel is a grid so its sections keep the page gap. The author display rule would win over the hidden
+   attribute, so the hidden rule is repeated here. */
+.desk-panel {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.desk-panel[hidden] {
+  display: none;
+}
+
+/* Studio fills this frame, so the frame sets the dashboard's height. Studio's canvas has a minimum width, so on a
+   phone the frame scrolls sideways itself and the page does not. */
+.analytics-frame {
+  height: 800px;
+  width: 100%;
+  min-width: 0;
+  overflow: auto;
+}
