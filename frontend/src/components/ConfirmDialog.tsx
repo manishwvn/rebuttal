@@ -33,8 +33,10 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
         if (!busy) onCancel()
       }}
       // Chrome can close a modal dialog without firing `cancel` (a second Escape): keep the parent state in step.
+      // StrictMode's simulated unmount calls close() and the `close` event arrives after the effect re-opened the
+      // dialog: only a dialog that is really closed means the user dismissed it.
       onClose={() => {
-        if (!busy) onCancel()
+        if (!busy && !ref.current?.open) onCancel()
       }}
     >
       <h2 id="confirm-title">{title}</h2>

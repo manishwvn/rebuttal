@@ -5,6 +5,9 @@ import { defineConfig } from '@playwright/test'
 const BACKEND_PORT = 8000
 const APP_PORT = 4173
 const APP_ORIGIN = `http://localhost:${APP_PORT}`
+// The Vite dev server (React StrictMode double-runs effects there; the production build does not).
+const DEV_PORT = 5174
+const DEV_ORIGIN = `http://localhost:${DEV_PORT}`
 
 export default defineConfig({
   testDir: './e2e',
@@ -43,7 +46,7 @@ export default defineConfig({
         DATABASE_URL: '',
         REBUTTAL_CHECKPOINT_URL: '',
         REBUTTAL_AUDIT_PATH: '../frontend/test-results/audit.jsonl',
-        REBUTTAL_CORS_ORIGINS: `${APP_ORIGIN},http://127.0.0.1:${APP_PORT}`,
+        REBUTTAL_CORS_ORIGINS: `${APP_ORIGIN},http://127.0.0.1:${APP_PORT},${DEV_ORIGIN}`,
       },
     },
     {
@@ -54,6 +57,13 @@ export default defineConfig({
       timeout: 120_000,
       // The build refuses a VITE_API_TOKEN (it would be public in the bundle). The mock backend above takes no
       // token, so a token in the developer's shell or .env.local must not reach this build.
+      env: { VITE_API_TOKEN: '' },
+    },
+    {
+      command: `npx vite --port ${DEV_PORT} --strictPort`,
+      url: DEV_ORIGIN,
+      reuseExistingServer: false,
+      timeout: 120_000,
       env: { VITE_API_TOKEN: '' },
     },
   ],
