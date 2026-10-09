@@ -3,6 +3,9 @@
 Read this at the start of a session; update it at the end of every task. Last updated: Oct 7, 2026 (PR `feat/frontend-inbox`:
 frontend slice 1, on top of `50a8230`). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
+**Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
+`docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
+
 ## Where we are
 
 - **Live backend:** Render free plan, service `rebuttal` (render.yaml names it `rebuttal-api`), id
