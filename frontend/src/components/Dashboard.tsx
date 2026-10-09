@@ -11,7 +11,7 @@ type View = 'desk' | 'analytics'
 // The open tab lives in the URL hash: it survives a reload, and #analytics opens that tab directly.
 const viewFromHash = (): View => (window.location.hash === '#analytics' ? 'analytics' : 'desk')
 
-export function Dashboard() {
+export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
   const [view, setView] = useState<View>(viewFromHash)
   const [health, setHealth] = useState<Health | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -56,6 +56,11 @@ export function Dashboard() {
           <a href="#demo" className="demo-link" data-testid="try-demo">
             Try the demo
           </a>
+          {onSignOut && health?.auth && (
+            <button type="button" className="ghost" data-testid="sign-out" onClick={onSignOut}>
+              Sign out
+            </button>
+          )}
         </div>
       </header>
 

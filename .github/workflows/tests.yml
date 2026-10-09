@@ -60,6 +60,8 @@ jobs:
         run: npm run lint
       - name: Build (tsc -b also type-checks the e2e specs and playwright.config.ts, see tsconfig.e2e.json)
         run: npm run build
+        env:
+          VITE_API_BASE: http://localhost:8000  # the Playwright run serves the build on another port than the backend
       - name: Playwright (backend in mock mode + the built dashboard; uses the runner's Google Chrome)
         run: npx playwright test
       - name: Keep the Playwright trace when a test fails

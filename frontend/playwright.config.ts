@@ -59,7 +59,7 @@ export default defineConfig({
       timeout: 120_000,
       // The build refuses a VITE_API_TOKEN (it would be public in the bundle). The mock backend above takes no
       // token, so a token in the developer's shell or .env.local must not reach this build.
-      env: { VITE_API_TOKEN: '' },
+      env: { VITE_API_TOKEN: '', VITE_API_BASE: `http://localhost:${BACKEND_PORT}` },
     },
     {
       command: `npx vite --port ${DEV_PORT} --strictPort`,

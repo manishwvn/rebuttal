@@ -42,7 +42,7 @@ SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `VITE_API_BASE` | `http://localhost:8000` | Backend base URL |
+| `VITE_API_BASE` | `http://localhost:8000` in `npm run dev`, empty (same origin) in a build | Backend base URL |
 | `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. **For `npm run dev` only: `npm run build` fails while it is set** (see below). |
 
 ### The build refuses `VITE_API_TOKEN`
@@ -51,7 +51,7 @@ Anything in `VITE_*` is inlined into the built JavaScript, so a token there is r
 backend has one token, the one that authorizes approve. `vite.config.ts` therefore stops any `vite build` (whatever
 `--mode`) with a clear error while `VITE_API_TOKEN` is set, in your shell or in a `.env*` file, before it writes
 anything. Pass it inline to the dev server (`VITE_API_TOKEN=... npm run dev`); if you keep it in `.env.local`
-(git-ignored), take it out before you build. A hosted dashboard needs a login or session first (slice 2). CI never sets
+(git-ignored), take it out before you build. A hosted dashboard asks for the token on a sign-in screen instead (kept in `sessionStorage`; `e2e/signin.spec.ts`). CI never sets
 it, and the Playwright run blanks it for its own build, so a token on your machine can neither break nor leak into the
 end-to-end run. `e2e/build-guard.spec.ts` checks the refusal.
 

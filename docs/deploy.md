@@ -104,6 +104,19 @@ are open, they are bounded:
   approval queue share. Reset demo restores it.
 - Sessions live in memory only and expire after 30 minutes idle or 2 hours of age.
 
+## Dashboard on the same service
+
+The build command also runs `cd ../frontend && npm ci && npm run build`, and the API serves `frontend/dist` from the
+same origin (`REBUTTAL_FRONTEND_DIR` overrides the folder). `/` shows a sign-in screen: paste `REBUTTAL_API_TOKEN`
+(Environment tab). The token is checked against the API and kept in `sessionStorage` only; it is never in the bundle.
+The sign-in screen has a **Try the demo** link (`#demo`) that needs no token. Never set `VITE_API_TOKEN` on Render: the
+frontend build fails on purpose when it is set. `frontend/dist` is not committed.
+
+Assumption, not yet verified on Render: the Python runtime ships Node and npm. If the build log says `npm: not found`,
+add `pip install nodeenv && nodeenv --node=22.12.0 ../.node && . ../.node/bin/activate` before the `npm ci` step in
+`buildCommand`, or set the `NODE_VERSION` environment variable. Without a built frontend the API still starts and
+serves only `/api`.
+
 ## Notes and open items
 
 - **Free plan trade-offs:** the service sleeps after 15 idle minutes and wakes on the next request, which takes about

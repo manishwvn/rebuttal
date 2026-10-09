@@ -8,8 +8,9 @@ services:
     plan: free                # sleeps after 15 idle minutes: the first request after that takes about a minute
     region: oregon
     rootDir: backend
-    buildCommand: pip install uv && uv sync --frozen --no-dev --extra postgres
+    buildCommand: pip install uv && uv sync --frozen --no-dev --extra postgres && (cd ../frontend && npm ci && npm run build || echo "frontend build failed, serving the API only")
     startCommand: uv run --no-sync uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT
+    # The build also compiles the dashboard into frontend/dist, which the API serves on the same origin (docs/deploy.md).
     healthCheckPath: /api/health   # also runs SELECT 1 on Supabase, so it doubles as the keep-alive
     autoDeployTrigger: commit
     envVars:
