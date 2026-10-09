@@ -54,4 +54,18 @@ def test_create_dispute_is_refused_outside_permit_writes():
     pp = PayPalClient(BASE, "i", "s", transport=fake(seen))
     with pytest.raises(WriteNotPermitted):
         pp.create_dispute("CAP1", "OTHER", {"currency_code": "USD", "value": "1.00"})
-    assert all(r.url.path == "/v1/oauth2/token" for r in seen) or seen == []
+    assert seen == []
+
+
+def test_read_only_clone_refuses_create_dispute():
+    seen: list[httpx.Request] = []
+    ro = PayPalClient(BASE, "i", "s", transport=fake(seen)).read_only()
+    with pytest.raises(WriteNotPermitted):
+        ro.create_dispute("CAP1", "OTHER", {"currency_code": "USD", "value": "1.00"})
+    assert seen == []
+
+
+def test_amount_without_transaction_id_is_rejected():
+    from scripts.make_sandbox_dispute import main
+    with pytest.raises(SystemExit):
+        main(["--amount", "5.00"])

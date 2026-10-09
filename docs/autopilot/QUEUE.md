@@ -37,7 +37,7 @@ the toolkit must only be given read tools, and `execute` stays the only writer. 
 reachable from analysis. Document it in README and `docs/prize-fit.md`. Log any APIMatic plugin help in
 `docs/apimatic-log.md`.
 
-### Q4 Real-sandbox dispute creation for the judge path — size M — todo (U1 done Oct 9: buyer business account sb-mku4z53114841@business.example.com, keys in backend/.env, token verified with disputes + checkout scopes)
+### Q4 Real-sandbox dispute creation for the judge path — size M — in review, PR #42 (U1 done Oct 9: buyer business account sb-mku4z53114841@business.example.com, keys in backend/.env, token verified with disputes + checkout scopes)
 Create test disputes through the Disputes API with a second sandbox business account acting as buyer (it owns its own
 REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_dispute.py` (order -> capture -> create
 dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to

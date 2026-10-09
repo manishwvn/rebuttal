@@ -186,3 +186,16 @@ def test_make_test_order_only_creates_orders_and_never_touches_a_dispute():
     for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate",
                    "require_evidence", "adjudicate", "get_dispute"):
         assert method not in source, method
+
+
+def test_make_sandbox_dispute_never_acts_as_the_merchant_on_a_dispute():
+    source = (BACKEND / "scripts" / "make_sandbox_dispute.py").read_text()
+    for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate",
+                   "require_evidence", "adjudicate"):
+        assert method not in source, method
+
+
+def test_approval_never_creates_disputes_or_orders():
+    source = (PACKAGE / "approval.py").read_text()
+    for method in ("create_dispute", "create_order", "capture_order"):
+        assert method not in source, method
