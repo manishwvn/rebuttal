@@ -6,9 +6,9 @@ export const meta = {
     { title: 'Skills', detail: 'Sonnet skill scout searches, vets (docs/autopilot/SKILLS.md) and installs skills for the task', model: 'sonnet' },
     { title: 'Plan', detail: 'Sonnet tech lead per task splits it into disjoint pieces', model: 'sonnet' },
     { title: 'Build', detail: 'Haiku workers, one worktree each, xhigh or max effort', model: 'haiku' },
-    { title: 'Audit', detail: '3 Haiku auditors per piece at max effort (spec, correctness, safety), Haiku fixes, re-audit', model: 'haiku' },
+    { title: 'Audit', detail: 'Haiku auditors scaled by risk: 3 lenses at max for risky pieces, 1 combined for other code, 1 for docs; Haiku fixes, re-audit', model: 'haiku' },
     { title: 'Integrate', detail: 'Sonnet tech lead combines the pieces, runs every test, opens the PR', model: 'sonnet' },
-    { title: 'Review', detail: '3 independent Sonnet reviewers (correctness, safety, design) then an Opus principal engineer who verifies every finding and decides', model: 'sonnet' },
+    { title: 'Review', detail: '3 independent Sonnet reviewers (correctness, safety, design) then a principal engineer (Opus when the PR touches PayPal, money or safety paths, else Sonnet) who verifies every finding and decides', model: 'sonnet' },
     { title: 'Fix', detail: 'Sonnet fixes the confirmed findings, then the panel reviews again', model: 'sonnet' },
   ],
 }
@@ -131,11 +131,16 @@ const LENSES = [
   { key: 'safety', ask: 'SAFETY AND QUALITY: any PayPal write outside approval.py execute, weakened guard/approval/read-only client, secret or key in code or logs, live PayPal URL, paid API use; then naming, dead code, comments that lie, style that differs from the surrounding code, missing docs.' },
 ]
 
-// Docs-only pieces get one combined audit (they cannot break code or the write boundary); code pieces get all 3 lenses.
+// Audits scale with risk to save tokens (the weekly limit is the real constraint): risky pieces (hard, sensitive paths,
+// .claude/, CI) get the 3 lenses at max effort; other code pieces one combined lens; docs-only pieces one docs lens.
+const SENSITIVE_PATHS = ['backend/rebuttal/approval.py', 'backend/rebuttal/paypal/', 'backend/rebuttal/agent/facts.py', 'backend/rebuttal/agent/reasoner.py', 'backend/rebuttal/config.py', '.claude/', '.github/']
 const DOCS_ONLY = f => /\.(md|txt)$/i.test(f) && !f.startsWith('.claude/')
-const lensesFor = p => p.files.length && p.files.every(DOCS_ONLY)
-  ? [{ key: 'docs', ask: 'DOCS: is every instruction done, every claim true against the code (open the files it mentions), nothing invented, no secrets, clear plain English matching the surrounding docs?' }]
-  : LENSES
+const risky = p => p.hard || p.files.some(f => SENSITIVE_PATHS.some(s => f.startsWith(s)))
+const lensesFor = p => {
+  if (risky(p)) return LENSES
+  if (p.files.length && p.files.every(DOCS_ONLY)) return [{ key: 'docs', ask: 'DOCS: is every instruction done, every claim true against the code (open the files it mentions), nothing invented, no secrets, clear plain English matching the surrounding docs?' }]
+  return [{ key: 'combined', ask: LENSES.map(l => l.ask).join('\n') }]
+}
 
 // One piece: build, then 3 independent Haiku audits, then up to 2 fix + re-audit rounds.
 async function buildPiece(t, p) {
@@ -155,7 +160,7 @@ Allowed files: ${p.files.join(', ')}
 ---
 ${l.ask}
 Be strict: a Haiku engineer wrote this and small mistakes are common. Report every real problem with file, line, severity and the exact fix. Do not report taste. pass = no blocker and no should_fix.`,
-      { label: `audit:${tag}:${l.key}${round ? '#' + round : ''}`, phase: 'Audit', agentType: 'reviewer', model: 'haiku', effort: 'max', schema: AUDIT })))).filter(Boolean)
+      { label: `audit:${tag}:${l.key}${round ? '#' + round : ''}`, phase: 'Audit', agentType: 'reviewer', model: 'haiku', effort: risky(p) ? 'max' : 'high', schema: AUDIT })))).filter(Boolean)
     open = audits.flatMap(a => a.findings.filter(f => f.severity !== 'nit'))
     if (!open.length) return { piece: p.id, title: p.title, ...built, audit: round === 0 ? 'clean' : `clean after ${round} fix round(s)` }
     if (round === 2) break
@@ -185,7 +190,7 @@ Piece ${p.id}: ${p.title}
 ${p.instructions}
 
 Only create or edit these files: ${p.files.join(', ')}.
-Three strict auditors will check every line against the instructions above, so do exactly what they say, nothing more.
+Strict auditors will check every line against the instructions above, so do exactly what they say, nothing more.
 Run the checks the instructions name (backend: cd backend && uv sync && uv run pytest -q; frontend: cd frontend && npm ci && npm run lint && npm run build). Fix what you broke.
 Then: git add the files and git commit -m "${t.id}/${p.id}: <what changed>" with the message ending in the line
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -276,7 +281,7 @@ Report real problems only, each with file, line, severity (blocker / should_fix 
 
 ${RULES}`,
         { label: `review:${t.id}:${l.key}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'sonnet', effort: 'high', schema: AUDIT })))).filter(Boolean)
-      return agent(`You are the Opus principal engineer making the merge decision on PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
+      return agent(`You are the principal engineer making the merge decision on PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
 Three independent reviewers reported:
 ${JSON.stringify(found.map((f, i) => ({ lens: lenses[i] && lenses[i].key, findings: f.findings })), null, 2)}
 1. Verify every blocker and should_fix finding against the code yourself. Drop the ones that are wrong; keep the real ones (with exact fixes).
@@ -284,7 +289,7 @@ ${JSON.stringify(found.map((f, i) => ({ lens: lenses[i] && lenses[i].key, findin
 3. safe_to_merge only if no confirmed blocker or should_fix remains. List confirmed issues in blockers / should_fix.
 
 ${RULES}`,
-        { label: `principal:${t.id}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'opus', effort: 'high', schema: VERDICT })
+        { label: `principal:${t.id}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: strict ? 'opus' : 'sonnet', effort: 'high', schema: VERDICT })
     }
     let verdict = await review(0, null)
     for (let round = 1; round <= 2 && verdict && (verdict.blockers.length || verdict.should_fix.length); round++) {
