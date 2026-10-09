@@ -65,3 +65,35 @@ test('a failing health check shows the backend detail in the error banner', asyn
   // The disputes request still succeeds, so the desk itself loads.
   await expect(page.getByTestId('waiting')).toBeVisible()
 })
+
+// An empty detail (over HTTP/2 the status text is empty too) must still give the banner a message, not an empty alert.
+test('a failing health check with no detail shows a fallback message in the banner', async ({ page }) => {
+  await page.route('**/api/health', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ detail: '' }),
+    }),
+  )
+
+  await page.goto('/')
+  await expect(page.getByTestId('app-error')).toHaveText('The backend health check failed')
+  await expect(page.getByTestId('mode-badge')).toHaveText('connecting…')
+})
+
+test('a failing disputes request with no detail shows a fallback message in the desk banner', async ({ page }) => {
+  await page.route('**/api/disputes', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ detail: '' }),
+    }),
+  )
+
+  await page.goto('/')
+  await expect(page.getByTestId('app-error')).toHaveText('The request failed')
+  // The health check still succeeds, so the mode badge is set.
+  await expect(page.getByTestId('mode-badge')).toContainText('mock')
+})

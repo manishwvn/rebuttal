@@ -17,7 +17,8 @@ export function Dashboard() {
   const [healthError, setHealthError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.health().then(setHealth, (e: unknown) => setHealthError(e instanceof Error ? e.message : String(e)))
+    // An error with no text (an empty detail, or an empty status text over HTTP/2) still gets a banner.
+    api.health().then(setHealth, (e: unknown) => setHealthError(e instanceof Error && e.message ? e.message : 'The backend health check failed'))
     // Load once on mount.
   }, [])
 
@@ -87,7 +88,7 @@ export function Dashboard() {
 
       {/* Kept mounted while Analytics is open, so the open case and an unsent draft survive a tab switch. */}
       <div className="desk-panel" role="tabpanel" id="panel-desk" aria-labelledby="tab-desk" hidden={view !== 'desk'}>
-        {healthError && (
+        {healthError !== null && (
           <p role="alert" className="error banner" data-testid="app-error">
             {healthError}
           </p>
