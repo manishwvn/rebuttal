@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import os
 import secrets
 import threading
 import time
@@ -125,7 +126,7 @@ class DemoManager:
         max_runs: int = 100,
         create_limit: int = 20,
         create_window: float = 60.0,
-        client_create_limit: int = 5,
+        client_create_limit: int | None = None,
         recent_window: float = 300.0,
         lock_timeout: float = 10.0,
         clock: Callable[[], float] = time.monotonic,
@@ -138,6 +139,8 @@ class DemoManager:
         self._max_sessions = max_sessions
         self._create_limit = create_limit
         self._create_window = create_window
+        if client_create_limit is None:  # per client (IP) per window; a judging panel may share one NAT address
+            client_create_limit = int(os.getenv("REBUTTAL_DEMO_CLIENT_LIMIT") or 10)
         self._client_create_limit = client_create_limit
         self._recent_window = recent_window
         self._lock_timeout = lock_timeout
