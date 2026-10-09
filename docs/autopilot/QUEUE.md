@@ -36,7 +36,7 @@ the toolkit must only be given read tools, and `execute` stays the only writer. 
 reachable from analysis. Document it in README and `docs/prize-fit.md`. Log any APIMatic plugin help in
 `docs/apimatic-log.md`.
 
-### Q4 Real-sandbox dispute creation for the judge path — size M — todo — needs USER item U1
+### Q4 Real-sandbox dispute creation for the judge path — size M — todo (U1 done Oct 9: buyer business account sb-mku4z53114841@business.example.com, keys in backend/.env, token verified with disputes + checkout scopes)
 Create test disputes through the Disputes API with a second sandbox business account acting as buyer (it owns its own
 REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_dispute.py` (order -> capture -> create
 dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to
@@ -160,7 +160,7 @@ Alert: delete the Render service (judging ends Dec 15). Do not delete it yoursel
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
 
-- **U1 Second sandbox business account (5 minutes), for Q4.** developer.paypal.com > log in > Testing Tools >
+- ~~**U1 Second sandbox business account**~~ done Oct 9. Original steps kept for reference: developer.paypal.com > log in > Testing Tools >
   Sandbox Accounts > Create account > Business, United States > Create. Then Apps & Credentials (Sandbox) > Create App
   > name "rebuttal-buyer" > Merchant > pick the new business account > Create. Copy the Client ID and Secret into
   `backend/.env` as `PAYPAL_BUYER_CLIENT_ID=` and `PAYPAL_BUYER_CLIENT_SECRET=` (never paste them in chat). Then tell
