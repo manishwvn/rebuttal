@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from .. import policies
 from ..paypal.client import PayPalClient, PayPalError
 from ..store import MerchantOrder, MerchantStore
+from .toolkit import ReadOnlyToolkit
 
 
 def parse_time(value: str) -> datetime:
@@ -101,9 +102,10 @@ def seller_activity(dispute: dict) -> dict:
 
 def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: datetime) -> CaseFile:
     calls: list[str] = []
+    toolkit = ReadOnlyToolkit(client)  # every PayPal read below goes through its four read tools
 
-    dispute = client.get_dispute(dispute_id)
-    calls.append(f"GET /v1/customer/disputes/{dispute_id}")
+    dispute = toolkit.call("get_dispute", {"dispute_id": dispute_id})
+    calls.append(f"get_dispute: GET /v1/customer/disputes/{dispute_id}")
     txn = (dispute.get("disputed_transactions") or [{}])[0]
     capture_id = txn.get("seller_transaction_id")
     hint = {"now": now, "capture_id": capture_id, "buyer_name": (txn.get("buyer") or {}).get("name")}
@@ -112,28 +114,36 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
     if order and not order.order_id and capture_id:
         # A live order's PayPal order id is not in the merchant record; the capture says which order it belongs to.
         try:
-            order = replace(order, order_id=client.get_capture_order_id(capture_id))
-            calls.append(f"GET /v2/payments/captures/{capture_id} (order id)")
+            found = toolkit.call("get_capture_order_id", {"capture_id": capture_id})["order_id"]
+            order = replace(order, order_id=found)
+            calls.append(f"get_capture_order_id: GET /v2/payments/captures/{capture_id} (order id)")
         except PayPalError as exc:  # trackers then stay "not checked", like a 403 on transaction search
-            calls.append(f"GET /v2/payments/captures/{capture_id}: {exc.status}, order id unknown, tracking not checked")
+            calls.append(f"get_capture_order_id: GET /v2/payments/captures/{capture_id}: {exc.status}, "
+                         "order id unknown, tracking not checked")
     if order and order.demo_fixture:
         calls.append("merchant record is a DEMO FIXTURE built from a labeled case, not a real shop record")
 
     trackers: list[dict] | None = None  # None = not checked
     transactions: list[dict] | None = None  # None = not checked or unavailable
     if order and order.order_id:
-        trackers = client.get_order_trackers(order.order_id, capture_id)
-        calls.append(f"GET /v2/checkout/orders/{order.order_id} (shipping.trackers)")
+        trackers = toolkit.call(
+            "get_order_trackers", {"order_id": order.order_id, "capture_id": capture_id}
+        )["trackers"]
+        calls.append(f"get_order_trackers: GET /v2/checkout/orders/{order.order_id} (shipping.trackers)")
     if order:
         start = order.created - timedelta(days=1)
         end = order.created + timedelta(days=1)
         try:
-            transactions = client.search_transactions(start.isoformat(), end.isoformat())
-            calls.append("GET /v1/reporting/transactions (purchase day)")
+            transactions = toolkit.call(
+                "list_transactions", {"start_date": start.isoformat(), "end_date": end.isoformat()}
+            )["transaction_details"]
+            calls.append("list_transactions: GET /v1/reporting/transactions (purchase day)")
         except PayPalError as exc:
             if exc.status != 403:  # sandbox apps without Transaction Search access get 403; not fatal
                 raise
-            calls.append("GET /v1/reporting/transactions: 403, skipped (no Transaction Search access)")
+            calls.append(
+                "list_transactions: GET /v1/reporting/transactions: 403, skipped (no Transaction Search access)"
+            )
 
     amount = float(dispute["dispute_amount"]["value"])
     # The sandbox omits seller_response_due_date on some disputes (e.g. INQUIRY / UNDER_REVIEW).
