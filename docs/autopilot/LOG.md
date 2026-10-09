@@ -2,6 +2,9 @@
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-09 09:15 CDT | W 68→72 % | F 10→26 % | Q3, A7 | merged #28, #26
+Q3: official paypal-agent-toolkit can't be read-only, so a 4-tool read-only adapter now backs gather(); Opus review confirmed write boundary. A7 merged. Follow-up: replace waitForTimeout(500) in dev-strictmode.spec.ts; README/ADR source notes added.
+
 ## 2026-10-09 | Q3 | in review (PR #28)
 The official `paypal-agent-toolkit` 1.11.0 cannot be made strictly read-only (langchain pin, `run()` dispatches every tool, `requests` bypasses our transport, no `fields=all`). Built by the team workflow: `agent/toolkit.py` (four read tools in the toolkit's shape over `client.read_only()`), `gather` wired to it by the lead, ADR 0008, README and prize-fit. Evals JSON identical before and after. APIMatic plugin not used, so no apimatic-log entry. Needs lead review: touches `facts.py`.
 
