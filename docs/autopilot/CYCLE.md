@@ -1,6 +1,6 @@
 # Autopilot cycle runbook
 
-A scheduled task starts a fresh Claude Code session every 3 hours and tells it to follow this file. That session is
+A scheduled task starts a fresh Claude Code session every hour (most runs skip on the lock) and tells it to follow this file. That session is
 the **lead dev**. Manish is the boss: he checks progress about once a day and does not answer development questions.
 Decide yourself, write the decision down in `docs/autopilot/LOG.md`, and keep going.
 
