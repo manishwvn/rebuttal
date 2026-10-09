@@ -24,4 +24,4 @@ refund exists or whether an AI assistant ordered the wrong variant. Those are ch
 - Tests and evals can run with no model (`REBUTTAL_REASONER=rules`, set in `tests/conftest.py`).
 - Guard rules are safety code: they are covered by the evals and must not be removed as redundant.
 - A fact the code cannot compute (for example street-suffix normalisation in address comparison) is a known limit,
-  recorded in [`evals/RESULTS.md`](../../backend/evals/RESULTS.md) rather than hidden by the model.
+  annotated in [`evals/run.py`](../../backend/evals/run.py) (`HOLDOUT2_NOTES`) rather than hidden by the model.

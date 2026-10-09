@@ -15,7 +15,7 @@ would make the retry a new request. Merchants and reviewers also need a record o
 - PayPal documents that header for Orders and Payments, not clearly for Disputes, so it is not relied on alone: before
   sending, `execute` reads the dispute and skips a message or offer that `already_applied` shows has landed.
 - [`audit.py`](../../backend/rebuttal/audit.py) appends a record per step (`gather`, `decide`, `guard`, `propose`,
-  `approve`, `execute`, `execute_failed`, `reject`, `record`), including the key. It lives in memory, a JSONL file, or
+  `approve`, `execute`, `execute_failed`, `execute_interrupted`, `reject`, `record`), including the key. It lives in memory, a JSONL file, or
   the Postgres table `rebuttal_audit`.
 
 ## Consequences

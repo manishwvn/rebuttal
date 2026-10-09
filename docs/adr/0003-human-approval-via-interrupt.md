@@ -22,5 +22,5 @@ nothing fallible runs after the PayPal call inside `execute`; audit lines are wr
 ## Consequences
 
 - A proposal survives a restart when a durable checkpointer is configured.
-- Approving is resuming by exact proposal id, so a stale proposal is never approved by mistake.
+- Approving is resuming by exact proposal id (`resume(..., expected=proposal_id)`).
 - Node code around the interrupt has a strict rule, documented at the top of `approval.py`.

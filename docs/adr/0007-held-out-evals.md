@@ -11,12 +11,13 @@ cases overstate how the agent behaves on new disputes.
 
 Keep labeled sets under [`backend/evals/`](../../backend/evals) and treat two as held out:
 [`holdout.json`](../../backend/evals/holdout.json) and [`holdout2.json`](../../backend/evals/holdout2.json), 10
-disputes each, written independently of the guard and facts code. They are run and reported, never tuned against
+disputes each, written independently of the guard and facts code. They are reported, never tuned against
 (`SETS` in [`evals/run.py`](../../backend/evals/run.py)). Each valid run is saved under `evals/results/`; a run that
 hit a rate or quota limit is marked invalid and not saved. The report separates the model alone from the final
 (model plus guard) outcome and counts PayPal writes before approval, which must be 0.
-[`RESULTS.md`](../../backend/evals/RESULTS.md) holds the numbers. A known facts limit on a held-out case is annotated,
-not fixed to fit the label.
+[`RESULTS.md`](../../backend/evals/RESULTS.md) holds the numbers. A known facts limit on a held-out case is annotated (`HOLDOUT2_NOTES` in
+[`evals/run.py`](../../backend/evals/run.py)), not fixed to fit the label. Held-out set 2 has not been run yet; its
+result will be added to `RESULTS.md` when it is.
 
 ## Consequences
 
