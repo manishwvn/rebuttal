@@ -154,6 +154,9 @@ VALID_WINDOW = {"start_date": "2026-10-05T00:00:00.000Z", "end_date": "2026-10-0
     ("get_capture_order_id", {"capture_id": "../x"}),
     ("get_capture_order_id", {"capture_id": "C1", "extra": "x"}),
     ("get_capture_order_id", {}),
+    ("get_order_trackers", {}),
+    ("list_transactions", {"end_date": "2026-10-06T00:00:00Z"}),
+    ("list_transactions", {"start_date": "2026-10-05T00:00:00.000Z"}),
 ])
 def test_bad_arguments_fail_validation_before_any_request(method, params):
     sent = []
