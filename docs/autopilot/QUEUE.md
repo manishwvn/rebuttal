@@ -7,12 +7,12 @@ final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
 ## Tasks
 
-### A1 Keep the live backend awake (free) — size S — in-progress (lead, Oct 9)
+### A1 Keep the live backend awake (free) — size S — done #6
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
 10 minutes (public repo, so Actions minutes are free; one free Render service running 24/7 fits the 750 free hours a
 month). This replaces the planned paid Render plan. Done when the workflow is merged and its first run is green.
 
-### A2 Held-out eval — size S — in-progress (lead, Oct 9)
+### A2 Held-out eval — size S — done (this PR): model alone 80%, final 100%, results in `backend/evals/RESULTS.md`
 `cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse`. Report model-alone vs final
 accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark

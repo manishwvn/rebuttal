@@ -16,6 +16,9 @@ Decide yourself, write the decision down in `docs/autopilot/LOG.md`, and keep go
 - Never use the `paypal-sandbox` MCP to act on a dispute. Never change account settings on any service.
 - Never force-push `main`, never rewrite history, never delete the Render service or the Supabase project.
 - Never remove tests, guard rules or the approval boundary to make something pass.
+- Force-deleting branches (`git branch -D`) and deleting remote branches by hand (`git push --delete`) are blocked
+  too. Order after CI passes: `git worktree remove ../rebuttal-wt/<branch>` first, then from the main checkout
+  `gh pr merge <n> --merge --delete-branch`, then `git branch -d <branch>` if it still exists.
 - `rm -rf` is blocked on this Mac on purpose. Delete tracked files with `git rm`, worktrees with
   `git worktree remove`, and anything else with a plain `rm <file>`; never ask for wider delete rights.
 - Engineering bar: production / enterprise quality, the way a senior Anthropic engineer would ship it: small reviewed
@@ -77,9 +80,9 @@ Merge (`gh pr merge <n> --merge --delete-branch`) only when all hold:
   boundary and the guard are intact, and `tests/test_write_boundary.py` plus
   `tests/test_core.py::test_analyze_never_writes_to_paypal` pass.
 
-After merge, Render redeploys `main`. Within 10 minutes `https://rebuttal-oq3g.onrender.com/api/health` must return
-`"ok": true`. If it does not, revert the merge commit on a branch, PR, merge, and log why. Then
-`git worktree remove ../rebuttal-wt/<branch>`.
+Remove the worktree before merging (see the delete rules in section 0). After merge, Render redeploys `main`. Within
+10 minutes `https://rebuttal-oq3g.onrender.com/api/health` must return `"ok": true`. If it does not, revert the merge
+commit on a branch, PR, merge, and log why.
 
 ## 5. Alerts (only for things that matter)
 

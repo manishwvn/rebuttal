@@ -28,8 +28,10 @@ frontend slice 1, on top of `50a8230`). Detail: `docs/handoff-2026-10-07.md`, `P
   `snad_damaged_high_value` went 1/3 to 3/3).
 - **Evals:** main set (20 cases) on Groq 90% (18/20), hard cases 4/4, run `groq-qwen3.8-27b-20261007-112629`;
   swings 80-95% run to run. The main set has been used for tuning. `snad_outside_window` is a judgment call.
-  **Held-out set** (`evals/holdout.json`, 10 cases, written without reading the guard
-  or facts code; 2 damage cases avoid the keyword list on purpose) has not run: the Groq daily limit (200k tokens) was hit.
+  **Held-out set** (`evals/holdout.json`, 10 cases, written without reading the guard or facts code) ran Oct 9 on
+  Groq: model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0, 13.7k tokens (run
+  `groq-qwen3.8-27b-holdout-20261009-054233`). Both guard changes turned OFFER_REPLACEMENT (an offer type PayPal does
+  not allow) into OFFER_RETURN_FOR_REFUND. Small sample: 10 cases. No code changed. Table: `backend/evals/RESULTS.md`.
 - **Frontend slice 1 (PR open, `feat/frontend-inbox`):** `frontend/` is Vite + React + TS with an AG Grid Community
   inbox, case view (assistant instruction vs shipped, facts, reasoner choice vs final action, guard note, editable
   message), approve / edit / reject behind a confirm dialog that states the exact PayPal call, audit timeline, and a
@@ -40,8 +42,7 @@ frontend slice 1, on top of `50a8230`). Detail: `docs/handoff-2026-10-07.md`, `P
 
 ## Next, in order
 
-1. Held-out eval once the Groq quota resets: `uv run python -m evals.run --set holdout --provider groq --langfuse`;
-   report model alone vs final; change no code from the results.
+1. Autopilot queue: `docs/autopilot/QUEUE.md` (source of truth for what is next).
 2. Frontend slice 2: AG Studio dashboard (custom widgets, theming), Render static site, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
