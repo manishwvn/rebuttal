@@ -128,3 +128,45 @@ test('cancelling the confirm dialog sends nothing', async ({ page }) => {
   expect(steps).not.toContain('approve')
   expect(steps).not.toContain('execute')
 })
+
+test('an interrupted PayPal call: the approval is saved, Retry shows the approved text and does not send twice', async ({ page, request }) => {
+  const disputeId = await simulate(page, 'agent_wrong_size')
+  const caseView = page.getByTestId('case-view')
+
+  // PayPal applies the next write and then answers 503, as when a gateway fails after the call landed.
+  await request.post('http://localhost:8000/api/simulator/interrupt-next-write')
+  await caseView.getByLabel(/Message the buyer will receive/).fill(EDITED)
+  await caseView.getByRole('button', { name: 'Approve with my edits' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: 'Approve and send' }).click()
+
+  // The error says the approval is saved, and the same button can't be pressed again.
+  await expect(dialog.getByTestId('confirm-error')).toContainText('approval is saved')
+  await expect(dialog.getByTestId('confirm-unavailable')).toContainText('now approved')
+  await expect(dialog.getByRole('button', { name: 'Approve and send' })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Cancel' }).click()
+
+  // The case reads Approved and shows the edited text, not the original draft, with a way to continue.
+  await expect(page.getByTestId('case-status')).toHaveText('Approved')
+  await expect(statusCell(page, disputeId)).toHaveText('Approved')
+  await expect(caseView.getByTestId('approved-text')).toHaveText(EDITED)
+  await expect(caseView).toContainText('your edited version')
+  await expect(caseView.getByRole('button', { name: 'Approve' })).toHaveCount(0)
+
+  // The retry dialog states the exact text that will be sent.
+  await caseView.getByRole('button', { name: 'Retry sending' }).click()
+  await expect(dialog.getByTestId('send-message')).toHaveText(EDITED)
+  await expect(dialog.getByTestId('send-summary')).toContainText(`POST /v1/customer/disputes/${disputeId}/make-offer`)
+  await dialog.getByRole('button', { name: 'Retry' }).click()
+
+  // It finishes without a second call: the offer was already at PayPal, and the audit trail says so.
+  await expect(dialog).toBeHidden()
+  await expect(page.getByTestId('case-status')).toHaveText('Executed')
+  await expect(statusCell(page, disputeId)).toHaveText('Executed')
+  await expect(caseView.getByLabel(/Message the buyer will receive/)).toHaveValue(EDITED)
+  await expect(page.getByTestId('audit-trail')).toContainText('Already at PayPal from the first attempt, not sent again')
+  // (`execute` re-runs on a retry and logs its approval line again, so `approve` can appear twice.)
+  const steps = await auditSteps(page)
+  expect(steps.filter((step) => step === 'execute')).toHaveLength(1)
+  expect(steps.at(-1)).toBe('record')
+})

@@ -20,7 +20,8 @@ function describe(entry: AuditEntry): string {
     case 'reject':
       return `Merchant rejected${d.reason ? `: ${text(d.reason)}` : ''}`
     case 'execute':
-      return `Sent to PayPal: ${text(d.summary)}`
+      // A retry reads the dispute first; when the first attempt had already landed, nothing is sent again.
+      return `${d.reconciled ? 'Already at PayPal from the first attempt, not sent again' : 'Sent to PayPal'}: ${text(d.summary)}`
     case 'record':
       return `Recorded as ${text(d.status)}`
     default:
