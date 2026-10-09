@@ -82,7 +82,7 @@ button that runs the hero case and the other demo cases against the in-memory mo
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
 behind the token. Reviewer must confirm the isolation. Document it in the README.
 
-### A7 Approve dialog closes at once under `npm run dev` — size S — todo
+### A7 Approve dialog closes at once under `npm run dev` — size S — done
 Found by the A4 dry run: in the Vite dev server the Approve confirm dialog closes immediately (likely a React
 StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
 a Playwright test against the dev server, fix the effect, keep StrictMode on.
