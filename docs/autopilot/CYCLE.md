@@ -41,13 +41,17 @@ Load and call `mcp__ccd_session_mgmt__get_usage` (ToolSearch `select:mcp__ccd_se
 `~/Library/Application Support/Claude Usage/history/` (the Claude Usage menu-bar app); if both fail, do only a task
 marked `size: S` this cycle.
 
+- Weekly cap `C`: 80, unless `~/.rebuttal-autopilot/weekly-cap` exists (Manish's one-off override, for example `90`);
+  then `C` is the number in it, the `W >= 80` and `W >= 82` checks below use `C` instead, and the mid-task stop is
+  `W >= C`. A cycle that stops because `W >= C` under an override deletes that file (`rm`) so later cycles fall back
+  to 80. Never create or raise the file yourself. Headroom in section 3 is `H = C - W`.
 - `W >= 80`: do no work. If `LOG.md` has no `ALERT weekly-80 <resetsAt>` line yet, send the alert (section 5) with
   the numbers and the reset time, log that line, and stop. There is no slower pacing below 80%: the weekly budget is
   the same whether it is spent early or late, and early work matters more for the deadlines.
 - `F >= 85`: log `PAUSE 5h F%` and stop; the next cycle retries after the 5-hour window moves on.
 - Other scheduled tasks on this account (for example the ETF monitor) share the same budget; the numbers already
   include them.
-- Check usage again before each new subagent step. If `W >= 82` mid-task, stop at a safe point: commit and push the
+- Check usage again before each new subagent step. If `W >= 82` (or `W >= C` under an override) mid-task, stop at a safe point: commit and push the
   work-in-progress branch, mark the task `in-progress` in `QUEUE.md` with a note, release the lock.
 
 ## 2b. Fill the 5-hour window
@@ -62,7 +66,7 @@ before the reset is free, so never leave it idle while there is runnable work.
 1. `cd /Users/manish/Documents/rebuttal && git checkout main && git pull`. Read `STATUS.md`, `docs/autopilot/QUEUE.md`
    and the last 40 lines of `docs/autopilot/LOG.md`.
 2. If `main` CI is red, the task is "make main green" (smallest fix, or revert the PR that broke it).
-3. Otherwise pick work by headroom `H = 80 - W`: `H >= 15` up to 3 runnable tasks, `H` 8-14 up to 2, `H` 3-7 one
+3. Otherwise pick work by headroom `H = 80 - W` (or `C - W`): `H >= 15` up to 3 runnable tasks, `H` 8-14 up to 2, `H` 3-7 one
    task, `H < 3` only a size S task. A task is runnable when its status is `todo` or `in-progress`, its `after` date has
    passed and its `needs` are done. Skip `waiting` tasks until their condition is met. Tasks run together only if they
    are unlikely to edit the same files (for example a backend data task and a docs task, not two tasks both editing
