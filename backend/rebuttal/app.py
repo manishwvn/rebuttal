@@ -311,6 +311,7 @@ def mount_frontend(application: FastAPI, directory: Path | None) -> None:
     if directory is None:
         return
     root = directory.resolve()
+    root_str = os.path.realpath(root)
     application.mount("/assets", StaticFiles(directory=root / "assets", check_dir=False), name="frontend-assets")
 
     @application.api_route("/{path:path}", methods=["GET", "HEAD"], include_in_schema=False)
@@ -318,8 +319,8 @@ def mount_frontend(application: FastAPI, directory: Path | None) -> None:
         if path == "api" or path.startswith("api/"):
             raise HTTPException(404, "Not Found")
         try:
-            target = (root / path).resolve()
-            if path and target.is_file() and root in target.parents:
+            target = os.path.realpath(os.path.join(root_str, path))
+            if path and target.startswith(root_str + os.sep) and os.path.isfile(target):
                 return FileResponse(target)
         except (ValueError, OSError):  # e.g. an embedded null byte
             pass
