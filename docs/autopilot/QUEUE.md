@@ -30,7 +30,7 @@ accuracy and the per-case misses in `docs/evals.md` (create it, include the main
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
-### A3 Frontend follow-ups from the PR #3 review — size M — in-progress (branch fix/frontend-followups)
+### A3 Frontend follow-ups from the PR #3 review — size M — in review (branch fix/frontend-followups)
 - Delete the unused Vite scaffold (`frontend/src/assets/`, `frontend/public/icons.svg`, unused CSS).
 - Register only the AG Grid modules in use instead of `AllCommunityModule` (`ag-mcp` for module names); report the
   bundle size before and after.

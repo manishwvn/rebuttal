@@ -98,6 +98,39 @@ def test_edit_replaces_the_buyer_text_and_is_audited_as_edited(rt):
     assert [r for r in rt.audit.for_dispute("PP-D-2000") if r["step"] == "approve"][0]["detail"]["edited"] is True
 
 
+def test_the_proposal_exposes_the_text_the_merchant_approved(rt, monkeypatch):
+    """After an interrupted approve the planned action still holds the draft and the edit lives in the approval
+    record, so the dashboard needs `approved_message` to show what a retry will send (read-only: execute is unchanged)."""
+    p = rt.analyze("PP-D-2000")
+    draft = p.actions[0].params["note"]
+    assert p.approved_message is None and p.to_dict()["approved_message"] is None  # nothing is approved yet
+    crash_after_paypal_answers(monkeypatch)
+    with pytest.raises(RuntimeError, match="process died"):
+        rt.approvals.approve(p.id, edited_message="Edited by the merchant")
+    waiting = rt.approvals.latest_for("PP-D-2000")
+    assert waiting.status == "APPROVED" and waiting.actions[0].params["note"] == draft != "Edited by the merchant"
+    assert waiting.approved_message == "Edited by the merchant"
+    assert waiting.to_dict()["approved_message"] == "Edited by the merchant"
+    done = rt.approvals.retry(p.id)
+    assert done.status == "EXECUTED" and done.approved_message == "Edited by the merchant"
+    assert rt.mock.disputes["PP-D-2000"]["messages"][-1]["content"] == "Edited by the merchant"
+
+
+def test_an_unedited_approval_exposes_the_drafted_text(rt, monkeypatch):
+    p = rt.analyze("PP-D-2000")
+    crash_after_paypal_answers(monkeypatch)
+    with pytest.raises(RuntimeError, match="process died"):
+        rt.approvals.approve(p.id)
+    assert rt.approvals.latest_for("PP-D-2000").approved_message == p.actions[0].params["note"]
+
+
+def test_no_approved_text_for_a_rejection_or_for_evidence(rt):
+    rejected = rt.approvals.reject(rt.analyze("PP-D-2000").id, "calling the buyer")
+    assert rejected.status == "REJECTED" and rejected.approved_message is None
+    evidence = rt.approvals.approve(rt.analyze("PP-D-2002").id)  # nothing buyer-facing in an evidence upload
+    assert evidence.status == "EXECUTED" and evidence.approved_message is None
+
+
 def test_edit_is_refused_when_the_proposal_has_no_buyer_message(rt):
     p = rt.analyze("PP-D-2002")  # submits evidence: nothing buyer-facing to edit
     assert p.actions[0].kind == "provide_evidence"

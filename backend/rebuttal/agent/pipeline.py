@@ -34,6 +34,9 @@ class Proposal:
     case_summary: dict
     status: str = "PENDING"  # PENDING | APPROVED (execution interrupted, retry) | EXECUTED | REJECTED | FAILED
     result: list[dict] = field(default_factory=list)
+    # What the buyer will read once the merchant has approved: their edit if they made one, else the drafted text.
+    # Read-only for the dashboard (the retry dialog shows it); `execute` reads the approval record itself.
+    approved_message: str | None = None
     evidence_pdf: bytes | None = field(default=None, repr=False)
 
     @property
@@ -56,10 +59,27 @@ class Proposal:
             decision=decision, actions=[PlannedAction(**a) for a in values["actions"]],
             case_summary=case_summary(case), status=status or values.get("status") or "PENDING",
             result=list(values.get("result") or []),
+            approved_message=approved_text(values["actions"], values.get("approval")),
         )
         if with_pdf and proposal.needs_evidence_pdf:
             proposal.evidence_pdf = build_evidence_pdf(case, decision)
         return proposal
+
+
+def approved_text(actions: list[dict], approval: dict | None) -> str | None:
+    """The buyer-facing text the merchant approved, for display only (nothing here sends or changes anything).
+
+    An edit lives in the approval record until `execute` applies it to the action, so while an approved proposal is
+    waiting for a retry the planned action still holds the draft. None before a decision, after a rejection, and for
+    an action with no buyer text (evidence)."""
+    status = (approval or {}).get("status")
+    if status not in ("approved", "edited") or not actions:
+        return None
+    params = actions[0]["params"]
+    drafted = params.get("message", params.get("note"))
+    if drafted is None:
+        return None
+    return approval["edited_message"] if status == "edited" else drafted
 
 
 def case_summary(case: CaseFile) -> dict:
