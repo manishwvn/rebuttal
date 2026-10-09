@@ -2,6 +2,9 @@
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-09 | A6 | in review (PR #33)
+Judge demo mode built by the team workflow: per-visitor isolated mock Runtime (`demo.py`), public `/api/demo/{session}` router (`demo_api.py`), router shell + shared Desk + DemoApp on the frontend, docs and ADR 0009. Integration fixed the open audit findings (reset lock, 404 before 422, per-dispute lock growth, docstring, `demo-route` spec). approval.py, paypal/, facts.py, reasoner.py, config.py untouched. Needs lead review of the isolation; not run against Render.
+
 ## 2026-10-09 09:15 CDT | W 68→72 % | F 10→26 % | Q3, A7 | merged #28, #26
 Q3: official paypal-agent-toolkit can't be read-only, so a 4-tool read-only adapter now backs gather(); Opus review confirmed write boundary. A7 merged. Follow-up: replace waitForTimeout(500) in dev-strictmode.spec.ts; README/ADR source notes added.
 
