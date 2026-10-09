@@ -171,6 +171,16 @@ def simulator_cases():
             for c in load_cases()]
 
 
+@app.post("/api/simulator/interrupt-next-write", dependencies=protected)
+def interrupt_next_write():
+    """Mock mode only. The next PayPal write is applied and then answered with a 503, as when a gateway fails after
+    PayPal acted: the approved proposal is left APPROVED and the dashboard's Retry has something to do."""
+    if rt.mock is None:
+        raise HTTPException(501, "Only the mock sandbox can be made to fail.")
+    rt.mock.interrupt_next_write = True
+    return {"armed": True}
+
+
 @app.post("/api/simulator/dispute/{case_id}", dependencies=protected)
 def simulate(case_id: str):
     """Judge-facing simulator. Mock mode seeds a labeled case; sandbox mode comes in week 2."""

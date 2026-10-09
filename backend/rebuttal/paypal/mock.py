@@ -68,6 +68,9 @@ class MockPayPal:
         self._replays: dict[tuple[str, str], httpx.Response] = {}  # (path, PayPal-Request-Id) -> first response
         self.replayed: list[tuple[str, str]] = []  # requests answered from the idempotency cache
         self.request_ids: list[tuple[str, str]] = []  # (path, PayPal-Request-Id) of every POST that had one
+        # Fault injection, not sandbox behaviour: when set, the next seller action on a dispute is applied and then
+        # answered with a 503, like a gateway failing after PayPal acted. One shot. Used to try the retry path.
+        self.interrupt_next_write = False
 
     # ----------------------------------------------------------- seeding
     def add_dispute(self, dispute: dict) -> None:
@@ -130,7 +133,15 @@ class MockPayPal:
         if request.method == "POST" and key[1] and response.status_code < 400:
             response.read()
             self._replays[key] = response
+        if self.interrupt_next_write and response.status_code < 400 and self._is_seller_action(request):
+            self.interrupt_next_write = False
+            return _error(503, "SERVICE_UNAVAILABLE", "The service is unavailable. The action may have been applied.")
         return response
+
+    @staticmethod
+    def _is_seller_action(request: httpx.Request) -> bool:
+        match = _DISPUTE_PATH.match(request.url.path)
+        return request.method == "POST" and bool(match) and match.group(2) in _SELLER_ACTIONS
 
     def _dispatch(self, request: httpx.Request) -> httpx.Response:
         path, method = request.url.path, request.method

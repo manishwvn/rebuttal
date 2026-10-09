@@ -131,16 +131,27 @@ def test_the_simulator_case_list_is_mock_only(client, monkeypatch):
     assert client.get("/api/simulator/cases").status_code == 501
 
 
-def test_a_paypal_error_while_sending_is_a_readable_502_and_the_approval_stays_saved(client, monkeypatch):
-    from rebuttal import approval
-
+def test_an_interrupted_paypal_call_leaves_the_proposal_approved_and_a_retry_finishes_it(client):
+    mock = app_module.rt.mock
     proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
-    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(PayPalError(503, {})))
-    failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
+    assert client.post("/api/simulator/interrupt-next-write").json() == {"armed": True}
+    assert client.get("/api/disputes").status_code == 200 and mock.interrupt_next_write is True  # reads do not trip it
+
+    failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={"edited_message": "Edited via API"})
     assert failed.status_code == 502  # a JSON error the dashboard can read, not a bare 500
     assert "approval is saved" in failed.json()["detail"] and "503" in failed.json()["detail"]
+    assert mock.interrupt_next_write is False and len(mock.write_calls()) == 1  # PayPal acted before the 503
+
     waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
-    assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []
+    assert waiting["status"] == "APPROVED" and waiting["approved_message"] == "Edited via API"
+    assert waiting["actions"][0]["params"]["note"] != "Edited via API"  # the planned action still holds the draft
+    assert [p["id"] for p in client.get("/api/proposals/pending").json()] == []
+
+    done = client.post(f"/api/proposals/{proposal['id']}/retry").json()
+    assert done["status"] == "EXECUTED" and done["result"][0]["reconciled"] is True
+    assert len(mock.write_calls()) == 1  # the retry read the dispute, saw the offer, and sent nothing
+    sellers = [m["content"] for m in mock.disputes["PP-D-2000"]["messages"] if m["posted_by"] == "SELLER"]
+    assert sellers == ["Edited via API"]
 
 
 def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
@@ -150,3 +161,10 @@ def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
     monkeypatch.setattr(app_module.rt.approvals, "retry", still_down)
     answer = client.post("/api/proposals/prop_x_PP-D-2000/retry")
     assert answer.status_code == 502 and "retry to continue" in answer.json()["detail"]
+
+
+def test_interrupting_a_write_is_mock_only(client, monkeypatch):
+    mock = app_module.rt.mock
+    monkeypatch.setattr(app_module.rt, "mock", None)
+    assert client.post("/api/simulator/interrupt-next-write").status_code == 501
+    assert mock.interrupt_next_write is False
