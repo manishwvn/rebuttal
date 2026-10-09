@@ -59,12 +59,16 @@ marked `size: S` this cycle.
 4. For each picked task create its worktree from `origin/main` (or reuse the branch of an `in-progress` task):
    `git worktree add ../rebuttal-wt/<branch> -b <branch> origin/main`, and note `git -C ../rebuttal-wt/<branch> rev-parse HEAD`.
 5. The team. You (the lead) orchestrate and merge; you do not write the code yourself.
-   - Size M or L tasks: run the `team-cycle` workflow (`.claude/workflows/team-cycle.js`; Workflow tool,
-     `name: "team-cycle"`, `args: {tasks: [{id, title, spec, branch, worktree, base_sha}]}` with `spec` = the task
-     text from `QUEUE.md` plus your notes). Per task: a Sonnet tech lead plans 1-6 disjoint pieces, Haiku workers build
-     them in parallel in their own worktrees (effort xhigh, max for hard pieces), the Sonnet tech lead integrates, runs
-     every test and opens the PR, then the reviewer agent checks it (Opus when it touches PayPal or money paths) with
-     up to two Sonnet fix rounds. Manish asked for this team structure; it is the default.
+   - Size M or L tasks: run the `team-cycle` workflow with the Workflow tool,
+     `scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/team-cycle.js"` (or `name: "team-cycle"`),
+     `args: {tasks: [{id, title, spec, branch, worktree, base_sha}]}` with `spec` = the task text from `QUEUE.md` plus
+     your notes. Per task: a Sonnet tech lead plans up to 12 small disjoint pieces (about one file plus its test each);
+     a Haiku fleet builds them in parallel in their own worktrees (effort xhigh, max for hard pieces); every piece gets
+     3 independent Haiku auditors at max effort (spec, correctness, safety) and up to 2 Haiku fix + re-audit rounds;
+     the Sonnet tech lead integrates, runs every test and opens the PR; the reviewer agent checks the whole PR (Opus
+     when it touches PayPal or money paths) with up to two Sonnet fix rounds. Manish asked for this team structure:
+     Haiku does most of the building because it is cheap on the usage limit, and it gets the most auditing. At most
+     6 agents run at once on this Mac (8 cores); the rest queue.
    - Size S tasks and docs-only tasks: one agent (`chores` with `model: "haiku"` for docs, or a `general-purpose`
      agent with `model: "sonnet"` for small code), then the reviewer.
    - Groq only for evals and the AG Studio agent, at most one eval run per day.
