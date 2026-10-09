@@ -8,7 +8,7 @@ matched what its user asked for.
 
 from __future__ import annotations
 
-from dataclasses import replace, dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
 from .. import policies
@@ -62,7 +62,7 @@ class CaseFile:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "CaseFile":
+    def from_dict(cls, data: dict) -> CaseFile:
         return cls(**{
             **data,
             "due": parse_time(data["due"]) if data.get("due") else None,

@@ -12,7 +12,8 @@ import inspect
 import logging
 import os
 import re
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from langfuse import Evaluation, Langfuse

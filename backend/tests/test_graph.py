@@ -17,7 +17,7 @@ from rebuttal.agent.graph import DisputeAgent, _transient
 from rebuttal.agent.reasoner import RuleReasoner
 from rebuttal.approval import ApprovalDecision, ApprovalError, ApprovalQueue, idempotency_key
 from rebuttal.audit import AuditLog
-from rebuttal.paypal.client import PayPalError, PayPalClient, WriteNotPermitted, permit_writes
+from rebuttal.paypal.client import PayPalClient, PayPalError, WriteNotPermitted, permit_writes
 from rebuttal.persistence import make_checkpointer
 from rebuttal.runtime import Runtime
 
@@ -330,7 +330,7 @@ def test_two_processes_on_one_sqlite_file_cannot_both_approve(tmp_path):
     def approve(queue):
         try:
             outcomes.append(queue.approve(proposal.id).status)
-        except ApprovalError as exc:
+        except ApprovalError:
             outcomes.append("refused")
 
     threads = [threading.Thread(target=approve, args=(q,)) for q in queues]

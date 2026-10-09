@@ -15,8 +15,8 @@ only after a human approves, and which is the only code that enters `permit_writ
 from __future__ import annotations
 
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 import httpx
 from langchain_core.runnables import RunnableConfig
@@ -25,15 +25,22 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, RetryPolicy
 from typing_extensions import TypedDict
 
-from ..approval import (ApprovalDecision, ApprovalError, has_buyer_text, make_approval_node, make_execute_node,
-                        route_after_approval)
+from ..approval import (
+    ApprovalDecision,
+    ApprovalError,
+    has_buyer_text,
+    make_approval_node,
+    make_execute_node,
+    route_after_approval,
+)
 from ..audit import AuditLog
 from ..paypal.client import PayPalClient, PayPalError
 from ..persistence import DisputeLocks, make_locks
 from ..store import MerchantStore
 from .facts import CaseFile, gather
 from .pipeline import Proposal, plan_actions
-from .reasoner import Decision, guard as apply_guard
+from .reasoner import Decision
+from .reasoner import guard as apply_guard
 
 
 class GraphState(TypedDict, total=False):
@@ -113,7 +120,7 @@ def build_graph(*, client: PayPalClient, store: MerchantStore, reasoner, audit: 
             status = "REJECTED"
         else:
             status = state.get("status", "FAILED")
-            for action, outcome in zip(state.get("actions", []), state.get("result", [])):
+            for action, outcome in zip(state.get("actions", []), state.get("result", []), strict=False):
                 if outcome["ok"]:
                     audit.log(dispute_id, "execute", {"action": action["kind"], "summary": action["summary"],
                                                       "idempotency_key": outcome["idempotency_key"],

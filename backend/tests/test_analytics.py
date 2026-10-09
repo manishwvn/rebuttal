@@ -1,6 +1,6 @@
 """The analytics: the aggregation rules (pure functions) and the read-only /api/analytics routes."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -11,7 +11,7 @@ from rebuttal import app as app_module
 from rebuttal.paypal.client import PayPalError
 from rebuttal.runtime import Runtime
 
-NOW = datetime(2026, 10, 6, 15, 0, tzinfo=timezone.utc)  # the mock's clock (scenarios.DEMO_NOW)
+NOW = datetime(2026, 10, 6, 15, 0, tzinfo=UTC)  # the mock's clock (scenarios.DEMO_NOW)
 SEEDED = ["agent_wrong_size", "inr_no_tracking", "snad_damaged_low_value"]  # become PP-D-2000, 2001, 2002
 ROUTES = ["/api/analytics", "/api/analytics/rows", "/api/analytics/summary", "/api/analytics/deadlines"]
 ROW_KEYS = {"dispute_id", "reason", "paypal_status", "created", "due", "product", "amount", "status", "outcome",
@@ -20,7 +20,7 @@ DEADLINE_KEYS = {"dispute_id", "reason", "amount", "status", "paypal_status", "d
 
 
 def paypal_time(moment: datetime) -> str:
-    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def make_dispute(dispute_id: str = "PP-D-1", amount: str = "48.00", status: str = "WAITING_FOR_SELLER_RESPONSE",

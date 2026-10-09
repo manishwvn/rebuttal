@@ -92,7 +92,7 @@ class Decision:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Decision":
+    def from_dict(cls, data: dict) -> Decision:
         return cls(**data)
 
 

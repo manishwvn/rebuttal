@@ -8,14 +8,14 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .paypal.mock import MockPayPal
 from .store import MerchantOrder, MerchantStore, Shipment
 
-DEMO_NOW = datetime(2026, 10, 6, 15, 0, tzinfo=timezone.utc)
+DEMO_NOW = datetime(2026, 10, 6, 15, 0, tzinfo=UTC)
 CASES_PATH = Path(__file__).resolve().parents[1] / "evals" / "cases.json"
 INQUIRY_RESPONSE_DAYS = 10  # VERIFY: real sandbox omitted seller_response_due_date on an INQUIRY in UNDER_REVIEW
 
@@ -27,7 +27,7 @@ BUYERS = [
 
 
 def iso(dt: datetime) -> str:
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def load_cases(path: Path = CASES_PATH) -> list[dict]:
@@ -124,7 +124,7 @@ def fixture_order(invoice: str, hint: dict) -> MerchantOrder | None:
         return None
     order = build_order(case, index=int(match.group(2)) % 10_000, invoice=invoice,
                         capture_id=hint.get("capture_id") or "", order_id=None,
-                        now=hint.get("now") or datetime.now(timezone.utc),
+                        now=hint.get("now") or datetime.now(UTC),
                         buyer=(hint.get("buyer_name") or BUYERS[0][0], hint.get("buyer_email") or BUYERS[0][1]))
     order.demo_fixture = True
     return order

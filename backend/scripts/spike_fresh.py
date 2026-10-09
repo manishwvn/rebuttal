@@ -36,7 +36,7 @@ def main() -> int:
               "description": "Linen shirt (Navy / Size L)"}],
             return_url="https://example.com/return", cancel_url="https://example.com/cancel")
         ctx["order_id"] = order["id"]
-        link = next(l["href"] for l in order["links"] if l["rel"] in ("payer-action", "approve"))
+        link = next(lk["href"] for lk in order["links"] if lk["rel"] in ("payer-action", "approve"))
         print(f"\n   APPROVE AS SANDBOX BUYER: {link}", flush=True)
         return {"order_id": order["id"], "invoice": invoice, "approval_link": link}
 

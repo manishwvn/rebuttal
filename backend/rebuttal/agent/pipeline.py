@@ -7,7 +7,7 @@ The workflow itself (gather -> decide -> guard -> plan -> approval -> execute ->
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fpdf import FPDF
 
@@ -50,7 +50,7 @@ class Proposal:
         return d
 
     @classmethod
-    def from_state(cls, values: dict, *, status: str | None = None, with_pdf: bool = False) -> "Proposal":
+    def from_state(cls, values: dict, *, status: str | None = None, with_pdf: bool = False) -> Proposal:
         """Rebuild a proposal from graph state (the case, decision and actions are all JSON in the checkpoint)."""
         case = CaseFile.from_dict(values["case"])
         decision = Decision.from_dict(values["decision"])
@@ -150,7 +150,7 @@ def _latin1(text: str) -> str:
 def build_evidence_pdf(case: CaseFile, decision: Decision) -> bytes:
     """Deterministic: rebuilt at execution time, and a retry must send the same bytes under the same request id."""
     pdf = FPDF()
-    pdf.set_creation_date(case.order.created if case.order else datetime(2000, 1, 1, tzinfo=timezone.utc))
+    pdf.set_creation_date(case.order.created if case.order else datetime(2000, 1, 1, tzinfo=UTC))
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, _latin1(f"Seller evidence - dispute {case.dispute_id}"), new_x="LMARGIN", new_y="NEXT")
