@@ -7,7 +7,8 @@ import { SimulatorPanel } from './SimulatorPanel'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-// The dispute desk: the inbox and the open case. Its data comes from the API that useApi() provides.
+// The dispute desk: the inbox and the open case. Its disputes and audit reads come from useApi(); CaseView and
+// SimulatorPanel still call the shared api client directly.
 export function Desk({ simulator }: { simulator: boolean }) {
   const api = useApi()
   const [disputes, setDisputes] = useState<Dispute[] | null>(null)

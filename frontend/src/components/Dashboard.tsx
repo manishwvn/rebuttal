@@ -14,9 +14,10 @@ const viewFromHash = (): View => (window.location.hash === '#analytics' ? 'analy
 export function Dashboard() {
   const [view, setView] = useState<View>(viewFromHash)
   const [health, setHealth] = useState<Health | null>(null)
+  const [healthError, setHealthError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.health().then(setHealth, (e: unknown) => console.error(e))
+    api.health().then(setHealth, (e: unknown) => setHealthError(e instanceof Error ? e.message : String(e)))
     // Load once on mount.
   }, [])
 
@@ -86,6 +87,11 @@ export function Dashboard() {
 
       {/* Kept mounted while Analytics is open, so the open case and an unsent draft survive a tab switch. */}
       <div className="desk-panel" role="tabpanel" id="panel-desk" aria-labelledby="tab-desk" hidden={view !== 'desk'}>
+        {healthError && (
+          <p role="alert" className="error banner" data-testid="app-error">
+            {healthError}
+          </p>
+        )}
         <Desk simulator={isMock} />
       </div>
 
