@@ -13,3 +13,6 @@ spike_fresh_report.json
 .claude/settings.local.json
 checkpoints.sqlite*
 LEARNING.md
+.coverage
+coverage.xml
+htmlcov/

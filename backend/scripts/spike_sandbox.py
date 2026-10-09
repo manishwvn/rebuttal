@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import time
 import traceback
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from langgraph.checkpoint.memory import InMemorySaver
 
@@ -64,18 +64,18 @@ def dry_run(pp: PayPalClient, *, invoice: str, capture_id: str, dispute_id: str,
     store = MerchantStore()
     store.add(MerchantOrder(
         invoice_id=invoice, capture_id=capture_id, order_id=order_id,
-        created=datetime.now(timezone.utc) - timedelta(hours=1),
+        created=datetime.now(UTC) - timedelta(hours=1),
         buyer_name="Sandbox Buyer", buyer_email="buyer@example.com",
         items=[{"sku": "LIN-SHIRT", "name": "Linen shirt", "variant": "Navy / Size L", "price": 48.0}],
         ship_to="(sandbox)",
-        shipment=Shipment("USPS", TRACKING_NUMBER, "DELIVERED", "(sandbox)", datetime.now(timezone.utc)),
+        shipment=Shipment("USPS", TRACKING_NUMBER, "DELIVERED", "(sandbox)", datetime.now(UTC)),
         intent={"intent_id": "INT-SPIKE", "agent": "Atlas (buyer's AI shopping assistant)",
                 "user_instruction": "Get my brother the navy linen shirt in medium, under $60.",
                 "constraints": {"variant": "Size M", "max_price": 60},
                 "submitted_item": {"sku": "LIN-SHIRT", "variant": "Navy / Size L", "price": 48.0},
-                "recorded_at": datetime.now(timezone.utc).isoformat()}))
+                "recorded_at": datetime.now(UTC).isoformat()}))
     agent = DisputeAgent(client=pp, store=store, reasoner=RuleReasoner(), audit=AuditLog(),
-                         clock=lambda: datetime.now(timezone.utc), checkpointer=InMemorySaver())
+                         clock=lambda: datetime.now(UTC), checkpointer=InMemorySaver())
     return agent.analyze(dispute_id)  # stops at the approval gate; nothing is sent to PayPal
 
 
@@ -122,7 +122,7 @@ def main() -> None:
               "description": "Linen shirt (Navy / Size L)"}],
             return_url="https://example.com/return", cancel_url="https://example.com/cancel")
         ctx["order_id"] = order["id"]
-        link = next(l["href"] for l in order["links"] if l["rel"] in ("payer-action", "approve"))
+        link = next(lk["href"] for lk in order["links"] if lk["rel"] in ("payer-action", "approve"))
         print(f"\n   Open this link, log in as your SANDBOX BUYER, and approve the payment:\n   {link}")
         input("   Press Enter after approving... ")
         return {"order_id": order["id"]}
@@ -183,7 +183,7 @@ def main() -> None:
     step("agent_dry_run (reads only)", agent_dry_run)
     seller_action_steps(pp, ctx["dispute_id"], ctx.get("proposal"))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     step("trackers_lookup (non-critical)", lambda: pp.get_order_trackers(ctx["order_id"], ctx["capture_id"]))
     step("transaction_search (non-critical)", skip_if_forbidden(
         lambda: len(pp.search_transactions((now - timedelta(days=2)).isoformat(), now.isoformat()))))

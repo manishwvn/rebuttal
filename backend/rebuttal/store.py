@@ -30,7 +30,7 @@ class Shipment:
                 "delivered_to": self.delivered_to, "event_at": _ts(self.event_at)}
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Shipment":
+    def from_dict(cls, data: dict) -> Shipment:
         return cls(**{**data, "event_at": datetime.fromisoformat(data["event_at"])})
 
 
@@ -62,7 +62,7 @@ class MerchantOrder:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "MerchantOrder":
+    def from_dict(cls, data: dict) -> MerchantOrder:
         return cls(**{
             **data,
             "created": datetime.fromisoformat(data["created"]),

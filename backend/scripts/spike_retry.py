@@ -34,7 +34,7 @@ def dispute_summary(dispute: dict) -> dict:
         "status": dispute.get("status"),
         "reason": dispute.get("reason"),
         "seller_response_due_date": dispute.get("seller_response_due_date"),
-        "allowed_actions": sorted({l.get("rel") for l in dispute.get("links", [])} & ACTION_RELS),
+        "allowed_actions": sorted({lk.get("rel") for lk in dispute.get("links", [])} & ACTION_RELS),
     }
 
 

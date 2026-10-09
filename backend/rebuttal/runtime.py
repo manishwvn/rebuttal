@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .agent.graph import DisputeAgent
 from .agent.llm import build_reasoner
@@ -45,7 +45,7 @@ class Runtime:
         else:
             self.client = PayPalClient(self.settings.base_url, self.settings.client_id,
                                        self.settings.client_secret)
-            self.clock = lambda: datetime.now(timezone.utc)
+            self.clock = lambda: datetime.now(UTC)
 
         rules_only = force_rules or self.settings.reasoner == "rules"
         self.reasoner = (None if rules_only else build_reasoner(self.settings, provider=provider, strict=strict)) or RuleReasoner()

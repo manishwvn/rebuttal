@@ -97,7 +97,7 @@ class TokenBudget:
         self._events: list[list] = []  # [time, tokens, reserved output]
         self._lock = threading.Lock()
 
-    def reserve(self, estimate: int, output: int = 0) -> "Reservation":
+    def reserve(self, estimate: int, output: int = 0) -> Reservation:
         with self._lock:  # held while waiting, which queues other callers behind this one
             while True:
                 now = self._clock()

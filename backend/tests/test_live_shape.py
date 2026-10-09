@@ -130,9 +130,10 @@ def test_the_graph_rechecks_allowed_options_at_the_guard(live, monkeypatch):
     mock, client, store = live
     rt = Runtime(seed_cases=[], force_rules=True)
     rt.mock, rt.client = mock, client
+    from langgraph.checkpoint.memory import InMemorySaver
+
     from rebuttal.agent.graph import DisputeAgent
     from rebuttal.audit import AuditLog
-    from langgraph.checkpoint.memory import InMemorySaver
 
     class ReplacementReasoner:  # a model that insists on a replacement
         name, model_name = "fake", "fake"
@@ -161,9 +162,10 @@ def test_the_graph_rechecks_allowed_options_at_the_guard(live, monkeypatch):
 
 def test_the_guard_uses_the_fresh_list_even_when_it_is_now_empty(live, monkeypatch):
     mock, client, store = live
+    from langgraph.checkpoint.memory import InMemorySaver
+
     from rebuttal.agent.graph import DisputeAgent
     from rebuttal.audit import AuditLog
-    from langgraph.checkpoint.memory import InMemorySaver
 
     class Insists:
         name, model_name = "fake", "fake"

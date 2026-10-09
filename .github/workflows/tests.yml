@@ -23,8 +23,17 @@ jobs:
           cache-dependency-glob: backend/uv.lock
       - name: Install (locked)
         run: uv sync --frozen --extra postgres
-      - name: Tests
-        run: uv run --frozen pytest -q
+      - name: Lint (ruff)
+        run: uv run --frozen ruff check
+      - name: Tests with coverage
+        run: uv run --frozen pytest -q --cov --cov-report=term --cov-report=xml --cov-fail-under=85
+      - name: Coverage summary
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import xml.etree.ElementTree as ET
+          rate = float(ET.parse("coverage.xml").getroot().get("line-rate")) * 100
+          print(f"Backend line coverage: {rate:.1f}%")
+          PY
 
   frontend:
     runs-on: ubuntu-latest
@@ -49,7 +58,7 @@ jobs:
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Build
+      - name: Build (tsc -b also type-checks the e2e specs and playwright.config.ts, see tsconfig.e2e.json)
         run: npm run build
       - name: Playwright (backend in mock mode + the built dashboard; uses the runner's Google Chrome)
         run: npx playwright test

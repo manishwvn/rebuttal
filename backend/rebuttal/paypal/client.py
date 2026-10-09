@@ -20,9 +20,10 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, Iterator
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -115,7 +116,7 @@ class PayPalClient:
         self._token: str | None = None
         self._token_expiry = 0.0
 
-    def read_only(self) -> "PayPalClient":
+    def read_only(self) -> PayPalClient:
         """A clone for analysis steps: same credentials and endpoint, but its transport refuses any write."""
         if self._init is None:  # already a read-only clone
             return self

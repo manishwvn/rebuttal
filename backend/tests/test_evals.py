@@ -64,7 +64,6 @@ def test_langfuse_flag_needs_keys_and_the_whole_dataset(fake_langfuse, monkeypat
 
 
 def test_a_rate_limited_model_makes_the_eval_invalid_and_writes_nothing(monkeypatch, tmp_path):
-    import json
 
     from evals import run as ev
     from rebuttal.agent import llm
@@ -87,7 +86,6 @@ def test_a_rate_limited_model_makes_the_eval_invalid_and_writes_nothing(monkeypa
 def test_a_run_records_the_models_raw_choice_next_to_the_final_action(monkeypatch, tmp_path):
     """`raw` is the choice before guard(); `guard_changed` and the summary counts follow from it."""
     from evals import run as ev
-    from rebuttal.agent import llm
     from rebuttal.agent.reasoner import Decision
 
     class Insists:  # always a replacement: the guard must turn it into something PayPal allows on this dispute

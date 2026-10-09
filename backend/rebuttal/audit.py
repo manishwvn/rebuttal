@@ -7,7 +7,7 @@ ephemeral disk. In Postgres mode `for_dispute` reads the table, so the history i
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 AUDIT_DDL = ["""
@@ -52,7 +52,7 @@ class AuditLog:
 
     def log(self, dispute_id: str, step: str, detail: dict) -> dict:
         record = {
-            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "ts": datetime.now(UTC).isoformat(timespec="seconds"),
             "dispute_id": dispute_id,
             "step": step,
             "detail": detail,

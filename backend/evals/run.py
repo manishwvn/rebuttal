@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -226,7 +226,7 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
         by_id = {c["id"]: c for c in cases}
         probe = Runtime(settings=settings, seed_cases=[], force_rules=force_rules, tracing=False, provider=provider)
         name = f"{probe.reasoner.name}-{probe.reasoner.model_name.split('/')[-1]}{'' if case_set == 'main' else '-' + case_set}-" \
-               f"{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
+               f"{datetime.now(UTC):%Y%m%d-%H%M%S}"
         dataset = DATASETS[case_set] or tracing.DATASET_NAME
         tracing.upload_dataset(cases, dataset)
         result = tracing.run_experiment(
@@ -265,7 +265,7 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
     }
     first = rows[0] if rows else {"provider": "rules", "model": "rules"}
     summary.update(provider=first["provider"], model=first["model"],
-                   date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                   date=datetime.now(UTC).strftime("%Y-%m-%d"))
     if not only:  # a partial run (--only) is not a result worth keeping
         save_run(summary)
         write_results_md()
@@ -291,7 +291,7 @@ if __name__ == "__main__":
         s = run(force_rules=args.rules, pause=args.pause, only=set(args.only.split(",")) if args.only else None,
                 langfuse=args.langfuse, provider=args.provider, case_set=args.case_set)
     except InvalidRun as exc:
-        raise SystemExit(f"EVAL INVALID, no results written: {exc}")
+        raise SystemExit(f"EVAL INVALID, no results written: {exc}") from exc
     print(f"{s['mode']} [{s['set']}]: model alone {pct(s['raw_accuracy'])}, guard changed {s['guard_changes']}/{s['cases']}, "
           f"final {pct(s['accuracy'])} overall, {pct(s['standard_accuracy'])} standard, "
           f"{pct(s['hard_accuracy'])} hard ({s['hard_cases']}), gate violations {s['approval_gate_violations']}")

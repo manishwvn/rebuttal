@@ -20,6 +20,9 @@ Live end to end (Oct 7, 2026): deployed on Render with Groq and Supabase Postgre
 real PayPal sandbox arrived as a signature-verified webhook, the agent gathered the facts and drafted a resolution,
 and the proposal is waiting for approval in the checkpointed workflow. No PayPal writes happened before approval.
 
+Backend test coverage: 91% of lines and branches (`cd backend && uv run pytest --cov`; CI prints it on every run).
+CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard.
+
 ## Run it
 
 The backend is a [uv](https://docs.astral.sh/uv/) project (`backend/pyproject.toml`, locked in `backend/uv.lock`).

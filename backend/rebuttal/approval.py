@@ -52,7 +52,7 @@ class ApprovalDecision(BaseModel):
     reason: str = ""
 
     @model_validator(mode="after")
-    def _edit_means_a_message(self) -> "ApprovalDecision":
+    def _edit_means_a_message(self) -> ApprovalDecision:
         has_text = bool(self.edited_message and self.edited_message.strip())
         if self.decision == "edit" and not has_text:
             raise ValueError("decision 'edit' needs a non-empty edited_message")
@@ -218,7 +218,7 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
 class ApprovalQueue:
     """List, approve, edit and reject proposals. It only drives the graph; it never calls PayPal itself."""
 
-    def __init__(self, agent: "DisputeAgent"):
+    def __init__(self, agent: DisputeAgent):
         self._agent = agent
 
     def latest_for(self, dispute_id: str) -> Proposal | None:

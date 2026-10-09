@@ -10,7 +10,6 @@ the per-dispute advisory lock. Cleans up its own rows (thread ids starting with 
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,8 +34,8 @@ def child(code: str) -> str:
 
 
 def main() -> int:
-    from rebuttal.config import load_settings
     from rebuttal.audit import open_pool
+    from rebuttal.config import load_settings
 
     url = load_settings().database_url
     if not url:
@@ -79,15 +78,24 @@ print(done.status, rt.mock.disputes["PP-D-2000"]["offer"]["offer_type"], len(rt.
         assert "approve" in steps and "execute" in steps, steps
 
         print("4. advisory lock: a second holder waits for the first")
-        import threading, time
+        import threading
+        import time
+
         from rebuttal.persistence import PostgresDisputeLocks
         locks, order = PostgresDisputeLocks(url), []
 
         def holder(name, hold_s):
             with locks.hold("PP-LIVE-lock"):
-                order.append(f"{name}+"); time.sleep(hold_s); order.append(f"{name}-")
-        a = threading.Thread(target=holder, args=("a", 1.0)); a.start(); time.sleep(0.3)
-        b = threading.Thread(target=holder, args=("b", 0.0)); b.start(); a.join(); b.join()
+                order.append(f"{name}+")
+                time.sleep(hold_s)
+                order.append(f"{name}-")
+        a = threading.Thread(target=holder, args=("a", 1.0))
+        a.start()
+        time.sleep(0.3)
+        b = threading.Thread(target=holder, args=("b", 0.0))
+        b.start()
+        a.join()
+        b.join()
         print("   ", order)
         assert order == ["a+", "a-", "b+", "b-"], order
 

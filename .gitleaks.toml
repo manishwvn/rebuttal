@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Example text in vendored third-party skills, not real secrets"
+paths = ['''^\.agents/skills/''', '''^\.claude/skills/''']

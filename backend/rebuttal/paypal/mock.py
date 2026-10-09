@@ -12,7 +12,7 @@ import email.parser
 import email.policy
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -42,7 +42,7 @@ def allowed_response_options(reason: str, stage: str) -> dict:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def _parse(value: str) -> datetime:

@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
             [{"amount": {"currency_code": "USD", "value": f"{item['price']:.2f}"}, "invoice_id": invoice,
               "custom_id": invoice, "description": f"{item['name']} ({item['variant']})"}],
             return_url="https://example.com/return", cancel_url="https://example.com/cancel")
-    link = next(l["href"] for l in order["links"] if l["rel"] in ("payer-action", "approve"))
+    link = next(lk["href"] for lk in order["links"] if lk["rel"] in ("payer-action", "approve"))
     print(f"ORDER {order['id']}  invoice {invoice}\nOPEN AS SANDBOX BUYER AND APPROVE: {link}", flush=True)
 
     for _ in range(args.wait_minutes * 6):

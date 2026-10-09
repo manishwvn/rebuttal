@@ -1,4 +1,3 @@
-import os
 
 import pytest
 
@@ -222,13 +221,11 @@ def test_no_tracking_on_a_not_received_dispute_means_a_refund_not_a_replacement(
 def test_a_live_sandbox_order_made_by_make_test_order_gathers_the_hero_case_record():
     """An order whose invoice is RB-<case>-<n> (not seeded by hand) resolves to the case's merchant record, its PayPal
     order id comes from the capture, and the assistant-intent facts are there."""
-    from datetime import timedelta
 
     from rebuttal.paypal.client import PayPalClient
     from rebuttal.paypal.mock import MockPayPal
-    from rebuttal.scenarios import iso, live_invoice_id
+    from rebuttal.scenarios import fixture_order, iso, live_invoice_id
     from rebuttal.store import MerchantStore
-    from rebuttal.scenarios import fixture_order
 
     mock = MockPayPal()
     client = PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret", transport=mock.transport())
