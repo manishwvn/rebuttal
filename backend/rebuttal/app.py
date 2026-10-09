@@ -15,6 +15,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Re
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from . import analytics
 from .agent.graph import DisputeAgent
 from .approval import ApprovalError
 from .paypal.client import PayPalError
@@ -154,6 +155,37 @@ def reject(proposal_id: str, body: RejectBody):
 @app.get("/api/audit/{dispute_id}", dependencies=protected)
 def audit(dispute_id: str):
     return rt.audit.for_dispute(dispute_id)
+
+
+def _analytics_rows() -> list[dict]:
+    """Every dispute with its latest proposal and audit trail, shaped for `analytics`. Reads only."""
+    reader = rt.client.read_only()  # a handle whose transport refuses every write
+    disputes = reader.list_disputes()
+    proposals: dict[str, dict] = {}
+    audits: dict[str, list[dict]] = {}
+    for d in disputes:
+        dispute_id = d["dispute_id"]
+        proposal = rt.approvals.latest_for(dispute_id)
+        if proposal:
+            proposals[dispute_id] = proposal.to_dict()
+            audits[dispute_id] = rt.audit.for_dispute(dispute_id)
+    return analytics.build_rows(disputes, proposals, audits)
+
+
+# Analytics routes: they only read (PayPal through the read-only handle, the approval queue and the audit log).
+@app.get("/api/analytics/rows", dependencies=protected)
+def analytics_rows():
+    return _analytics_rows()
+
+
+@app.get("/api/analytics/summary", dependencies=protected)
+def analytics_summary():
+    return analytics.summarize(_analytics_rows(), rt.clock())
+
+
+@app.get("/api/analytics/deadlines", dependencies=protected)
+def analytics_deadlines():
+    return analytics.deadlines(_analytics_rows(), rt.clock())
 
 
 @app.post("/api/webhooks/paypal")
