@@ -7,7 +7,7 @@ final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
 ## Tasks
 
-### Q1 Deterministic quality gates in CI — size M — todo — priority now
+### Q1 Deterministic quality gates in CI — size M — done #18
 Catch basic mistakes without spending model usage. Add to `.github/workflows/tests.yml` (all free):
 - Secret scan of every push and PR with gitleaks (free for personal accounts; `gitleaks/gitleaks-action@v2` or the
   gitleaks binary), with an allowlist only for the vendored skill examples if needed.
@@ -22,7 +22,7 @@ Catch basic mistakes without spending model usage. Add to `.github/workflows/tes
   `backend/.env.example` or explicitly allowlisted.
 Done when CI runs the new jobs on the PR and they pass.
 
-### Q2 Architecture decision records — size S — todo — priority now
+### Q2 Architecture decision records — size S — in review (branch docs/adr)
 `docs/adr/`: short ADRs (context, decision, consequences) for the safety design: single PayPal write path in
 `execute`, read-only client for analysis, human approval via LangGraph interrupt, facts in code + guard over the model,
 deterministic PayPal-Request-Id, Supabase over paid Postgres, held-out evals. Link them from README. (Competitor Stood

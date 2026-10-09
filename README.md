@@ -104,6 +104,10 @@ See `backend/evals/RESULTS.md` after a run. The offline rules baseline scores 85
 the hard cases are what the model has to win. `uv run python -m evals.run --langfuse` records a run as a Langfuse
 experiment.
 
+## Architecture decisions
+
+The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals) are recorded in [docs/adr/](docs/adr/README.md).
+
 ## Sponsor tools (planned)
 
 AG Studio (dashboard and agent), APIMatic Context Plugin (used while building the PayPal integration in Claude Code,

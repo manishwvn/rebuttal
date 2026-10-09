@@ -2,6 +2,9 @@
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-09 | W 68% | F 6% | Q2 | PR open
+Stale lock (180 min) taken over. ADRs written by a Sonnet agent, claims spot-checked against code and workflows. Q1 was already merged (#18).
+
 ## 2026-10-09 | B1 part 1 | in review (PR #16)
 Analytics endpoints, AG Studio 3.0.0 Analytics tab and docs/ag-studio.md, built by the team workflow. Decision: Studio
 runs unlicensed (watermark allowed); deadlines read the due date per waiting dispute because the mock/list may omit it.
