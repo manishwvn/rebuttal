@@ -122,6 +122,11 @@ class MockPayPal:
         executed again. VERIFY: PayPal's OpenAPI specs document PayPal-Request-Id for Orders and Payments but not for
         any Disputes endpoint; the mock replays every POST so the retry path can be tested."""
         key = (request.url.path, request.headers.get("paypal-request-id", ""))
+        # Any seller write attempt, even one that fails or is replayed, uses up the one-shot interrupt, so it cannot
+        # trip a later approval on another dispute.
+        interrupt = self.interrupt_next_write and self._is_seller_action(request)
+        if interrupt:
+            self.interrupt_next_write = False
         if request.method == "POST" and key[1]:
             self.request_ids.append(key)
         if request.method == "POST" and key[1] and key in self._replays:
@@ -133,8 +138,7 @@ class MockPayPal:
         if request.method == "POST" and key[1] and response.status_code < 400:
             response.read()
             self._replays[key] = response
-        if self.interrupt_next_write and response.status_code < 400 and self._is_seller_action(request):
-            self.interrupt_next_write = False
+        if interrupt and response.status_code < 400:
             return _error(503, "SERVICE_UNAVAILABLE", "The service is unavailable. The action may have been applied.")
         return response
 

@@ -1,7 +1,7 @@
 # STATUS
 
 Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `fix/frontend-followups`:
-PR #3 review follow-ups, on top of `6597e0b`). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
 `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
@@ -32,20 +32,23 @@ PR #3 review follow-ups, on top of `6597e0b`). Detail: `docs/handoff-2026-10-07.
   Groq: model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0, 13.7k tokens (run
   `groq-qwen3.8-27b-holdout-20261009-054233`). Both guard changes turned OFFER_REPLACEMENT (an offer type PayPal does
   not allow) into OFFER_RETURN_FOR_REFUND. Small sample: 10 cases. No code changed. Table: `backend/evals/RESULTS.md`.
-- **Frontend slice 1 (merged, PR #3; follow-ups in `fix/frontend-followups`):** `frontend/` is Vite + React + TS with an AG Grid
+- **Frontend slice 1 (merged, PR #3; follow-ups in PR #9, `fix/frontend-followups`):** `frontend/` is Vite + React + TS with an AG Grid
   Community inbox (only the five grid modules it uses; JS bundle 1,399 kB -> 996 kB, gzip 398 -> 288 kB), case view
   (assistant instruction vs shipped, facts, reasoner choice vs final action, guard note, editable message), approve / edit /
   reject behind a confirm dialog that states the exact PayPal call, audit timeline, and a mock-only simulator. After a
   failed call the dialog stays readable but its button is disabled once the proposal is no longer pending. An
   approved-but-interrupted case shows the approved text (the merchant's edit) and the retry dialog states it.
   `npm run build` refuses `VITE_API_TOKEN` (see `frontend/README.md`). Built and tested with `REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules`,
-  no model key, no real sandbox, no Supabase. 7 Playwright tests run in CI (hero approve-with-edit, reject, 409, cancel,
-  interrupted call then retry, 2 build-guard); run commands: `frontend/README.md`.
+  no model key, no real sandbox, no Supabase. 8 Playwright tests run in CI (hero approve-with-edit, reject, 409, cancel,
+  interrupted call then retry, 3 build-guard); run commands: `frontend/README.md`.
   Backend changes (additive): CORS from `REBUTTAL_CORS_ORIGINS`, `GET /api/simulator/cases` (mock only),
   `approved_message` on the proposal payload (read from the approval record; execute unchanged), a JSON 502 when PayPal
-  fails during approve or retry (was a bare 500 that cross-origin browsers cannot read), and mock-only
-  `POST /api/simulator/interrupt-next-write` (the next PayPal write is applied, then answered 503, for the retry test).
-- **Tests:** 180 pass (173 + 3 for `approved_message` + 4 for the 502 and the interrupt hook); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+  fails or cannot be reached during approve or retry (was a bare 500 that cross-origin browsers cannot read; the
+  status and debug_id go to the server log and an `execute_interrupted` audit line, never the response; a retry is
+  promised only for a 5xx or a network error), and mock-only `POST /api/simulator/interrupt-next-write` (the next
+  PayPal write is applied, then answered 503, for the retry test; any seller write attempt uses the flag up). The
+  `VITE_API_TOKEN` build guard is a Vite plugin hook, so it reads the same env the build inlines from any start directory.
+- **Tests:** 186 pass (173 + 3 for `approved_message` + 10 for the 502, the audit line and the interrupt hook); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Next, in order
 

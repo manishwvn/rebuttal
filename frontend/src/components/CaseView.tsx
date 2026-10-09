@@ -142,7 +142,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
     } catch (e) {
       setError(errorText(e))
       // Show why, and refresh so the screen matches the server. A 409 means the proposal is no longer approvable.
-      // Any other failure (for example a 500 after PayPal answered 5xx) may also have moved the proposal on.
+      // Any other failure (for example a 502 after PayPal answered 5xx) may also have moved the proposal on.
       await onChanged().catch(() => undefined)
     } finally {
       setBusy(false)
@@ -312,7 +312,14 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
       )}
       {confirming === 'retry' && (
         <ConfirmDialog title="Retry sending to PayPal?" confirmLabel="Retry" busy={busy} error={error} unavailable={unavailable} onConfirm={confirm} onCancel={close}>
-          <SendSummary dispute={dispute} action={action} amount={actionAmount(action, summary.amount)} message={proposal.approved_message} edited={approvedWithEdits} />
+          <SendSummary
+            lead="Retrying first reads the dispute, then makes at most this one call to the PayPal sandbox (nothing is sent if it already landed):"
+            dispute={dispute}
+            action={action}
+            amount={actionAmount(action, summary.amount)}
+            message={proposal.approved_message ?? originalText}
+            edited={approvedWithEdits}
+          />
         </ConfirmDialog>
       )}
       {confirming === 'reject' && (
@@ -337,10 +344,24 @@ function callLine(disputeId: string, action: PlannedAction): string {
   return [endpointFor(disputeId, action), ...extra].join('  ·  ')
 }
 
-function SendSummary({ dispute, action, amount, message, edited }: { dispute: Dispute; action: PlannedAction; amount: string | null; message: string | null; edited: boolean }) {
+function SendSummary({
+  lead = 'Approving makes exactly this one call to the PayPal sandbox:',
+  dispute,
+  action,
+  amount,
+  message,
+  edited,
+}: {
+  lead?: string
+  dispute: Dispute
+  action: PlannedAction
+  amount: string | null
+  message: string | null
+  edited: boolean
+}) {
   return (
     <>
-      <p>Approving makes exactly this one call to the PayPal sandbox:</p>
+      <p>{lead}</p>
       <dl className="compare" data-testid="send-summary">
         <dt>Call</dt>
         <dd className="mono">{endpointFor(dispute.dispute_id, action)}</dd>

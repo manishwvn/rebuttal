@@ -1,5 +1,8 @@
 """The dashboard API on top of the graph: analyze, list, approve, edit, reject, retry."""
 
+import logging
+
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -140,6 +143,8 @@ def test_an_interrupted_paypal_call_leaves_the_proposal_approved_and_a_retry_fin
     failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={"edited_message": "Edited via API"})
     assert failed.status_code == 502  # a JSON error the dashboard can read, not a bare 500
     assert "approval is saved" in failed.json()["detail"] and "503" in failed.json()["detail"]
+    for internal in ("mock-debug", "SERVICE_UNAVAILABLE", "may have been applied"):  # nothing PayPal said, except the status
+        assert internal not in failed.json()["detail"]
     assert mock.interrupt_next_write is False and len(mock.write_calls()) == 1  # PayPal acted before the 503
 
     waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
@@ -159,15 +164,88 @@ def test_a_paypal_error_before_anything_was_sent_is_a_readable_502_and_retry_the
 
     proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
     real = approval.execute_action
-    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(PayPalError(503, {})))
+    monkeypatch.setattr(approval, "execute_action",
+                        lambda *a, **k: (_ for _ in ()).throw(PayPalError(503, {"name": "SERVICE_UNAVAILABLE"}, "mock-debug")))
     failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
     assert failed.status_code == 502 and "approval is saved" in failed.json()["detail"]
+    assert "retry to continue" in failed.json()["detail"] and "sending or checking the dispute" in failed.json()["detail"]
+    assert "mock-debug" not in failed.json()["detail"] and "SERVICE_UNAVAILABLE" not in failed.json()["detail"]
     waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
     assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []  # nothing had been sent
 
     monkeypatch.setattr(approval, "execute_action", real)
     done = client.post(f"/api/proposals/{proposal['id']}/retry").json()
     assert done["status"] == "EXECUTED" and len(app_module.rt.mock.write_calls()) == 1
+
+
+def test_an_interrupted_call_is_logged_and_audited_with_the_status_and_debug_id_but_not_the_body(client, monkeypatch, caplog):
+    from rebuttal import approval
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(
+        PayPalError(503, {"name": "SERVICE_UNAVAILABLE", "message": "private words"}, "debug-abc")))
+    with caplog.at_level(logging.WARNING, logger="rebuttal.app"):
+        assert client.post(f"/api/proposals/{proposal['id']}/approve", json={}).status_code == 502
+    assert any(proposal["id"] in r.getMessage() and "503" in r.getMessage() and "debug-abc" in r.getMessage()
+               and "private words" not in r.getMessage() for r in caplog.records)
+    interrupted = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
+    assert len(interrupted) == 1
+    assert interrupted[0]["detail"] == {"proposal": proposal["id"], "status": 503, "debug_id": "debug-abc",
+                                        "error": "PayPalError"}  # no response body
+
+
+def test_a_network_error_while_sending_is_a_readable_502_and_retry_then_sends_once(client, monkeypatch, caplog):
+    from rebuttal import approval
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    real = approval.execute_action
+    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(httpx.ReadTimeout("timed out")))
+    with caplog.at_level(logging.WARNING, logger="rebuttal.app"):
+        failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
+    assert failed.status_code == 502  # a JSON error the dashboard can read, not a bare 500
+    assert "could not be reached" in failed.json()["detail"] and "approval is saved" in failed.json()["detail"]
+    assert "retry to continue" in failed.json()["detail"] and "timed out" not in failed.json()["detail"]
+    assert any("ReadTimeout" in r.getMessage() for r in caplog.records)
+    interrupted = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
+    assert interrupted[0]["detail"]["status"] is None and interrupted[0]["detail"]["error"] == "ReadTimeout"
+    waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
+    assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []
+
+    monkeypatch.setattr(approval, "execute_action", real)
+    done = client.post(f"/api/proposals/{proposal['id']}/retry").json()
+    assert done["status"] == "EXECUTED" and len(app_module.rt.mock.write_calls()) == 1
+
+
+def test_a_network_error_during_retry_is_a_readable_502(client, monkeypatch):
+    def unreachable(proposal_id):
+        raise httpx.ConnectError("no route to host")
+
+    monkeypatch.setattr(app_module.rt.approvals, "retry", unreachable)
+    answer = client.post("/api/proposals/prop_x_PP-D-2000/retry")
+    assert answer.status_code == 502 and "retry to continue" in answer.json()["detail"]
+    assert "no route" not in answer.json()["detail"]
+
+
+def test_a_paypal_4xx_while_sending_or_checking_does_not_promise_that_a_retry_will_help(client, monkeypatch):
+    def refused(proposal_id):
+        raise PayPalError(404, {"name": "RESOURCE_NOT_FOUND"}, "debug-404")
+
+    monkeypatch.setattr(app_module.rt.approvals, "retry", refused)
+    answer = client.post("/api/proposals/prop_x_PP-D-2000/retry")
+    assert answer.status_code == 502 and "(404)" in answer.json()["detail"]
+    assert "approval is saved" in answer.json()["detail"] and "retry" not in answer.json()["detail"]
+
+
+def test_a_failing_audit_store_does_not_turn_the_502_into_a_bare_500(client, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("database down")
+
+    def down(proposal_id):
+        raise PayPalError(503, {})
+
+    monkeypatch.setattr(app_module.rt.approvals, "retry", down)
+    monkeypatch.setattr(app_module.rt.audit, "log", broken)
+    assert client.post("/api/proposals/prop_x_PP-D-2000/retry").status_code == 502
 
 
 def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
@@ -177,6 +255,19 @@ def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
     monkeypatch.setattr(app_module.rt.approvals, "retry", still_down)
     answer = client.post("/api/proposals/prop_x_PP-D-2000/retry")
     assert answer.status_code == 502 and "retry to continue" in answer.json()["detail"]
+
+
+def test_the_interrupt_is_used_up_by_any_seller_write_attempt_even_a_failed_one(client):
+    mock = app_module.rt.mock
+    http = httpx.Client(transport=mock.transport(), base_url="https://api-m.sandbox.paypal.com",
+                        headers={"Authorization": "Bearer MOCK-TOKEN"})
+    mock.interrupt_next_write = True
+    assert http.get("/v1/customer/disputes/PP-D-2000").status_code == 200 and mock.interrupt_next_write is True
+    missing = http.post("/v1/customer/disputes/PP-D-NOPE/send-message", json={"message": "x"})
+    assert missing.status_code == 404 and mock.interrupt_next_write is False  # failed, but it used up the flag
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    assert client.post(f"/api/proposals/{proposal['id']}/approve", json={}).status_code == 200  # not tripped later
 
 
 def test_interrupting_a_write_is_mock_only(client, monkeypatch):
