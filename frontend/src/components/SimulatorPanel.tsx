@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api'
+import { useApi } from '../apiContext'
 import { reasonLabel } from '../labels'
 import type { SimulatorCase } from '../types'
 
@@ -10,6 +10,7 @@ interface Props {
 
 // Shown only when /api/health says mock mode: it seeds a labeled case into the mock sandbox and analyzes it.
 export function SimulatorPanel({ onCreated }: Props) {
+  const api = useApi()
   const [cases, setCases] = useState<SimulatorCase[]>([])
   const [choice, setChoice] = useState('agent_wrong_size')
   const [busy, setBusy] = useState(false)
@@ -20,7 +21,7 @@ export function SimulatorPanel({ onCreated }: Props) {
       .simulatorCases()
       .then(setCases)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [])
+  }, [api])
 
   const create = async () => {
     setBusy(true)
