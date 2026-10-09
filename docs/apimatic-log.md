@@ -11,7 +11,7 @@ Free subscription claim form: https://docs.google.com/forms/d/e/1FAIpQLScc2oCgAF
 
 | Date | What we asked | What the plugin gave | Files changed |
 |---|---|---|---|
-| | | | |
+| 2026-10-09 | Do our Orders v2 payloads (create order with `payment_source.paypal.experience_context`, capture, `POST /v2/checkout/orders/{id}/track` body, carrier values) match the PayPal Server SDK models? The plugin's skills are language-generic (no Orders models), so we installed the `paypal-server-sdk` Python package (the SDK the plugin documents) in a scratch venv and read its models, following `python-models` and `python-calling-endpoints` guidance. | `OrderTrackerRequest` fields: `capture_id`, `tracking_number`, `carrier`, `carrier_name_other`, `notify_payer`, `items`; `PaypalWalletExperienceContext` has `return_url` / `cancel_url`; `OrderRequest` has `intent`, `purchase_units`, `payment_source`; `ShipmentCarrier` has `UPS` and `USPS`. All match what `paypal/client.py` and the mock send. No drift. The SDK has no Disputes controller (controllers: orders, payments, vault, subscriptions, transaction search), so dispute shapes stay checked against the PayPal docs and the live sandbox. | none (check only; this PR adds the log) |
 
 ## Candidate uses (not done yet)
 

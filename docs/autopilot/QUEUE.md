@@ -43,7 +43,7 @@ REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_disput
 dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to
 `.env.example`). Replaces the password-based buyer steps (supersedes B5).
 
-### S1 APIMatic plugin in every PayPal change — size S — todo — standing rule from now on
+### S1 APIMatic plugin in every PayPal change — size S — first pass done (this PR, no drift found); standing rule stays
 Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK is free and installed, but
 `docs/apimatic-log.md` is empty, so we have no evidence of use. From now on every task that touches PayPal calls,
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
@@ -76,7 +76,7 @@ accuracy and the per-case misses in `docs/evals.md` (create it, include the main
   with a test), and add an end-to-end test for the retry path.
 - Make `npm run build` fail if `VITE_API_TOKEN` is set for a production build.
 
-### A4 Video script — size S — in-progress (branch docs/video-script) — deadline Oct 12
+### A4 Video script — size S — done (on main, docs/video-script.md) — deadline Oct 12
 `docs/video-script.md`: under 3 minutes, built from `docs/pitches.md`. One hero case (`agent_wrong_size`), two
 cutaways, the eval number on screen. Columns: time, what is on screen (exact UI state or terminal), narration text,
 which judging criterion it serves (Tech, Design, Impact, Innovation, Presentation). Include a shot list the

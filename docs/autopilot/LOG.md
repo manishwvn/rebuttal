@@ -1,5 +1,8 @@
 # Autopilot log
 
+## 2026-10-09 16:15 CDT | W 82→82 % | F 3→3 % | S1 | PR open
+Checked Orders v2 payloads and carrier values against the paypal-server-sdk models (installed in a scratch venv): no drift; SDK has no Disputes API. Logged in apimatic-log.md. QUEUE A4 marked done (script already on main). Docs only; no code touched.
+
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
 ## 2026-10-09 | A6 | in review (PR #33)
