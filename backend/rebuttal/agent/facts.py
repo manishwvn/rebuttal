@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
+from pydantic import ValidationError
+
 from .. import policies
 from ..paypal.client import PayPalClient, PayPalError
 from ..store import MerchantOrder, MerchantStore
@@ -126,10 +128,13 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
     trackers: list[dict] | None = None  # None = not checked
     transactions: list[dict] | None = None  # None = not checked or unavailable
     if order and order.order_id:
-        trackers = toolkit.call(
-            "get_order_trackers", {"order_id": order.order_id, "capture_id": capture_id}
-        )["trackers"]
-        calls.append(f"get_order_trackers: GET /v2/checkout/orders/{order.order_id} (shipping.trackers)")
+        try:
+            trackers = toolkit.call(
+                "get_order_trackers", {"order_id": order.order_id, "capture_id": capture_id}
+            )["trackers"]
+            calls.append(f"get_order_trackers: GET /v2/checkout/orders/{order.order_id} (shipping.trackers)")
+        except ValidationError:  # empty or odd seller_transaction_id: no request was sent; trackers stay unchecked
+            calls.append("get_order_trackers: skipped, capture id missing or invalid, tracking not checked")
     if order:
         start = order.created - timedelta(days=1)
         end = order.created + timedelta(days=1)

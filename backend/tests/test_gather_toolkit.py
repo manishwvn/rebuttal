@@ -102,3 +102,13 @@ def test_gather_given_the_full_client_still_cannot_write(spy):
     mock, client, store = live_shape_client()
     gather("PP-R-LIVE-1", client, store, DEMO_NOW)
     assert mock.write_calls() == []
+
+
+@pytest.mark.parametrize("bad_capture", ["", "bad id!"])
+def test_gather_skips_tracker_lookup_when_the_capture_id_is_invalid(spy, bad_capture):
+    rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True)
+    rt.mock.disputes["PP-D-2000"]["disputed_transactions"][0]["seller_transaction_id"] = bad_capture
+    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
+    assert any("tracking not checked" in c for c in case.tool_calls)
+    assert not any(c.startswith("get_order_trackers: GET") for c in case.tool_calls)
+    assert rt.mock.write_calls() == []

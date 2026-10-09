@@ -15,6 +15,9 @@ found four problems:
 - It uses `requests` directly, so our `ReadOnlyTransport` and the httpx mock do not apply.
 - `list_transactions` omits `fields=all`, so `payer_info` (used by the duplicate-charge fact) is not returned.
 
+Source: https://pypi.org/project/paypal-agent-toolkit/ (version 1.11.0). We inspected the package metadata (pinned
+dependencies) and the unpacked source: `PayPalAPI.run`, the tool definitions, and how the HTTP calls are made.
+
 ## Decision
 
 [`agent/toolkit.py`](../../backend/rebuttal/agent/toolkit.py) defines `READ_TOOLS`: exactly four read tools in the

@@ -97,7 +97,7 @@ Rebuttal does not depend on PayPal's official `paypal-agent-toolkit` package (v1
 
 `rebuttal/agent/toolkit.py` is therefore a substitute with the same tool shape (`method`, `name`, `description`, `args_schema`, `actions`, `execute`; `run(method, params)` returns a JSON string), tools named like the toolkit's (`get_dispute`, `list_transactions`) plus Rebuttal's `get_order_trackers` and `get_capture_order_id`, all over `PayPalClient.read_only()`. Only these four read tools exist; any other name raises `ToolNotAvailable`. The official package could replace it only after its langchain pin is lifted and PayPal fixes reasons 2 to 4 upstream.
 
-The write path is unchanged: `execute` in `rebuttal/approval.py` is still the only writer. The adapter calls only the four read methods. It is covered by `backend/tests/test_toolkit.py`, `backend/tests/test_gather_toolkit.py` (every `gather` read goes through it) and the package scan in `backend/tests/test_write_boundary.py`.
+The write path is unchanged: `execute` in `rebuttal/approval.py` is still the only writer in the agent graph and the API (the named manual sandbox and demo scripts in `backend/scripts/` are the exception). The adapter calls only the four read methods. It is covered by `backend/tests/test_toolkit.py`, `backend/tests/test_gather_toolkit.py` (every `gather` read goes through it) and the package scan in `backend/tests/test_write_boundary.py`.
 
 ## Payments-grade guarantees
 
