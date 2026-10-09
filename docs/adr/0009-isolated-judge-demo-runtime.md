@@ -39,7 +39,8 @@ Alternatives rejected:
 
 - Demo sessions run the same graph and approval code as the real service, so a change to the agent changes the demo too.
 - The demo routes are open on purpose, so their bounds are what limit how much a visitor can use. A route inventory
-  test keeps the real routes behind the token.
+  test keeps the real API routes behind the token, except `/api/health` and the PayPal webhook, which is checked by
+  signature.
 - State lives in memory. A restart or a free-plan cold start clears every session; an expiry clears only that session.
   The UI offers Reset demo.
 - Demo approvals never reach PayPal. The demo shows the write path without a real write.

@@ -31,12 +31,12 @@ Every route but the first is under `/api/demo/{session_id}`. Treat the session i
 
 ## Isolation guarantees
 
-1. A demo session never receives the real runtime or the real PayPal client. Test: the tripwire on the real runtime in `backend/tests/test_demo_isolation.py`.
-2. Environment settings do not reach demo sessions: `REBUTTAL_MOCK=0`, the PayPal keys, the Groq key and `DATABASE_URL` are ignored. Test: the hostile-environment case in `backend/tests/test_demo_isolation.py`.
-3. Each session has its own Runtime (in-memory MockPayPal, rules reasoner, tracing off, in-memory checkpointer and audit log, no database), so sessions share no state. Test: `backend/tests/test_demo.py`.
-4. The real routes keep `REBUTTAL_API_TOKEN`; the demo routes take none. Test: the route inventory of the token dependency in `backend/tests/test_demo_isolation.py`.
-5. The demo modules have no PayPal write path except `execute` ([ADR 0001](adr/0001-single-paypal-write-path.md)). Test: the write-boundary scan of the demo modules in `backend/tests/test_demo_isolation.py`.
-6. A demo approval runs the real approval path against the mock: `ApprovalQueue`, the interrupt, then `execute`. Test: `backend/tests/test_demo_api.py`.
+1. A demo session never receives the real runtime. Test: `test_a_judge_runs_the_demo_without_a_token_and_never_touches_the_real_runtime` (a tripwire on the real runtime) in `backend/tests/test_demo_isolation.py`.
+2. Environment settings do not reach demo sessions: `REBUTTAL_MOCK=0`, the PayPal keys, the Groq key and `DATABASE_URL` are ignored, and every PayPal client a session builds uses the mock transport. Test: `test_a_hostile_environment_still_gives_a_mock_rules_demo` in `backend/tests/test_demo_isolation.py`, and `test_demo_runtime_is_mock_rules_and_ignores_real_environment` in `backend/tests/test_demo.py`.
+3. Each session has its own Runtime (in-memory MockPayPal, rules reasoner, tracing off, in-memory checkpointer and audit log, no database), so sessions share no state. Test: `test_two_runtimes_share_nothing` in `backend/tests/test_demo.py`.
+4. The real API routes keep `REBUTTAL_API_TOKEN`, except `/api/health` and the PayPal webhook, which is checked by signature. The demo routes take none. Test: `test_every_api_route_is_guarded_except_the_demo_and_the_two_open_ones` in `backend/tests/test_demo_isolation.py`.
+5. The demo modules have no PayPal write path except `execute` ([ADR 0001](adr/0001-single-paypal-write-path.md)). Test: `test_the_demo_modules_cannot_reach_the_app_the_real_runtime_or_a_paypal_write` in `backend/tests/test_demo_isolation.py`.
+6. A demo approval runs the real approval path against the mock: `ApprovalQueue`, the interrupt, then `execute`. Test: `test_hero_flow_runs_end_to_end_without_a_token` in `backend/tests/test_demo_api.py`.
 
 The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 
@@ -46,7 +46,7 @@ The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 |---|---|---|
 | Live sessions | 40 | The least recently used session is evicted. |
 | Idle expiry | 30 minutes | The session expires and its state is gone. |
-| Maximum age | 2 hours | The session expires, even when in use. |
+| Maximum age | 2 hours | The session expires, even when in use. A reset does not restart it. |
 | Disputes per session | 16 | Creating more returns 429. |
 | Session creations and resets | 20 per minute, whole service | Returns 429 with `Retry-After`. |
 | Edited message | 2000 characters | Longer bodies are refused. |
