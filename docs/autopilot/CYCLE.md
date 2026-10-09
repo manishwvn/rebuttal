@@ -79,7 +79,12 @@ before the reset is free, so never leave it idle while there is runnable work.
      the Sonnet tech lead integrates, runs every test and opens the PR; a review panel checks the whole PR: 3
      independent Sonnet reviewers (correctness and tests, safety and money, design and docs), then an Opus principal
      engineer who verifies each finding, adds what they missed and decides; up to two Sonnet fix rounds, each
-     re-reviewed by the full panel. Manish asked for this team structure:
+     re-reviewed by the full panel. Token-saving tiers (Oct 9, weekly limit is the constraint): 3 audit lenses at max effort only for risky pieces
+     (hard, sensitive paths, `.claude/`, `.github/`); other code pieces get one combined audit, docs pieces one docs
+     audit; the Opus principal only for strict PRs (PayPal, money, safety paths or risk high), Sonnet otherwise.
+     Agents run on Anthropic's servers, so the Mac (M1, 8 CPU cores, 16 GB) only hosts their processes and runs tests;
+     its GPU and Neural Engine are not used. The workflow runtime caps parallel agents at CPUs - 2 = 6; more
+     parallelism would only spend the weekly budget sooner, not do more work. Manish asked for this team structure:
      Haiku does most of the building because it is cheap on the usage limit, and it gets the most auditing. At most
      6 agents run at once on this Mac (8 cores); the rest queue.
    - Skills: every team-cycle task starts with a Sonnet skill scout that searches (`npx -y skills find`), vets and
