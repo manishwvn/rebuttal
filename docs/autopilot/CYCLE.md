@@ -46,32 +46,37 @@ marked `size: S` this cycle.
 - Check usage again before each new subagent step. If `W >= 82` mid-task, stop at a safe point: commit and push the
   work-in-progress branch, mark the task `in-progress` in `QUEUE.md` with a note, release the lock.
 
-## 3. Pick and do one task
+## 3. Pick work and run the team
 
 1. `cd /Users/manish/Documents/rebuttal && git checkout main && git pull`. Read `STATUS.md`, `docs/autopilot/QUEUE.md`
    and the last 40 lines of `docs/autopilot/LOG.md`.
 2. If `main` CI is red, the task is "make main green" (smallest fix, or revert the PR that broke it).
-3. Otherwise take the first task in `QUEUE.md` whose status is `todo` or `in-progress` and whose `after` date (if any)
-   has passed and whose `needs` are done. Skip tasks marked `waiting` until their condition is met.
-4. Work in a git worktree, never in the main checkout:
-   `git worktree add ../rebuttal-wt/<branch> -b <branch> origin/main` (or reuse the existing branch for an
-   `in-progress` task). Run `uv sync` in `backend/` and `npm ci` in `frontend/` inside the worktree when needed.
-5. Team: you are the lead. Delegate with the Agent tool and keep your own context small.
-   - Code and tests: a `general-purpose` subagent with `model: "sonnet"`, given a self-contained prompt (task text,
-     acceptance criteria, worktree path, the hard rules above, and "run the tests; report what passed").
-   - Small edits, docs, formatting: the `chores` agent with `model: "haiku"`.
-   - Review: the `reviewer` agent (`model: "sonnet"`) on every PR before merge.
-   - Use docs MCPs instead of memory: `ag-mcp` for AG Grid / AG Studio, `langchain-docs` for LangGraph, the
-     `paypal` plugin for PayPal APIs (read-only). Run `find-skills` only for a truly new kind of work, install only
-     from reputable sources (anthropics, vercel-labs, high install counts), and log what you installed.
-   - Frontend and tests run with `REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules`. Groq only for evals and the AG Studio
-     agent, at most one eval run per day.
-6. Finish: tests pass locally (`uv run pytest`, and `npm run build && npm run lint && npx playwright test` when the
+3. Otherwise pick work by headroom `H = 80 - W`: `H >= 15` up to 3 runnable tasks, `H` 8-14 up to 2, `H` 3-7 one
+   task, `H < 3` only a size S task. A task is runnable when its status is `todo` or `in-progress`, its `after` date has
+   passed and its `needs` are done. Skip `waiting` tasks until their condition is met. Tasks run together only if they
+   are unlikely to edit the same files (for example a backend data task and a docs task, not two tasks both editing
+   `rebuttal/app.py`).
+4. For each picked task create its worktree from `origin/main` (or reuse the branch of an `in-progress` task):
+   `git worktree add ../rebuttal-wt/<branch> -b <branch> origin/main`, and note `git -C ../rebuttal-wt/<branch> rev-parse HEAD`.
+5. The team. You (the lead) orchestrate and merge; you do not write the code yourself.
+   - Size M or L tasks: run the `team-cycle` workflow (`.claude/workflows/team-cycle.js`; Workflow tool,
+     `name: "team-cycle"`, `args: {tasks: [{id, title, spec, branch, worktree, base_sha}]}` with `spec` = the task
+     text from `QUEUE.md` plus your notes). Per task: a Sonnet tech lead plans 1-6 disjoint pieces, Haiku workers build
+     them in parallel in their own worktrees (effort xhigh, max for hard pieces), the Sonnet tech lead integrates, runs
+     every test and opens the PR, then the reviewer agent checks it (Opus when it touches PayPal or money paths) with
+     up to two Sonnet fix rounds. Manish asked for this team structure; it is the default.
+   - Size S tasks and docs-only tasks: one agent (`chores` with `model: "haiku"` for docs, or a `general-purpose`
+     agent with `model: "sonnet"` for small code), then the reviewer.
+   - Groq only for evals and the AG Studio agent, at most one eval run per day.
+   - After the workflow, `git worktree list` shows leftover worker worktrees; remove them with `git worktree remove`
+     once their commits are in the PR.
+6. Small tasks done without the workflow finish the same way: tests pass locally (`uv run pytest`, and `npm run build && npm run lint && npx playwright test` when the
    frontend changed), commit, push, `gh pr create`, wait for CI (`gh pr checks <n> --watch`).
 
 ## 4. Merge policy
 
-Merge (`gh pr merge <n> --merge --delete-branch`) only when all hold:
+Merge (`gh pr merge <n> --merge --delete-branch`) only when all hold (the workflow returns `ci`, `safe_to_merge`,
+`write_boundary_intact` per task; still check `gh pr checks` yourself):
 
 - CI is green.
 - The reviewer agent reports no blocker. Fix every should-fix it raises in the same PR, re-run, re-review.
