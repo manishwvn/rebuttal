@@ -17,12 +17,14 @@ def test_analyze_then_approve_through_the_api(client):
     assert client.get("/api/health").json()["mode"] == "mock / rules"
     proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
     assert proposal["status"] == "PENDING" and proposal["actions"][0]["kind"] == "make_offer"
+    assert proposal["approved_message"] is None
     listed = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}
     assert listed["PP-D-2000"]["proposal"]["id"] == proposal["id"] and listed["PP-D-2001"]["proposal"] is None
     assert [p["id"] for p in client.get("/api/proposals/pending").json()] == [proposal["id"]]
 
     done = client.post(f"/api/proposals/{proposal['id']}/approve", json={"edited_message": "Edited via API"}).json()
     assert done["status"] == "EXECUTED" and done["decision"]["message_to_buyer"] == "Edited via API"
+    assert done["approved_message"] == "Edited via API"
     assert client.get("/api/proposals/pending").json() == []
     again = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
     assert again.status_code == 409 and "EXECUTED" in again.json()["detail"]
