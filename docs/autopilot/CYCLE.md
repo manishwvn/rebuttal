@@ -34,12 +34,10 @@ Load and call `mcp__ccd_session_mgmt__get_usage` (ToolSearch `select:mcp__ccd_se
 `~/Library/Application Support/Claude Usage/history/` (the Claude Usage menu-bar app); if both fail, do only a task
 marked `size: S` this cycle.
 
-- Hours elapsed in the week: `E = 168 - hours until weekly resetsAt`. Pace line: `P = min(80, 50 + 30 * E / 168)`
-  (front-loads work early in the week, when deadlines bite, and still flattens out before the 80% stop).
 - `W >= 80`: do no work. If `LOG.md` has no `ALERT weekly-80 <resetsAt>` line yet, send the alert (section 5) with
-  the numbers and the reset time, log that line, and stop.
-- `F >= 70`: log `PAUSE 5h F%` and stop; the next cycle retries.
-- `W > P`: log `PACE W% > P%` and stop (spreads the weekly budget so it never crosses 85%).
+  the numbers and the reset time, log that line, and stop. There is no slower pacing below 80%: the weekly budget is
+  the same whether it is spent early or late, and early work matters more for the deadlines.
+- `F >= 85`: log `PAUSE 5h F%` and stop; the next cycle retries after the 5-hour window moves on.
 - Other scheduled tasks on this account (for example the ETF monitor) share the same budget; the numbers already
   include them.
 - Check usage again before each new subagent step. If `W >= 82` mid-task, stop at a safe point: commit and push the

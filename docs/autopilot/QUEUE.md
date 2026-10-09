@@ -7,18 +7,18 @@ final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
 ## Tasks
 
-### A1 Keep the live backend awake (free) — size S — todo
+### A1 Keep the live backend awake (free) — size S — in-progress (lead, Oct 9)
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
 10 minutes (public repo, so Actions minutes are free; one free Render service running 24/7 fits the 750 free hours a
 month). This replaces the planned paid Render plan. Done when the workflow is merged and its first run is green.
 
-### A2 Held-out eval — size S — todo
+### A2 Held-out eval — size S — in-progress (lead, Oct 9)
 `cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse`. Report model-alone vs final
 accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
-### A3 Frontend follow-ups from the PR #3 review — size M — todo
+### A3 Frontend follow-ups from the PR #3 review — size M — in-progress (branch fix/frontend-followups)
 - Delete the unused Vite scaffold (`frontend/src/assets/`, `frontend/public/icons.svg`, unused CSS).
 - Register only the AG Grid modules in use instead of `AllCommunityModule` (`ag-mcp` for module names); report the
   bundle size before and after.
@@ -28,7 +28,7 @@ accuracy and the per-case misses in `docs/evals.md` (create it, include the main
   with a test), and add an end-to-end test for the retry path.
 - Make `npm run build` fail if `VITE_API_TOKEN` is set for a production build.
 
-### A4 Video script — size S — todo — deadline Oct 12
+### A4 Video script — size S — in-progress (branch docs/video-script) — deadline Oct 12
 `docs/video-script.md`: under 3 minutes, built from `docs/pitches.md`. One hero case (`agent_wrong_size`), two
 cutaways, the eval number on screen. Columns: time, what is on screen (exact UI state or terminal), narration text,
 which judging criterion it serves (Tech, Design, Impact, Innovation, Presentation). Include a shot list the
