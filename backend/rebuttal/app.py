@@ -157,10 +157,19 @@ def audit(dispute_id: str):
     return rt.audit.for_dispute(dispute_id)
 
 
+def _with_due_date(reader, dispute: dict) -> dict:
+    """The list summary may leave out `seller_response_due_date` (the mock's does, and PayPal documents only a few list
+    fields), but the deadlines view needs it for disputes waiting on the seller: read it from the dispute itself."""
+    if dispute.get("seller_response_due_date") or dispute["status"] != "WAITING_FOR_SELLER_RESPONSE":
+        return dispute
+    due = reader.get_dispute(dispute["dispute_id"]).get("seller_response_due_date")
+    return {**dispute, "seller_response_due_date": due}
+
+
 def _analytics_rows() -> list[dict]:
     """Every dispute with its latest proposal and audit trail, shaped for `analytics`. Reads only."""
     reader = rt.client.read_only()  # a handle whose transport refuses every write
-    disputes = reader.list_disputes()
+    disputes = [_with_due_date(reader, d) for d in reader.list_disputes()]
     proposals: dict[str, dict] = {}
     audits: dict[str, list[dict]] = {}
     for d in disputes:

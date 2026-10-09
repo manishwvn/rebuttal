@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 
 from rebuttal import analytics
 from rebuttal import app as app_module
-from rebuttal.paypal import mock as paypal_mock
 from rebuttal.runtime import Runtime
 
 NOW = datetime(2026, 10, 6, 15, 0, tzinfo=timezone.utc)  # the mock's clock (scenarios.DEMO_NOW)
@@ -263,9 +262,6 @@ def test_hours_left_rounds_to_a_tenth_and_accepts_both_utc_spellings():
 # ------------------------------------------------------------------ the API
 @pytest.fixture
 def client(monkeypatch):
-    # The mock's list summary leaves out seller_response_due_date, so mock mode would never show a deadline. These
-    # tests put the field back into the list (mock.py itself is not part of this change).
-    monkeypatch.setattr(paypal_mock, "SUMMARY_FIELDS", (*paypal_mock.SUMMARY_FIELDS, "seller_response_due_date"))
     monkeypatch.setattr(app_module, "rt", Runtime(seed_cases=SEEDED, force_rules=True))
     return TestClient(app_module.app)
 
@@ -304,6 +300,7 @@ def test_the_figures_follow_an_analysis_and_an_approval(client):
 
     deadlines = client.get("/api/analytics/deadlines").json()
     by_id = {d["dispute_id"]: d for d in deadlines}
+    # The mock's list leaves out the due date, so these come from reading each dispute.
     assert set(by_id) == {"PP-D-2001", "PP-D-2002"}  # 2000 is with the buyer now; the others still wait on the seller
     assert all(by_id[i]["due"] == rows[i]["due"] and set(by_id[i]) == DEADLINE_KEYS for i in by_id)
     hours = [d["hours_left"] for d in deadlines]
