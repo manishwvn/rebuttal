@@ -51,7 +51,7 @@ const PLAN = {
     summary: { type: 'string' },
     risk: { type: 'string', enum: ['low', 'high'], description: 'high if any piece touches ' + SENSITIVE },
     pieces: {
-      type: 'array', minItems: 1, maxItems: 12,
+      type: 'array', minItems: 1, maxItems: 6,
       items: {
         type: 'object',
         properties: {
@@ -145,7 +145,7 @@ const lensesFor = p => {
 // One piece: build, then 3 independent Haiku audits, then up to 2 fix + re-audit rounds.
 async function buildPiece(t, p) {
   const tag = `${t.id}/${p.id}`
-  let built = await agent(BUILD_PROMPT(t, p), { label: `build:${tag}`, phase: 'Build', model: 'haiku', effort: p.hard ? 'max' : 'xhigh', isolation: 'worktree', schema: PIECE })
+  let built = await agent(BUILD_PROMPT(t, p), { label: `build:${tag}`, phase: 'Build', model: 'haiku', effort: p.hard ? 'xhigh' : 'high', isolation: 'worktree', schema: PIECE })
   if (!built || !built.sha) return built && { piece: p.id, title: p.title, ...built, audit: 'nothing committed' }
   let open = []
   for (let round = 0; round <= 2; round++) {
@@ -160,7 +160,7 @@ Allowed files: ${p.files.join(', ')}
 ---
 ${l.ask}
 Be strict: a Haiku engineer wrote this and small mistakes are common. Report every real problem with file, line, severity and the exact fix. Do not report taste. pass = no blocker and no should_fix.`,
-      { label: `audit:${tag}:${l.key}${round ? '#' + round : ''}`, phase: 'Audit', agentType: 'reviewer', model: 'haiku', effort: risky(p) ? 'max' : 'high', schema: AUDIT })))).filter(Boolean)
+      { label: `audit:${tag}:${l.key}${round ? '#' + round : ''}`, phase: 'Audit', agentType: 'reviewer', model: 'haiku', effort: risky(p) ? 'xhigh' : 'medium', schema: AUDIT })))).filter(Boolean)
     open = audits.flatMap(a => a.findings.filter(f => f.severity !== 'nit'))
     if (!open.length) return { piece: p.id, title: p.title, ...built, audit: round === 0 ? 'clean' : `clean after ${round} fix round(s)` }
     if (round === 2) break
@@ -176,7 +176,7 @@ Run the checks the instructions name, then git add and git commit -m "${tag}: ad
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Do not push. Return the new commit sha.
 
-${RULES}`, { label: `fix:${tag}#${round + 1}`, phase: 'Audit', model: 'haiku', effort: 'xhigh', isolation: 'worktree', schema: PIECE })
+${RULES}`, { label: `fix:${tag}#${round + 1}`, phase: 'Audit', model: 'haiku', effort: 'high', isolation: 'worktree', schema: PIECE })
     if (!fixed || !fixed.sha) break
     built = { ...fixed, files_changed: [...new Set([...built.files_changed, ...fixed.files_changed])] }
   }
@@ -206,7 +206,8 @@ const results = await pipeline(
   tasks,
 
   // Skills: a Sonnet scout finds, vets and installs skills on the task branch before planning.
-  t => agent(`You are the skill scout for queue task ${t.id} "${t.title}" in the Rebuttal repo. Work in the task worktree ${t.worktree} (branch ${t.branch}).
+  // Only when the lead sets scout: true (a new kind of work); otherwise the installed skills are enough.
+  t => !t.scout ? { ...t, skills: { installed: [], rejected: [], relevant: [] } } : agent(`You are the skill scout for queue task ${t.id} "${t.title}" in the Rebuttal repo. Work in the task worktree ${t.worktree} (branch ${t.branch}).
 Task spec:
 ${t.spec}
 
@@ -267,11 +268,13 @@ ${RULES}`, { label: `integrate:${t.id}`, phase: 'Integrate', model: 'sonnet', ef
     const strict = pr.touches_sensitive || plan.risk === 'high'
     const diff = `in ${t.worktree} run: git fetch origin && git diff origin/main...origin/${t.branch} (skip vendored .claude/skills and .agents)`
     const review = async (round, previous) => {
-      const lenses = [
+      const all = [
         { key: 'correctness', ask: 'CORRECTNESS AND TESTS: logic bugs, edge cases, error paths, state and async issues, API contract mismatches between backend and frontend, integration between the pieces (they were built separately), tests that would not catch a regression. Run the backend tests and, if the frontend changed, npm run build and npx playwright test.', skills: ['tdd'] },
         { key: 'safety', ask: `SAFETY, SECURITY AND MONEY: PayPal writes outside approval.py execute, anything that weakens the approval gate, the read-only client or the guard, auth on new endpoints, secrets or keys in code/logs/bundle, live PayPal URLs, paid API use, data leaks to the browser. Run tests/test_write_boundary.py and tests/test_core.py::test_analyze_never_writes_to_paypal. Also vet every skill folder this PR adds under .claude/skills (git diff --stat origin/main...origin/${t.branch} -- .claude/skills) against the checklist in docs/autopilot/SKILLS.md: read every file; any failure is a blocker.` },
         { key: 'design', ask: 'DESIGN, OPERABILITY AND DOCS: does it do what the task asked; dead code, duplication, naming, consistency with the surrounding code; config and deploy (render.yaml, .env.example, CI) still correct; README/STATUS/frontend README claims match the code; anything a judge or a new developer would trip over. Flag code that is not needed, but never ask to remove tests, guard rules or the approval boundary.', skills: ['ponytail-review'] },
       ]
+      // Strict PRs get the 3 lenses; others one combined Sonnet reviewer (token budget).
+      const lenses = strict ? all : [{ key: 'combined', ask: all.map(l => l.ask).join('\n'), skills: ['tdd'] }]
       const found = (await parallel(lenses.map(l => () => agent(`Independent reviewer (lens: ${l.key}) for PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
 ${READ_SKILLS(t, l.skills)}Task spec:
 ${t.spec}
@@ -280,9 +283,9 @@ ${previous ? 'This is re-review round ' + round + '. Earlier confirmed findings 
 Report real problems only, each with file, line, severity (blocker / should_fix / nit) and the exact fix. Nothing is too basic to report: check that things actually run.
 
 ${RULES}`,
-        { label: `review:${t.id}:${l.key}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'sonnet', effort: 'high', schema: AUDIT })))).filter(Boolean)
+        { label: `review:${t.id}:${l.key}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'sonnet', effort: strict ? 'high' : 'medium', schema: AUDIT })))).filter(Boolean)
       return agent(`You are the principal engineer making the merge decision on PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
-Three independent reviewers reported:
+The reviewers reported:
 ${JSON.stringify(found.map((f, i) => ({ lens: lenses[i] && lenses[i].key, findings: f.findings })), null, 2)}
 1. Verify every blocker and should_fix finding against the code yourself. Drop the ones that are wrong; keep the real ones (with exact fixes).
 2. Then do your own pass for what all three missed, especially basics: does it actually run end to end, do backend and frontend agree on field names, are new endpoints protected, are docs and config in step${strict ? ', and (this PR touches PayPal or money paths) is the write boundary provably intact: run tests/test_write_boundary.py and tests/test_core.py::test_analyze_never_writes_to_paypal' : ''}.
@@ -292,7 +295,7 @@ ${RULES}`,
         { label: `principal:${t.id}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: strict ? 'opus' : 'sonnet', effort: 'high', schema: VERDICT })
     }
     let verdict = await review(0, null)
-    for (let round = 1; round <= 2 && verdict && (verdict.blockers.length || verdict.should_fix.length); round++) {
+    for (let round = 1; round <= (strict ? 2 : 1) && verdict && (verdict.blockers.length || verdict.should_fix.length); round++) {
       const confirmed = { blockers: verdict.blockers, should_fix: verdict.should_fix }
       await agent(`You are the Sonnet tech lead for PR #${pr.pr_number} (task ${t.id}) in ${t.worktree}, branch ${t.branch}. The review panel confirmed these findings. Fix every one with tests where behavior changes, run the full checks again, commit, push, and wait for CI green (gh pr checks ${pr.pr_number} --watch --interval 20).
 ${JSON.stringify(confirmed, null, 2)}
