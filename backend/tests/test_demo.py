@@ -150,16 +150,16 @@ def test_sessions_expire_at_max_age_even_while_busy():
             pass
 
 
-def test_reset_restarts_the_absolute_lifetime():
+def test_reset_does_not_extend_the_absolute_lifetime():
     clock = FakeClock()
     manager = DemoManager(max_age=100.0, clock=clock, runtime_factory=SimpleNamespace)
     session = manager.create()  # created at 0
     clock.now = 90.0
-    manager.reset(session.id)  # the fresh runtime starts a new 100 second life at 90
-    clock.now = 150.0  # 150 seconds since create, 60 since reset
+    manager.reset(session.id)  # a fresh runtime, but the session keeps its original 100 second life
+    clock.now = 100.0  # exactly max_age since create: still alive
     with manager.use(session.id):
         pass
-    clock.now = 191.0  # 101 seconds since reset
+    clock.now = 101.0  # 101 seconds since create, though only 11 since reset
     with pytest.raises(DemoSessionNotFound):
         with manager.use(session.id):
             pass

@@ -69,14 +69,14 @@ def build_demo_runtime() -> Runtime:
         groq_api_key=None, database_url=None, checkpoint_target=None, provider=None, reasoner="rules",
         paypal_webhook_id=None,
     )
-    rt = Runtime(settings, seed_cases=DEMO_CASE_IDS, force_rules=True, audit_to_file=False,
-                 checkpointer=InMemorySaver(), tracing=False)
-    if rt.mock is None or rt.mode != "mock / rules":
-        raise RuntimeError(f"demo runtime must be mock / rules, got {rt.mode}")
-    hero = rt.analyze(HERO_DISPUTE_ID)
+    runtime = Runtime(settings, seed_cases=DEMO_CASE_IDS, force_rules=True, audit_to_file=False,
+                      checkpointer=InMemorySaver(), tracing=False)
+    if runtime.mock is None or runtime.mode != "mock / rules":
+        raise RuntimeError(f"demo runtime must be mock / rules, got {runtime.mode}")
+    hero = runtime.analyze(HERO_DISPUTE_ID)
     if hero.status != "PENDING":
         raise RuntimeError(f"the hero proposal must wait for approval, got {hero.status}")
-    return rt
+    return runtime
 
 
 def simulator_cases() -> list[dict]:
@@ -161,7 +161,6 @@ class DemoManager:
             self._admit_locked(self._clock())
         with self.use(session_id) as session:
             session.runtime = self._runtime_factory()
-            session.created_at = self._clock()
             return session
 
     def simulate(self, session: DemoSession, case_id: str) -> Proposal:
