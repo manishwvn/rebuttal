@@ -7,6 +7,18 @@ final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
 ## Tasks
 
+### Q1 Deterministic quality gates in CI — size M — todo — priority now
+Catch basic mistakes without spending model usage. Add to `.github/workflows/tests.yml` (all free):
+- Secret scan of every push and PR with gitleaks (free for personal accounts; `gitleaks/gitleaks-action@v2` or the
+  gitleaks binary), with an allowlist only for the vendored skill examples if needed.
+- Backend lint with `ruff check` (add `ruff` to the `dev` dependency group with `uv add --dev ruff`, a minimal
+  `[tool.ruff]` config in `backend/pyproject.toml`; fix what it flags in the same PR, do not disable rules wholesale).
+- Frontend: confirm `npm run build` (already `tsc -b && vite build`) and `npm run lint` stay in CI; add `tsc --noEmit`
+  for the e2e folder if it is not covered.
+- A test that every environment variable read by the backend (`os.getenv` / `os.environ`) is listed in
+  `backend/.env.example` or explicitly allowlisted.
+Done when CI runs the new jobs on the PR and they pass.
+
 ### A1 Keep the live backend awake (free) — size S — done #6
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
 10 minutes (public repo, so Actions minutes are free; one free Render service running 24/7 fits the 750 free hours a

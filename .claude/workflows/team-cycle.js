@@ -7,8 +7,8 @@ export const meta = {
     { title: 'Build', detail: 'Haiku workers, one worktree each, xhigh or max effort', model: 'haiku' },
     { title: 'Audit', detail: '3 Haiku auditors per piece at max effort (spec, correctness, safety), Haiku fixes, re-audit', model: 'haiku' },
     { title: 'Integrate', detail: 'Sonnet tech lead combines the pieces, runs every test, opens the PR', model: 'sonnet' },
-    { title: 'Review', detail: 'Reviewer agent; Opus when the diff touches PayPal or money paths' },
-    { title: 'Fix', detail: 'Sonnet fixes review findings, then a second review', model: 'sonnet' },
+    { title: 'Review', detail: '3 independent Sonnet reviewers (correctness, safety, design) then an Opus principal engineer who verifies every finding and decides', model: 'sonnet' },
+    { title: 'Fix', detail: 'Sonnet fixes the confirmed findings, then the panel reviews again', model: 'sonnet' },
   ],
 }
 
@@ -211,22 +211,41 @@ touches_sensitive = the diff touches any of: ${SENSITIVE}. Do not merge.
 ${RULES}`, { label: `integrate:${t.id}`, phase: 'Integrate', model: 'sonnet', effort: 'high', schema: PR })
     .then(pr => ({ t, plan, pr })),
 
-  // Review, then at most two fix rounds.
+  // Review panel: 3 independent Sonnet reviewers, an Opus principal engineer verifies and decides; up to 2 fix rounds.
   async ({ t, plan, pr }) => {
     if (!pr || !pr.pr_number) return { id: t.id, pr, verdict: null, note: 'no PR opened' }
     const strict = pr.touches_sensitive || plan.risk === 'high'
-    const review = () => agent(`Review PR #${pr.pr_number} (${pr.pr_url}) for queue task ${t.id}: in ${t.worktree} run git fetch origin && git diff origin/main...origin/${t.branch}. Skip vendored files under .claude/skills and .agents/.
-Check, in this order: PayPal writes outside approval.py's execute node or anything that weakens the approval gate, the read-only client or the guard${strict ? ' (this PR touches sensitive paths: confirm explicitly that tests/test_write_boundary.py and tests/test_core.py::test_analyze_never_writes_to_paypal pass and the boundary is intact)' : ''}; leaked secrets or live PayPal URLs; correctness bugs; missing tests; spending money. Blockers = must fix before merge. should_fix = real issues worth fixing now. Skip pure style nits.`,
-      { label: `review:${t.id}`, phase: 'Review', agentType: 'reviewer', model: strict ? 'opus' : 'sonnet', effort: 'high', schema: VERDICT })
-    let verdict = await review()
+    const diff = `in ${t.worktree} run: git fetch origin && git diff origin/main...origin/${t.branch} (skip vendored .claude/skills and .agents)`
+    const review = async (round, previous) => {
+      const lenses = [
+        { key: 'correctness', ask: 'CORRECTNESS AND TESTS: logic bugs, edge cases, error paths, state and async issues, API contract mismatches between backend and frontend, integration between the pieces (they were built separately), tests that would not catch a regression. Run the backend tests and, if the frontend changed, npm run build and npx playwright test.' },
+        { key: 'safety', ask: 'SAFETY, SECURITY AND MONEY: PayPal writes outside approval.py execute, anything that weakens the approval gate, the read-only client or the guard, auth on new endpoints, secrets or keys in code/logs/bundle, live PayPal URLs, paid API use, data leaks to the browser. Run tests/test_write_boundary.py and tests/test_core.py::test_analyze_never_writes_to_paypal.' },
+        { key: 'design', ask: 'DESIGN, OPERABILITY AND DOCS: does it do what the task asked; dead code, duplication, naming, consistency with the surrounding code; config and deploy (render.yaml, .env.example, CI) still correct; README/STATUS/frontend README claims match the code; anything a judge or a new developer would trip over.' },
+      ]
+      const found = (await parallel(lenses.map(l => () => agent(`Independent reviewer (lens: ${l.key}) for PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
+Task spec:
+${t.spec}
+${l.ask}
+${previous ? 'This is re-review round ' + round + '. Earlier confirmed findings that should now be fixed: ' + JSON.stringify(previous) : ''}
+Report real problems only, each with file, line, severity (blocker / should_fix / nit) and the exact fix. Nothing is too basic to report: check that things actually run.`,
+        { label: `review:${t.id}:${l.key}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'sonnet', effort: 'high', schema: AUDIT })))).filter(Boolean)
+      return agent(`You are the Opus principal engineer making the merge decision on PR #${pr.pr_number} (${pr.pr_url}), queue task ${t.id} "${t.title}". Read-only. ${diff}.
+Three independent reviewers reported:
+${JSON.stringify(found.map((f, i) => ({ lens: lenses[i] && lenses[i].key, findings: f.findings })), null, 2)}
+1. Verify every blocker and should_fix finding against the code yourself. Drop the ones that are wrong; keep the real ones (with exact fixes).
+2. Then do your own pass for what all three missed, especially basics: does it actually run end to end, do backend and frontend agree on field names, are new endpoints protected, are docs and config in step${strict ? ', and (this PR touches PayPal or money paths) is the write boundary provably intact: run tests/test_write_boundary.py and tests/test_core.py::test_analyze_never_writes_to_paypal' : ''}.
+3. safe_to_merge only if no confirmed blocker or should_fix remains. List confirmed issues in blockers / should_fix.`,
+        { label: `principal:${t.id}${round ? '#' + round : ''}`, phase: 'Review', agentType: 'reviewer', model: 'opus', effort: 'high', schema: VERDICT })
+    }
+    let verdict = await review(0, null)
     for (let round = 1; round <= 2 && verdict && (verdict.blockers.length || verdict.should_fix.length); round++) {
-      await agent(`You are the Sonnet tech lead for PR #${pr.pr_number} (task ${t.id}) in ${t.worktree}, branch ${t.branch}. Fix these review findings with tests where behavior changes, run the full checks again, commit, push, and wait for CI green (gh pr checks ${pr.pr_number} --watch --interval 20).
-Blockers: ${JSON.stringify(verdict.blockers)}
-Should fix: ${JSON.stringify(verdict.should_fix)}
-If a finding is wrong, leave the code and explain why in a PR comment (gh pr comment). Do not merge.
+      const confirmed = { blockers: verdict.blockers, should_fix: verdict.should_fix }
+      await agent(`You are the Sonnet tech lead for PR #${pr.pr_number} (task ${t.id}) in ${t.worktree}, branch ${t.branch}. The review panel confirmed these findings. Fix every one with tests where behavior changes, run the full checks again, commit, push, and wait for CI green (gh pr checks ${pr.pr_number} --watch --interval 20).
+${JSON.stringify(confirmed, null, 2)}
+If you are sure a finding is wrong, leave the code and explain why in a PR comment (gh pr comment). Do not merge.
 
 ${RULES}`, { label: `fix:${t.id}#${round}`, phase: 'Fix', model: 'sonnet', effort: 'high' })
-      verdict = await review()
+      verdict = await review(round, confirmed)
     }
     return { id: t.id, branch: t.branch, worktree: t.worktree, pr, verdict, strict }
   },
