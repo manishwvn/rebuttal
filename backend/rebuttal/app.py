@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from . import analytics
 from .agent.graph import DisputeAgent
 from .approval import ApprovalError
+from .demo import DemoManager
+from .demo_api import make_demo_router
 from .paypal.client import PayPalError
 from .runtime import Runtime
 from .scenarios import load_cases, seed_case
@@ -62,6 +64,12 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 
 
 protected = [Depends(require_token)]
+# The demo router is deliberately NOT behind the token: it can only reach its own DemoManager, an isolated mock
+# runtime per session, and never `rt`. Nothing here may pass `rt`, `rt.client` or `rt.settings` to the demo.
+# tests/test_demo_isolation.py enforces that and checks that every other /api route keeps the token.
+# The real-sandbox routes below keep `protected`.
+demo_manager = DemoManager()
+app.include_router(make_demo_router(demo_manager))
 
 
 def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError) -> HTTPException:
