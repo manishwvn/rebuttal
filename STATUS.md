@@ -54,10 +54,20 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
   `VITE_API_TOKEN` build guard is a Vite plugin hook, so it reads the same env the build inlines from any start directory.
 - **Tests:** 186 pass (173 + 3 for `approved_message` + 10 for the 502, the audit line and the interrupt hook); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
+## Known issues (analytics)
+
+- Studio bundle: the lazy Analytics chunk is about 4.4 MB (1.2 MB gzip); `AllCommunityModule` can be trimmed later.
+- A Studio data refresh remounts the widget (Studio resets state when `data` changes), so Refresh flashes.
+- `useAgThemeMode` duplicates the Inbox's theme-mode effect; dedupe in C1.
+- Whether the real sandbox list returns `seller_response_due_date` is unverified; the deadlines view reads it from the
+  dispute either way (one extra GET per waiting dispute).
+- "Refunded" means the offer or claim reached PayPal as executed, not that the buyer accepted it. Sums ignore currency (USD).
+
 ## Next, in order
 
 1. Autopilot queue: `docs/autopilot/QUEUE.md` (source of truth for what is next).
-2. Frontend slice 2: AG Studio dashboard (custom widgets, theming), Render static site, point the dashboard at the
+2. B1 parts 2-3: custom Studio widgets (`createWidgets`) and the Agent Framework (browser adapter proxied through the
+   backend, read-only); trim `AllCommunityModule`. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
 3. Video script by **Oct 12**; rough cut Oct 23.

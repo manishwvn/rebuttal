@@ -100,14 +100,15 @@ import { AgStudio } from 'ag-studio-react'
 - Cost: npm install only. No licence purchase. The watermark is accepted under the Discord comment (section 3).
 - Fallback if Studio fails to build or run: AG Grid Community plus AG Charts Community with the same endpoints. Both are MIT on npm (`ag-grid-community` 36.2.0, `ag-charts-community` 14.2.0).
 
-Fallback used: no
+Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B1a); the Analytics tab uses it as planned.
 
 ## 9. NOT VERIFIED
 
-- Watermark behaviour in a production build, and its exact appearance.
+- Watermark behaviour in a production build. In the Playwright screenshot (`docs/screenshots/analytics.png`) no
+  watermark shows; the unlicensed banner appears as console errors only. Checked once, in the mock-backed build.
 - Whether the Discord confirmation covers Studio specifically. It was given for AG Grid (repo `CLAUDE.md`).
 - The 45-day trial length. The trial and pricing pages we could reach do not state it, and the pricing page is sales copy.
-- Bundle-size impact of Studio and of lazy loading. To be measured in the frontend PR.
-- Studio with Vite 8 and React 19.2. To be confirmed when the frontend PR builds.
+- Bundle size, measured in B1a: the lazy Analytics chunk is about 4.4 MB (1.2 MB gzip), and the main chunk grew about
+  41 kB. Trimming (for example dropping `AllCommunityModule` from the Inbox) is a later task.
 - The Agent Framework with Groq. It needs the backend proxy and an adapter that we write.
 - Custom widget runtime behaviour beyond the documented API.
