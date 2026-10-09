@@ -2,6 +2,9 @@
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-09 | Q3 | in review (PR #28)
+The official `paypal-agent-toolkit` 1.11.0 cannot be made strictly read-only (langchain pin, `run()` dispatches every tool, `requests` bypasses our transport, no `fields=all`). Built by the team workflow: `agent/toolkit.py` (four read tools in the toolkit's shape over `client.read_only()`), `gather` wired to it by the lead, ADR 0008, README and prize-fit. Evals JSON identical before and after. APIMatic plugin not used, so no apimatic-log entry. Needs lead review: touches `facts.py`.
+
 ## 2026-10-09 | A7 | PR open
 ConfirmDialog closed at once under the Vite dev server: StrictMode's simulated unmount calls `close()`, and the late `close` event ran `onCancel`. Fix: `onClose` only cancels when the dialog is really closed. New Playwright project server (Vite dev on 5174) and `e2e/dev-strictmode.spec.ts` failed before the fix, passes after. StrictMode stays on.
 
