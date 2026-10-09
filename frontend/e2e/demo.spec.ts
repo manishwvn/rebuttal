@@ -28,11 +28,13 @@ function recordRequests(page: Page): Sent[] {
   return sent
 }
 
-// Opens the demo from the landing page. The recorder starts just before the click, after the landing page has
-// loaded, so it records only what the demo sends.
+// Opens the demo from the landing page. The Case select stays disabled until the landing page's simulator case list
+// has loaded, and that request is sent before the select is enabled. So the recorder starts after every landing-page
+// call and records only what the demo sends.
 async function enterDemo(page: Page): Promise<Sent[]> {
   await page.goto('/')
   await expect(page.getByTestId('mode-badge')).toContainText('mock')
+  await expect(page.getByLabel('Case')).toBeEnabled()
   const sent = recordRequests(page)
   await page.getByTestId('try-demo').click()
   await expect(page).toHaveURL(/#demo$/)
@@ -104,9 +106,7 @@ test('Opening #demo directly never calls the real API', async ({ page }) => {
   await expect(page.getByTestId('demo-banner')).toBeVisible()
   // Wait for the demo's inbox to load, so the calls it makes on load are recorded too.
   await expect(page.getByTestId('inbox').locator('.ag-row')).toHaveCount(6)
-  const paths = sent.map((r) => r.path)
-  expect(paths).not.toContain('/api/disputes')
-  expect(paths).not.toContain('/api/health')
+  expectIsolated(sent)
 })
 
 test('The real dashboard still works after visiting the demo', async ({ page }) => {
