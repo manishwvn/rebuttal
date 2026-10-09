@@ -43,6 +43,18 @@ REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_disput
 dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to
 `.env.example`). Replaces the password-based buyer steps (supersedes B5).
 
+### S1 APIMatic plugin in every PayPal change — size S — todo — standing rule from now on
+Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK is free and installed, but
+`docs/apimatic-log.md` is empty, so we have no evidence of use. From now on every task that touches PayPal calls,
+the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
+First pass now: use it to check our Disputes calls and mock shapes against the SDK models, fix any drift, log it.
+
+### S2 More of the Disputes API — size M — todo — after Q4
+Strengthens Best Use of PayPal + AI. Add the appeal and escalate paths and more evidence types (proof of
+fulfillment, refund, return tracking), each proposed by the agent and executed only by `execute` after approval,
+with deterministic `PayPal-Request-Id`, mock parity and tests. Look up shapes with the paypal plugin and APIMatic
+(log in `docs/apimatic-log.md`). Sandbox-only flows (`require-evidence`) only in the named manual scripts.
+
 ### A1 Keep the live backend awake (free) — size S — done #6
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
 10 minutes (public repo, so Actions minutes are free; one free Render service running 24/7 fits the 750 free hours a
@@ -127,6 +139,9 @@ Rules allow several substantially different submissions, each winning up to one 
 prize. Only if Rebuttal's queue is on track: scope a second, different entry aimed at Bryntum ($1,000 x3) or Channel3
 ($1,500) plus one honorable mention, reusing nothing user-visible from Rebuttal. Write `docs/second-entry.md` with
 the idea, effort and a go/no-go; go only if it fits before Nov 3 without slowing Rebuttal.
+Sponsor research (Oct 9): Bryntum ships free `-trial` npm packages (no card) but the trial is 45-60 days and
+"evaluation only, not production"; judging runs to Dec 15, so verify the trial terms (or ask Bryntum on Discord via a
+USER item) before choosing it. Channel3 has a free MCP tier (product catalog search), weak fit for disputes.
 
 ### C1 Design polish — size M — todo — after B1
 `frontend-design` skill pass over inbox, case view and Studio: typography, spacing, empty and loading states,

@@ -82,6 +82,9 @@ before the reset is free, so never leave it idle while there is runnable work.
      re-reviewed by the full panel. Manish asked for this team structure:
      Haiku does most of the building because it is cheap on the usage limit, and it gets the most auditing. At most
      6 agents run at once on this Mac (8 cores); the rest queue.
+   - Skills: every team-cycle task starts with a Sonnet skill scout that searches (`npx -y skills find`), vets and
+     installs skills under the policy in `docs/autopilot/SKILLS.md`. Manish gave a standing approval for installs that
+     pass that checklist; never ask him. Size S agents get the relevant installed skills named in their prompt.
    - Size S tasks and docs-only tasks: one agent (`chores` with `model: "haiku"` for docs, or a `general-purpose`
      agent with `model: "sonnet"` for small code), then one independent `reviewer` agent (`model: "sonnet"`; `"opus"`
      if the diff touches PayPal or money paths). Fix its findings before merge.
