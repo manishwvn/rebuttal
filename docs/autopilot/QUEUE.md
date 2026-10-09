@@ -28,7 +28,7 @@ Done when CI runs the new jobs on the PR and they pass.
 deterministic PayPal-Request-Id, Supabase over paid Postgres, held-out evals. Link them from README. (Competitor Stood
 shows 24 ADRs; judges score Technological Implementation first in ties.)
 
-### Q3 PayPal Agent Toolkit in the agent (read-only) — size M — in review (PR #28)
+### Q3 PayPal Agent Toolkit in the agent (read-only) — size M — done #28
 Result: the official package cannot be used strictly read-only (langchain pin conflict, `run()` dispatches any tool, `requests` bypasses our transport, no `fields=all`), so `agent/toolkit.py` is a four-tool read-only adapter in the toolkit's tool shape and `gather` reads through it; see ADR 0008.
 PayPal promotes its AI Toolkit / MCP server for this hackathon. Use the PayPal Agent Toolkit (Python package, check
 the paypal plugin and https://developer.paypal.com for the current package and dispute/transaction tools) for the
