@@ -5,7 +5,9 @@ Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-aut
 ## 2026-10-09 | A6 | in review (PR #33)
 Judge demo mode built by the team workflow: per-visitor isolated mock Runtime (`demo.py`), public `/api/demo/{session}` router (`demo_api.py`), router shell + shared Desk + DemoApp on the frontend, docs and ADR 0009. Integration fixed the open audit findings (reset lock, 404 before 422, per-dispute lock growth, docstring, `demo-route` spec). approval.py, paypal/, facts.py, reasoner.py, config.py untouched. Needs lead review of the isolation; not run against Render.
 
-## 2026-10-09 11:35 CDT | W 72→? % | F 29→? % | A6 | merged #33
+ALERT weekly-80 2026-10-14T00:00:00Z sent
+
+## 2026-10-09 11:35 CDT | W 72→81 % | F 29→98 % | A6 | merged #33
 Team workflow built demo mode; Opus reviewer: no blockers, 1 medium (one client could evict all sessions) fixed with per-client limit (env REBUTTAL_DEMO_CLIENT_LIMIT, default 10/min) and 429 at capacity; e2e failure from shared-IP limit fixed. Live POST /api/demo/sessions returns 200 and health ok after deploy.
 
 ## 2026-10-09 09:15 CDT | W 68→72 % | F 10→26 % | Q3, A7 | merged #28, #26

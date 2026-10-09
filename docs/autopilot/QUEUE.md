@@ -91,7 +91,7 @@ in Render's Python runtime; if not, find a free alternative and document it). Do
 The sign-in screen must also show a "Try the demo" link (`href="#demo"`): `DemoApp` needs no token, so judges reach it
 without one. `VITE_API_TOKEN` must never be set in a public frontend build.
 
-### A6 Judge demo mode — size M — in review (PR #33) — priority now (rules: judges must be able to try it; testing credentials go in the submission)
+### A6 Judge demo mode — size M — done #33 — priority now (rules: judges must be able to try it; testing credentials go in the submission)
 Judges must be able to try Rebuttal without PayPal accounts. Add a demo mode on the same service: a "Try the demo"
 button that runs the hero case and the other demo cases against the in-memory mock sandbox in a separate, isolated
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
