@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .approval import ApprovalError
+from .paypal.client import PayPalError
 from .runtime import Runtime
 from .scenarios import load_cases, seed_case
 
@@ -56,6 +57,14 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 protected = [Depends(require_token)]
 
 
+def paypal_interrupted(exc: PayPalError) -> HTTPException:
+    """PayPal failed while an approved action was being sent. The approval is already saved (the proposal now reads
+    APPROVED), so say that in a normal JSON error: an unhandled exception would become a bare 500 that browsers on
+    another origin cannot even read, because it carries no CORS headers."""
+    return HTTPException(502, f"PayPal answered with an error ({exc.status}) while sending. Your approval is saved; "
+                              "retry to continue.")
+
+
 class ApproveBody(BaseModel):
     edited_message: str | None = None
 
@@ -95,6 +104,8 @@ def approve(proposal_id: str, body: ApproveBody):
         return rt.approvals.approve(proposal_id, body.edited_message).to_dict()
     except ApprovalError as exc:
         raise HTTPException(409, str(exc)) from exc
+    except PayPalError as exc:
+        raise paypal_interrupted(exc) from exc
 
 
 @app.post("/api/proposals/{proposal_id}/retry", dependencies=protected)
@@ -105,6 +116,8 @@ def retry(proposal_id: str):
         return rt.approvals.retry(proposal_id).to_dict()
     except ApprovalError as exc:
         raise HTTPException(409, str(exc)) from exc
+    except PayPalError as exc:
+        raise paypal_interrupted(exc) from exc
 
 
 @app.get("/api/proposals/pending", dependencies=protected)

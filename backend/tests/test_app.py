@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rebuttal import app as app_module
+from rebuttal.paypal.client import PayPalError
 from rebuttal.runtime import Runtime
 
 
@@ -128,3 +129,24 @@ def test_the_simulator_lists_the_labeled_cases(client):
 def test_the_simulator_case_list_is_mock_only(client, monkeypatch):
     monkeypatch.setattr(app_module.rt, "mock", None)
     assert client.get("/api/simulator/cases").status_code == 501
+
+
+def test_a_paypal_error_while_sending_is_a_readable_502_and_the_approval_stays_saved(client, monkeypatch):
+    from rebuttal import approval
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(PayPalError(503, {})))
+    failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
+    assert failed.status_code == 502  # a JSON error the dashboard can read, not a bare 500
+    assert "approval is saved" in failed.json()["detail"] and "503" in failed.json()["detail"]
+    waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
+    assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []
+
+
+def test_a_paypal_error_during_retry_is_a_readable_502(client, monkeypatch):
+    def still_down(proposal_id):
+        raise PayPalError(503, {"name": "SERVICE_UNAVAILABLE"})
+
+    monkeypatch.setattr(app_module.rt.approvals, "retry", still_down)
+    answer = client.post("/api/proposals/prop_x_PP-D-2000/retry")
+    assert answer.status_code == 502 and "retry to continue" in answer.json()["detail"]
