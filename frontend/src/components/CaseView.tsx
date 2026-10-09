@@ -111,6 +111,13 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
   const reasonerChoice = typeof picked === 'string' ? picked : decision.resolution
   const guardChanged = reasonerChoice !== decision.resolution || decision.guard_notes.length > 0
 
+  // A failed call is followed by a refresh, which can show that the server moved on: the proposal was decided
+  // elsewhere, or approved but interrupted. The dialog then stays open so the error remains readable, but its
+  // action can no longer be repeated (it would only be refused with a 409).
+  const actionable = confirming === 'retry' ? proposal.status === 'APPROVED' : pending
+  const unavailable =
+    confirming !== null && !actionable ? `This proposal changed on the server: it is now ${STATUS_LABEL[status].toLowerCase()}. Cancel to see where it stands.` : null
+
   const openConfirm = (kind: Exclude<Confirming, null>) => {
     setError(null)
     setConfirming(kind)
@@ -290,6 +297,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           confirmLabel="Approve and send"
           busy={busy}
           error={error}
+          unavailable={unavailable}
           onConfirm={confirm}
           onCancel={close}
         >
@@ -297,12 +305,12 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
         </ConfirmDialog>
       )}
       {confirming === 'retry' && (
-        <ConfirmDialog title="Retry sending to PayPal?" confirmLabel="Retry" busy={busy} error={error} onConfirm={confirm} onCancel={close}>
+        <ConfirmDialog title="Retry sending to PayPal?" confirmLabel="Retry" busy={busy} error={error} unavailable={unavailable} onConfirm={confirm} onCancel={close}>
           <SendSummary dispute={dispute} action={action} amount={actionAmount(action, summary.amount)} message={null} messageNote="The message you approved, including any edits you made, exactly as approved." edited={false} />
         </ConfirmDialog>
       )}
       {confirming === 'reject' && (
-        <ConfirmDialog title="Reject this proposal?" confirmLabel="Reject" tone="danger" busy={busy} error={error} onConfirm={confirm} onCancel={close}>
+        <ConfirmDialog title="Reject this proposal?" confirmLabel="Reject" tone="danger" busy={busy} error={error} unavailable={unavailable} onConfirm={confirm} onCancel={close}>
           <p>
             <strong>Nothing will be sent to PayPal.</strong> The proposal is closed and the dispute stays open for you to handle yourself.
           </p>

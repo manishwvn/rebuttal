@@ -6,13 +6,15 @@ interface Props {
   tone?: 'primary' | 'danger'
   busy: boolean
   error: string | null
+  /** Why the action can no longer be confirmed (the server moved on). Shown in the dialog; disables the confirm button. */
+  unavailable?: string | null
   onConfirm: () => void
   onCancel: () => void
   children: ReactNode
 }
 
 // A native modal <dialog>: focus is trapped and Escape closes it. Mount it to open it, unmount it to close it.
-export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, error, onConfirm, onCancel, children }: Props) {
+export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, error, unavailable = null, onConfirm, onCancel, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -42,11 +44,16 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
           {error}
         </p>
       )}
+      {unavailable && (
+        <p role="note" className="note" data-testid="confirm-unavailable">
+          {unavailable}
+        </p>
+      )}
       <div className="actions">
         <button type="button" className="ghost" onClick={onCancel} disabled={busy}>
           Cancel
         </button>
-        <button type="button" className={tone === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy}>
+        <button type="button" className={tone === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy || !!unavailable}>
           {busy ? 'Working…' : confirmLabel}
         </button>
       </div>

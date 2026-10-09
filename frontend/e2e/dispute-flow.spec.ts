@@ -94,6 +94,10 @@ test('a proposal that is no longer approvable shows the 409 plainly', async ({ p
   await dialog.getByRole('button', { name: 'Approve and send' }).click()
   await expect(dialog.getByTestId('confirm-error')).toContainText('REJECTED')
 
+  // The refreshed proposal is no longer approvable, so the button can't be pressed again to be refused again.
+  await expect(dialog.getByTestId('confirm-unavailable')).toContainText('now rejected')
+  await expect(dialog.getByRole('button', { name: 'Approve and send' })).toBeDisabled()
+
   // The screen catches up with the server once the dialog is dismissed.
   await dialog.getByRole('button', { name: 'Cancel' }).click()
   await expect(page.getByTestId('case-status')).toHaveText('Rejected')
