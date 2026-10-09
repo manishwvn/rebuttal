@@ -79,8 +79,8 @@ flowchart LR
   refuses everything but GET.
 - `rebuttal/paypal/mock.py`: in-memory sandbox behind `httpx.MockTransport`; the same client runs against both.
 - [`rebuttal/agent/toolkit.py`](backend/rebuttal/agent/toolkit.py): the read-only, PayPal-Agent-Toolkit-shaped tool
-  layer that `gather_facts` uses for showing a dispute, listing transactions, order trackers and capture-to-order
-  lookups.
+  layer for showing a dispute, listing transactions, order trackers and capture-to-order lookups. `gather_facts`
+  still reads PayPal through `PayPalClient.read_only()` directly.
 - `rebuttal/agent/`: `facts.py` (gather + hard facts), `llm.py` (LangChain chat models, Pydantic `DecisionOut`),
   `reasoner.py` (rules baseline, `guard`, prompt), `pipeline.py` (planning, evidence PDF), `graph.py` (the graph).
 - `rebuttal/approval.py`: the approval interrupt and the `execute` node, the only code that writes to PayPal.
@@ -95,7 +95,7 @@ Rebuttal does not depend on PayPal's official `paypal-agent-toolkit` package (v1
 3. It sends requests with `requests` directly, so our read-only HTTP transport and the mock sandbox cannot gate it.
 4. Its `list_transactions` does not request `fields=all`, so the payer email needed for the duplicate-charge fact is not returned.
 
-`rebuttal/agent/toolkit.py` is therefore a drop-in-shaped substitute: same tool shape (`method`, `name`, `description`, `args_schema`, `actions`, `execute`; `run(method, params)` returns a JSON string), tools named like the toolkit's (`get_dispute`, `list_transactions`) plus Rebuttal's `get_order_trackers` and `get_capture_order_id`, all over `PayPalClient.read_only()`. Only these four read tools exist; any other name raises `ToolNotAvailable`. The official package can replace it once its langchain pin is lifted.
+`rebuttal/agent/toolkit.py` is therefore a substitute with the same tool shape (`method`, `name`, `description`, `args_schema`, `actions`, `execute`; `run(method, params)` returns a JSON string), tools named like the toolkit's (`get_dispute`, `list_transactions`) plus Rebuttal's `get_order_trackers` and `get_capture_order_id`, all over `PayPalClient.read_only()`. Only these four read tools exist; any other name raises `ToolNotAvailable`. The official package could replace it only after its langchain pin is lifted and reasons 2 to 4 are fixed upstream, or wrapped so that only the four read tools run over the GET-only transport.
 
 The write path is unchanged: `execute` in `rebuttal/approval.py` is still the only writer. The adapter calls only the four read methods and is covered by `backend/tests/test_toolkit.py` and by the package scan in `backend/tests/test_write_boundary.py`.
 
