@@ -131,6 +131,12 @@ const LENSES = [
   { key: 'safety', ask: 'SAFETY AND QUALITY: any PayPal write outside approval.py execute, weakened guard/approval/read-only client, secret or key in code or logs, live PayPal URL, paid API use; then naming, dead code, comments that lie, style that differs from the surrounding code, missing docs.' },
 ]
 
+// Docs-only pieces get one combined audit (they cannot break code or the write boundary); code pieces get all 3 lenses.
+const DOCS_ONLY = f => /\.(md|txt)$/i.test(f) && !f.startsWith('.claude/')
+const lensesFor = p => p.files.length && p.files.every(DOCS_ONLY)
+  ? [{ key: 'docs', ask: 'DOCS: is every instruction done, every claim true against the code (open the files it mentions), nothing invented, no secrets, clear plain English matching the surrounding docs?' }]
+  : LENSES
+
 // One piece: build, then 3 independent Haiku audits, then up to 2 fix + re-audit rounds.
 async function buildPiece(t, p) {
   const tag = `${t.id}/${p.id}`
@@ -138,7 +144,7 @@ async function buildPiece(t, p) {
   if (!built || !built.sha) return built && { piece: p.id, title: p.title, ...built, audit: 'nothing committed' }
   let open = []
   for (let round = 0; round <= 2; round++) {
-    const lenses = round === 0 ? LENSES : [{ key: 'recheck', ask: 'RECHECK: verify each previous finding below is truly fixed, and that the fix introduced nothing new. Previous findings: ' + JSON.stringify(open) }]
+    const lenses = round === 0 ? lensesFor(p) : [{ key: 'recheck', ask: 'RECHECK: verify each previous finding below is truly fixed, and that the fix introduced nothing new. Previous findings: ' + JSON.stringify(open) }]
     const audits = (await parallel(lenses.map(l => () => agent(`You are a nit-picking auditor (lens: ${l.key}) for one piece of Rebuttal queue task ${t.id}. Read-only: never edit, commit or push.
 Inspect commit ${built.sha} from the main repository: cd /Users/manish/Documents/rebuttal && git show ${built.sha} (and git show ${built.sha}:<path> for full files).
 The piece's instructions were:
