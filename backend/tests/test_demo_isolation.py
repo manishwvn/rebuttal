@@ -7,8 +7,10 @@ runtime or a PayPal write.
 """
 
 import ast
+import threading
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
@@ -70,12 +72,47 @@ class FakeClock:
         return self.now
 
 
+REQUEST_TIMEOUT = 15.0  # seconds a demo request may take before the test calls it hung
+
+
+class BoundedClient:
+    """A TestClient whose every request must answer within REQUEST_TIMEOUT. A session lock that is never released
+    (see DemoSession.lock) then fails the test instead of hanging CI: each request runs on a daemon thread that is
+    abandoned if it does not finish, and an exception raised inside the app is re-raised on the test's thread."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def request(self, method, url, **kwargs):
+        box = {}
+
+        def run():
+            try:
+                box["response"] = self.client.request(method, url, **kwargs)
+            except Exception as exc:  # handed back to the test thread below
+                box["error"] = exc
+
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        worker.join(REQUEST_TIMEOUT)
+        assert not worker.is_alive(), f"{method} {url} did not answer within {REQUEST_TIMEOUT}s: a lock is stuck"
+        if "error" in box:
+            raise box["error"]
+        return box["response"]
+
+    def get(self, url, **kwargs):
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url, **kwargs):
+        return self.request("POST", url, **kwargs)
+
+
 @pytest.fixture
 def guarded(monkeypatch):
     """The real runtime is a tripwire and the API token is set: a demo route must need neither."""
     monkeypatch.setattr(app_module, "rt", RealRuntimeTripwire())
     monkeypatch.setattr(app_module, "API_TOKEN", "s3cret")
-    return TestClient(app_module.app)
+    return BoundedClient(TestClient(app_module.app))
 
 
 def hero_proposal(client, sid):
@@ -152,7 +189,7 @@ def test_every_api_route_is_guarded_except_the_demo_and_the_two_open_ones():
 
 def test_a_demo_approval_writes_only_to_its_own_mock(monkeypatch):
     monkeypatch.setattr(app_module, "rt", Runtime(seed_cases=["agent_wrong_size"], force_rules=True))
-    client = TestClient(app_module.app)
+    client = BoundedClient(TestClient(app_module.app))
     sid = client.post("/api/demo/sessions").json()["session_id"]
     proposal = hero_proposal(client, sid)
     assert client.post(f"/api/demo/{sid}/proposals/{proposal['id']}/approve", json={}).status_code == 200
@@ -171,7 +208,8 @@ def test_a_hostile_environment_still_gives_a_mock_rules_demo(guarded, monkeypatc
     real_client = runtime_module.PayPalClient
 
     def recorder(*args, **kwargs):
-        assert kwargs.get("transport") is not None, "a PayPal client was built without the mock transport"
+        assert isinstance(kwargs.get("transport"), httpx.MockTransport), \
+            "a PayPal client was built without the mock transport"
         built.append(kwargs)
         return real_client(*args, **kwargs)
 
@@ -185,7 +223,7 @@ def test_a_hostile_environment_still_gives_a_mock_rules_demo(guarded, monkeypatc
 def test_the_creation_and_simulation_limits_hold_over_http():
     app = FastAPI()
     app.include_router(make_demo_router(DemoManager(max_disputes=7, create_limit=2, create_window=60.0)))
-    client = TestClient(app)
+    client = BoundedClient(TestClient(app))
     first = client.post("/api/demo/sessions")
     second = client.post("/api/demo/sessions")
     assert first.status_code == 200 and second.status_code == 200
@@ -202,7 +240,7 @@ def test_an_expired_session_answers_404():
     clock = FakeClock()
     app = FastAPI()
     app.include_router(make_demo_router(DemoManager(clock=clock)))
-    client = TestClient(app)
+    client = BoundedClient(TestClient(app))
     sid = client.post("/api/demo/sessions").json()["session_id"]
     assert client.get(f"/api/demo/{sid}/disputes").status_code == 200
     clock.now += 7201  # past the idle limit (1800 s) and the maximum age (7200 s)
@@ -213,7 +251,7 @@ def test_max_sessions_evicts_the_oldest_session():
     app = FastAPI()
     manager = DemoManager(max_sessions=2, create_limit=10, create_window=60.0)
     app.include_router(make_demo_router(manager))
-    client = TestClient(app)
+    client = BoundedClient(TestClient(app))
     sids = []
     for _ in range(4):
         sids.append(client.post("/api/demo/sessions").json()["session_id"])
@@ -276,3 +314,12 @@ def test_app_py_hands_the_demo_its_own_manager_and_never_rt():
     for call in calls:
         for argument in [*call.args, *(keyword.value for keyword in call.keywords)]:
             assert "rt" not in name_ids(argument), "app.py passes the real runtime to the demo"
+    # Nothing else in app.py may touch the demo: a route added under /api/demo would be treated as public by the route
+    # inventory above, so it must not exist in app.py at all.
+    demo_names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name) and "demo" in node.id.lower()}
+    demo_names |= {node.attr for node in ast.walk(tree)
+                   if isinstance(node, ast.Attribute) and "demo" in node.attr.lower()}
+    assert demo_names <= {"demo_manager", "DemoManager", "make_demo_router", "DEMO_CASES"}, demo_names
+    demo_paths = [node.value for node in ast.walk(tree)
+                  if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value.startswith("/api/demo")]
+    assert not demo_paths, f"app.py declares a route under /api/demo: {demo_paths}"

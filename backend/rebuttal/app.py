@@ -48,9 +48,10 @@ rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)  # loads backend/.env in
 configure_cors(app, cors_origins())  # after the Runtime, so REBUTTAL_CORS_ORIGINS may live in backend/.env
 
 
-# Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health and the
-# PayPal webhook needs `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call
-# approve is the "human" in the approval gate, so set it on any deployment.
+# Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health, the
+# PayPal webhook and the public demo under /api/demo (each reaches only its own mock session) needs
+# `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call approve is the
+# "human" in the approval gate, so set it on any deployment.
 API_TOKEN = os.getenv("REBUTTAL_API_TOKEN", "").strip()
 if not API_TOKEN and (not rt.settings.mock or rt.settings.database_url) and os.getenv("REBUTTAL_ALLOW_OPEN_API") != "1":
     # Real sandbox or a shared database: an open approve endpoint would make the approval gate meaningless.
