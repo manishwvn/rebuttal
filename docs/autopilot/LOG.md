@@ -5,6 +5,9 @@ Checked Orders v2 payloads and carrier values against the paypal-server-sdk mode
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-09 17:20 CDT | W 83→83 % | F 13→13 % | A5 live check | confirmed
+`/api/health` ok and `/` returns 200 on Render, so the frontend build is served. No new task started: headroom H=7 (cap 90), nothing runnable beyond docs.
+
 ## 2026-10-09 16:40 CDT | W 82→~85 % | A5 | merged #39
 Sonnet built same-origin SPA serving, sign-in (sessionStorage, "Try the demo" #demo), render.yaml frontend build. Reviewer: no blockers; fixed traversal test, null-byte 500, HEAD 405, and made the Render build fall back to API-only if Node/npm fails Live health ok after merge, but `/` returned 404 about 15 min later: not yet confirmed whether Render built the frontend (no Render MCP workspace selected, no key use).
 
