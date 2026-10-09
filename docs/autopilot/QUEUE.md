@@ -58,7 +58,7 @@ Studio Agent Framework: plain-English questions over the dispute data ("which pr
 month?"), using Groq free tier, read-only data access only. Saved views. Playwright screenshots of every widget into
 `docs/screenshots/`.
 
-### B3 More evals — size M — todo
+### B3 More evals — size M — waiting: cases merged; run `--set holdout2 --provider groq --langfuse` once on or after Oct 10 (one Groq eval per day), then update RESULTS/STATUS
 Grow to about 40 cases: 10 more held-out cases written by a subagent that is **not allowed to read**
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.

@@ -32,6 +32,8 @@ frontend slice 1, on top of `50a8230`). Detail: `docs/handoff-2026-10-07.md`, `P
   Groq: model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0, 13.7k tokens (run
   `groq-qwen3.8-27b-holdout-20261009-054233`). Both guard changes turned OFFER_REPLACEMENT (an offer type PayPal does
   not allow) into OFFER_RETURN_FOR_REFUND. Small sample: 10 cases. No code changed. Table: `backend/evals/RESULTS.md`.
+  **Second held-out set** (`evals/holdout2.json`, 10 cases, 5 hard, written blind by a subagent that never read the
+  agent code): not run yet (`--set holdout2`).
 - **Frontend slice 1 (PR open, `feat/frontend-inbox`):** `frontend/` is Vite + React + TS with an AG Grid Community
   inbox, case view (assistant instruction vs shipped, facts, reasoner choice vs final action, guard note, editable
   message), approve / edit / reject behind a confirm dialog that states the exact PayPal call, audit timeline, and a
