@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { AgGridProvider, AgGridReact } from 'ag-grid-react'
 import {
-  AllCommunityModule,
+  CellStyleModule,
+  ClientSideRowModelModule,
   enableDevValidations,
+  GridStateModule,
+  RowApiModule,
+  RowSelectionModule,
   themeQuartz,
   type CellClassParams,
   type ColDef,
@@ -26,8 +30,15 @@ import {
   type DisplayStatus,
 } from '../labels'
 
-// TODO: swap AllCommunityModule for the individual modules in use before the final build.
-const modules = [AllCommunityModule]
+// Only the grid features the inbox uses. A column or option whose module is missing here is silently inert (the
+// dev build logs "error #200" naming the module), so add the module when you add the feature.
+const modules = [
+  ClientSideRowModelModule, // rowData, and the sorting and resizing the columns turn on
+  RowSelectionModule, // rowSelection, node.setSelected
+  RowApiModule, // api.forEachNode
+  CellStyleModule, // colDef.cellClass
+  GridStateModule, // initialState (the default sort)
+]
 
 if (import.meta.env.DEV) enableDevValidations()
 
