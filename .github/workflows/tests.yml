@@ -26,7 +26,7 @@ jobs:
       - name: Lint (ruff)
         run: uv run --frozen ruff check
       - name: Tests with coverage
-        run: uv run --frozen pytest -q --cov --cov-report=term --cov-report=xml
+        run: uv run --frozen pytest -q --cov --cov-report=term --cov-report=xml --cov-fail-under=85
       - name: Coverage summary
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
