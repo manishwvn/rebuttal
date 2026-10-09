@@ -52,7 +52,13 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
   promised only for a 5xx or a network error), and mock-only `POST /api/simulator/interrupt-next-write` (the next
   PayPal write is applied, then answered 503, for the retry test; any seller write attempt uses the flag up). The
   `VITE_API_TOKEN` build guard is a Vite plugin hook, so it reads the same env the build inlines from any start directory.
-- **Tests:** 186 pass (173 + 3 for `approved_message` + 10 for the 502, the audit line and the interrupt hook); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Analytics (PR `feat/studio-data`, B1 part 1):** read-only `GET /api/analytics/rows`, `/summary`, `/deadlines`
+  (`backend/rebuttal/analytics.py`, same API token as the other reads, PayPal read through `client.read_only()`; a
+  waiting dispute's due date is read from the dispute because the list summary may omit it). Frontend: lazy-loaded
+  **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
+  allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
+  screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
+- **Tests:** 230 pass (186 + 44 for analytics and the rest of main); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 
