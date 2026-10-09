@@ -93,7 +93,7 @@ once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATU
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
 two do not share one day's Groq quota.
 
-### B1 AG Studio dashboard, first pass — size L — todo — deadline Oct 23
+### B1 AG Studio dashboard, first pass — size L — in progress: part 1 (data endpoints, Studio integration, first dashboard view) in review (PR #16); parts 2-3 custom widgets and Agent Framework todo — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:
 disputes by reason and by product, money kept vs refunded, response deadlines, model-vs-final agreement from the
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with

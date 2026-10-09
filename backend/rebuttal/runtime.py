@@ -56,6 +56,7 @@ class Runtime:
             checkpointer=checkpointer or make_checkpointer(self.settings.checkpoint_target),
             tracing=_tracing_configured() if tracing is None else tracing)
         self.approvals = ApprovalQueue(self.agent)
+        self.due_dates: dict[str, tuple[float, str | None]] = {}  # analytics: dispute id -> (expiry, seller due date)
 
         if self.mock is not None and seed_cases is not None:
             cases = {c["id"]: c for c in load_cases()}

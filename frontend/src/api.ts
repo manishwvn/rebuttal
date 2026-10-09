@@ -1,4 +1,4 @@
-import type { AuditEntry, Dispute, Health, Proposal, SimulatorCase } from './types'
+import type { AnalyticsReport, AuditEntry, Dispute, Health, Proposal, SimulatorCase } from './types'
 
 // The dashboard only ever talks to the Rebuttal backend. It never calls PayPal.
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '')
@@ -55,4 +55,5 @@ export const api = {
   audit: (disputeId: string) => request<AuditEntry[]>(`/api/audit/${encodeURIComponent(disputeId)}`),
   simulatorCases: () => request<SimulatorCase[]>('/api/simulator/cases'),
   simulate: (caseId: string) => request<Proposal>(`/api/simulator/dispute/${encodeURIComponent(caseId)}`, { method: 'POST' }),
+  analytics: () => request<AnalyticsReport>('/api/analytics'),
 }
