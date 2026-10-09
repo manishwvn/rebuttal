@@ -77,15 +77,24 @@ export type Api = ReturnType<typeof createApi>
 
 export const api = createApi()
 
+// The session id becomes a path segment. encodeURIComponent leaves '.' and '..' unchanged and fetch resolves them,
+// so the id is checked against a plain alphabet before any path is built.
+const DEMO_SESSION_ID = /^[A-Za-z0-9_-]+$/
+
+function demoRoot(sessionId: string): string {
+  if (!DEMO_SESSION_ID.test(sessionId)) throw new Error('Invalid demo session id')
+  return `/api/demo/${encodeURIComponent(sessionId)}`
+}
+
 // A demo session's calls, rooted at /api/demo/<sessionId>. Demo calls never send the dashboard token.
 export function createDemoApi(sessionId: string): Api {
-  return createApi(`/api/demo/${encodeURIComponent(sessionId)}`, { sendToken: false })
+  return createApi(demoRoot(sessionId), { sendToken: false })
 }
 
 export function startDemoSession(): Promise<DemoSessionInfo> {
   return request<DemoSessionInfo>('/api/demo/sessions', { method: 'POST', sendToken: false })
 }
 
-export function resetDemoSession(sessionId: string): Promise<DemoSessionInfo> {
-  return request<DemoSessionInfo>(`/api/demo/${encodeURIComponent(sessionId)}/reset`, { method: 'POST', sendToken: false })
+export async function resetDemoSession(sessionId: string): Promise<DemoSessionInfo> {
+  return request<DemoSessionInfo>(`${demoRoot(sessionId)}/reset`, { method: 'POST', sendToken: false })
 }
