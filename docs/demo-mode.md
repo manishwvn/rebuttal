@@ -54,12 +54,12 @@ The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 
 ## Run it locally
 
-Terminal 1, the backend. `REBUTTAL_API_TOKEN=` and `DATABASE_URL=` are blank so a `backend/.env` on your machine cannot change this run. `REBUTTAL_CORS_ORIGINS` lets the page on port 5173 call the API.
+Terminal 1, the backend. `REBUTTAL_API_TOKEN=`, `DATABASE_URL=` and `REBUTTAL_CHECKPOINT_URL=` are blank so a `backend/.env` on your machine cannot change this run. `REBUTTAL_CORS_ORIGINS` lets the page on port 5173 call the API.
 
 ```bash
 cd backend
 uv sync                                    # once
-REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 
@@ -75,4 +75,4 @@ The demo needs no keys and no model.
 
 ## Known limits
 
-- Sessions live in memory, in one process. A restart, an expiry or a Render free-plan cold start clears every session (the free plan sleeps after 15 idle minutes, see [deploy.md](deploy.md)). A second instance would not see them.
+- Sessions live in memory, in one process. A restart or a Render free-plan cold start clears every session (the free plan sleeps after 15 idle minutes, see [deploy.md](deploy.md)). An idle or maximum-age expiry clears only that visitor's session. A second instance would not see them.

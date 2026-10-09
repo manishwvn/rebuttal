@@ -5,9 +5,9 @@ Status: Accepted
 ## Context
 
 Judges have no PayPal accounts. The real API needs a bearer token (`REBUTTAL_API_TOKEN`), and whoever holds it can
-call approve, so the real API cannot be opened to judges ([README](../../README.md), "Configuration"). The demo still
-has to run the agent end to end, with approval, and it must not become a path to the real sandbox or the real
-approval gate.
+call approve, so the real API cannot be opened to judges ([README](../../README.md#run-it), the configuration
+table). The demo still has to run the agent end to end, with approval, and it must not become a path to the real
+sandbox or the real approval gate.
 
 ## Decision
 
@@ -40,7 +40,7 @@ Alternatives rejected:
 - Demo sessions run the same graph and approval code as the real service, so a change to the agent changes the demo too.
 - The demo routes are open on purpose, so their bounds are what limit how much a visitor can use. A route inventory
   test keeps the real routes behind the token.
-- State lives in memory. A restart, an expiry or a free-plan cold start clears every session, and the UI offers Reset
-  demo.
+- State lives in memory. A restart or a free-plan cold start clears every session; an expiry clears only that session.
+  The UI offers Reset demo.
 - Demo approvals never reach PayPal. The demo shows the write path without a real write.
 - The demo adds routes and tests to maintain. Changes to the demo must keep the isolation tests green.
