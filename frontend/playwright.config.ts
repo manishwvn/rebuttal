@@ -41,6 +41,8 @@ export default defineConfig({
         LANGFUSE_PUBLIC_KEY: '',
         LANGFUSE_SECRET_KEY: '',
         REBUTTAL_TRACING: '0',
+        // Every e2e test shares one client address; the production per-client demo limit would starve them.
+        REBUTTAL_DEMO_CLIENT_LIMIT: '1000',
         REBUTTAL_ALLOW_OPEN_API: '1',
         REBUTTAL_API_TOKEN: '',
         DATABASE_URL: '',

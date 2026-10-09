@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../api'
+import { useApi } from '../apiContext'
 import {
   actionAmount,
   actionText,
@@ -41,6 +41,7 @@ export function CaseView({ dispute, audit, onChanged }: Props) {
 }
 
 function UnanalyzedCase({ dispute, audit, onChanged }: Omit<Props, 'dispute'> & { dispute: Dispute }) {
+  const api = useApi()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -88,6 +89,7 @@ function UnanalyzedCase({ dispute, audit, onChanged }: Omit<Props, 'dispute'> & 
 type Confirming = 'approve' | 'reject' | 'retry' | null
 
 function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposal: Proposal }) {
+  const api = useApi()
   const { decision, case_summary: summary } = proposal
   const facts = summary.facts
   const action = proposal.actions[0]

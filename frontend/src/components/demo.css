@@ -1,0 +1,11 @@
+/* The sandbox notice on the demo page. Colors come from the theme tokens, so it reads correctly in light and dark. */
+.demo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}

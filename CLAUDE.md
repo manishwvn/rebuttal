@@ -66,6 +66,7 @@ backend/
   rebuttal/tracing.py       Langfuse tracing, dataset upload, experiments (off unless keys are set)
   rebuttal/runtime.py       wiring            app.py     FastAPI (dashboard API, webhook, simulator)
   rebuttal/scenarios.py     labeled case -> sandbox state
+  rebuttal/demo.py, demo_api.py  judge demo: per-visitor mock Runtime + public /api/demo routes
   evals/cases.json, run.py  20 labeled disputes, accuracy report (--langfuse records an experiment)
   scripts/spike_sandbox.py  Gate 1 real-sandbox test     scripts/demo.py   demo run -> preview_data.json
   scripts/build_preview.py  preview page from template

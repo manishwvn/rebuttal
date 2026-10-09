@@ -1,4 +1,4 @@
-import type { AnalyticsReport, AuditEntry, Dispute, Health, Proposal, SimulatorCase } from './types'
+import type { AnalyticsReport, AuditEntry, DemoSessionInfo, Dispute, Health, Proposal, SimulatorCase } from './types'
 
 // The dashboard only ever talks to the Rebuttal backend. It never calls PayPal.
 export const API_BASE = (import.meta.env.VITE_API_BASE ?? 'http://localhost:8000').replace(/\/$/, '')
@@ -12,9 +12,12 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: { method?: 'GET' | 'POST'; body?: unknown } = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  init: { method?: 'GET' | 'POST'; body?: unknown; sendToken?: boolean } = {},
+): Promise<T> {
   const headers: Record<string, string> = {}
-  if (API_TOKEN) headers.Authorization = `Bearer ${API_TOKEN}`
+  if (API_TOKEN && init.sendToken !== false) headers.Authorization = `Bearer ${API_TOKEN}`
   if (init.body !== undefined) headers['Content-Type'] = 'application/json'
   let response: Response
   try {
@@ -39,21 +42,62 @@ async function request<T>(path: string, init: { method?: 'GET' | 'POST'; body?: 
   return (await response.json()) as T
 }
 
+// One set of calls, rooted at `prefix`: '/api' for the real backend, '/api/demo/<sessionId>' for a demo session.
+// sendToken: false keeps VITE_API_TOKEN off every request made through this client.
+export function createApi(prefix = '/api', options: { sendToken?: boolean } = {}) {
+  const { sendToken } = options
+  return {
+    health: () => request<Health>(`${prefix}/health`, { sendToken }),
+    disputes: () => request<Dispute[]>(`${prefix}/disputes`, { sendToken }),
+    analyze: (disputeId: string) =>
+      request<Proposal>(`${prefix}/disputes/${encodeURIComponent(disputeId)}/analyze`, { method: 'POST', sendToken }),
+    approve: (proposalId: string, editedMessage: string | null) =>
+      request<Proposal>(`${prefix}/proposals/${encodeURIComponent(proposalId)}/approve`, {
+        method: 'POST',
+        body: { edited_message: editedMessage },
+        sendToken,
+      }),
+    reject: (proposalId: string, reason: string) =>
+      request<Proposal>(`${prefix}/proposals/${encodeURIComponent(proposalId)}/reject`, {
+        method: 'POST',
+        body: { reason },
+        sendToken,
+      }),
+    retry: (proposalId: string) =>
+      request<Proposal>(`${prefix}/proposals/${encodeURIComponent(proposalId)}/retry`, { method: 'POST', sendToken }),
+    audit: (disputeId: string) => request<AuditEntry[]>(`${prefix}/audit/${encodeURIComponent(disputeId)}`, { sendToken }),
+    simulatorCases: () => request<SimulatorCase[]>(`${prefix}/simulator/cases`, { sendToken }),
+    simulate: (caseId: string) =>
+      request<Proposal>(`${prefix}/simulator/dispute/${encodeURIComponent(caseId)}`, { method: 'POST', sendToken }),
+  }
+}
+
+export type Api = ReturnType<typeof createApi>
+
+// The dashboard-only call stays off the factory, so a demo client (Api) carries nothing the demo routes lack.
 export const api = {
-  health: () => request<Health>('/api/health'),
-  disputes: () => request<Dispute[]>('/api/disputes'),
-  analyze: (disputeId: string) => request<Proposal>(`/api/disputes/${encodeURIComponent(disputeId)}/analyze`, { method: 'POST' }),
-  approve: (proposalId: string, editedMessage: string | null) =>
-    request<Proposal>(`/api/proposals/${encodeURIComponent(proposalId)}/approve`, {
-      method: 'POST',
-      body: { edited_message: editedMessage },
-    }),
-  reject: (proposalId: string, reason: string) =>
-    request<Proposal>(`/api/proposals/${encodeURIComponent(proposalId)}/reject`, { method: 'POST', body: { reason } }),
-  retry: (proposalId: string) =>
-    request<Proposal>(`/api/proposals/${encodeURIComponent(proposalId)}/retry`, { method: 'POST' }),
-  audit: (disputeId: string) => request<AuditEntry[]>(`/api/audit/${encodeURIComponent(disputeId)}`),
-  simulatorCases: () => request<SimulatorCase[]>('/api/simulator/cases'),
-  simulate: (caseId: string) => request<Proposal>(`/api/simulator/dispute/${encodeURIComponent(caseId)}`, { method: 'POST' }),
+  ...createApi(),
   analytics: () => request<AnalyticsReport>('/api/analytics'),
+}
+
+// The session id becomes a path segment. encodeURIComponent leaves '.' and '..' unchanged and fetch resolves them,
+// so the id is checked against a plain alphabet before any path is built.
+const DEMO_SESSION_ID = /^[A-Za-z0-9_-]+$/
+
+function demoRoot(sessionId: string): string {
+  if (!DEMO_SESSION_ID.test(sessionId)) throw new Error('Invalid demo session id')
+  return `/api/demo/${encodeURIComponent(sessionId)}`
+}
+
+// A demo session's calls, rooted at /api/demo/<sessionId>. Demo calls never send the dashboard token.
+export function createDemoApi(sessionId: string): Api {
+  return createApi(demoRoot(sessionId), { sendToken: false })
+}
+
+export function startDemoSession(): Promise<DemoSessionInfo> {
+  return request<DemoSessionInfo>('/api/demo/sessions', { method: 'POST', sendToken: false })
+}
+
+export async function resetDemoSession(sessionId: string): Promise<DemoSessionInfo> {
+  return request<DemoSessionInfo>(`${demoRoot(sessionId)}/reset`, { method: 'POST', sendToken: false })
 }

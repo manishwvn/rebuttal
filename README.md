@@ -23,6 +23,16 @@ and the proposal is waiting for approval in the checkpointed workflow. No PayPal
 Backend test coverage: 91% of lines and branches (`cd backend && uv run pytest --cov`; CI prints it on every run).
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard.
 
+### Judge demo (no accounts needed)
+
+Judges can try Rebuttal without a PayPal account. The demo runs locally now and will be on Render once A5 serves the built
+frontend. The dashboard has a **Try the demo** link in its header, or you can
+add `#demo` to the dashboard address. Each visitor gets a demo session on the same service, with six seeded disputes
+(the hero case is already waiting for approval) and a simulator for the 20 labeled cases. Demo sessions use the
+in-memory PayPal mock and the rules reasoner, with no keys and no model. Each session has its own in-memory runtime
+and never reaches the real PayPal client, the real runtime or a database. Steps, routes, limits and tests:
+[docs/demo-mode.md](docs/demo-mode.md).
+
 ## Run it
 
 The backend is a [uv](https://docs.astral.sh/uv/) project (`backend/pyproject.toml`, locked in `backend/uv.lock`).
@@ -48,7 +58,7 @@ Configuration lives in `backend/.env` (copy `backend/.env.example`; the file is 
 | `REBUTTAL_REASONER=rules` | Never call a model, whatever keys are set. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `REBUTTAL_MOCK=0` | Run against the real PayPal **sandbox** (anything else is refused). |
 | `PAYPAL_WEBHOOK_ID` | The id PayPal gives the webhook you register for `/api/webhooks/paypal`; deliveries are verified against it. |
-| `REBUTTAL_API_TOKEN` | When set, every `/api` route except health and the PayPal webhook needs `Authorization: Bearer <token>`. Whoever can call approve is the human in the approval gate, so set it on any deployment. |
+| `REBUTTAL_API_TOKEN` | When set, every `/api` route except health, the PayPal webhook and the public demo under `/api/demo` (each demo session reaches only its own mock) needs `Authorization: Bearer <token>`. Whoever can call approve is the human in the approval gate, so set it on any deployment. |
 | `DATABASE_URL` | A `postgresql://` URL (we use a free Supabase project, session pooler on port 5432; needs `uv sync --extra postgres`). Paused proposals and the audit log then live in Postgres. Unset: SQLite, so no setup is needed to run locally. |
 | `REBUTTAL_CHECKPOINT_URL` | Override for the checkpoints only: a SQLite file or a `postgresql://` URL. Default: in memory in mock mode, `checkpoints.sqlite` against the real sandbox. |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` (or `LANGFUSE_HOST`) | Turn on Langfuse tracing. Off when unset; `REBUTTAL_TRACING=0` forces it off. |
@@ -122,7 +132,7 @@ experiment.
 
 ## Architecture decisions
 
-The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md)) are recorded in [docs/adr/](docs/adr/README.md).
+The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md), [isolated judge demo runtime](docs/adr/0009-isolated-judge-demo-runtime.md)) are recorded in [docs/adr/](docs/adr/README.md).
 
 ## Sponsor tools (planned)
 

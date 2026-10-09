@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from . import analytics
 from .agent.graph import DisputeAgent
 from .approval import ApprovalError
+from .demo import DemoManager
+from .demo_api import make_demo_router
 from .paypal.client import PayPalError
 from .runtime import Runtime
 from .scenarios import load_cases, seed_case
@@ -46,9 +48,10 @@ rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)  # loads backend/.env in
 configure_cors(app, cors_origins())  # after the Runtime, so REBUTTAL_CORS_ORIGINS may live in backend/.env
 
 
-# Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health and the
-# PayPal webhook needs `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call
-# approve is the "human" in the approval gate, so set it on any deployment.
+# Opt-in shared secret for the dashboard API: when REBUTTAL_API_TOKEN is set, every /api route except health, the
+# PayPal webhook and the public demo under /api/demo (each reaches only its own mock session) needs
+# `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call approve is the
+# "human" in the approval gate, so set it on any deployment.
 API_TOKEN = os.getenv("REBUTTAL_API_TOKEN", "").strip()
 if not API_TOKEN and (not rt.settings.mock or rt.settings.database_url) and os.getenv("REBUTTAL_ALLOW_OPEN_API") != "1":
     # Real sandbox or a shared database: an open approve endpoint would make the approval gate meaningless.
@@ -62,6 +65,12 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 
 
 protected = [Depends(require_token)]
+# The demo router is deliberately NOT behind the token: it can only reach its own DemoManager, an isolated mock
+# runtime per session, and never `rt`. Nothing here may pass `rt`, `rt.client` or `rt.settings` to the demo.
+# tests/test_demo_isolation.py enforces that and checks that every other /api route keeps the token.
+# The real-sandbox routes below keep `protected`.
+demo_manager = DemoManager()
+app.include_router(make_demo_router(demo_manager))
 
 
 def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError) -> HTTPException:
