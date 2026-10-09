@@ -31,7 +31,7 @@ interface Session {
 
 interface Problem {
   message: string
-  /** Only a 429 from starting a session offers Try again. */
+  /** Only a 429 from the start-up session offers Try again. A failed reset is retried with Reset demo. */
   rateLimited: boolean
 }
 
@@ -112,7 +112,8 @@ export function DemoApp() {
       setSession(next)
       setGeneration((n) => n + 1)
     } catch (e) {
-      setProblem(problemOf(e))
+      // Reset demo is the retry here, so a 429 does not offer Try again (that only re-runs start-up).
+      setProblem({ ...problemOf(e), rateLimited: false })
     } finally {
       setResetting(false)
     }
