@@ -30,7 +30,7 @@ Devpost rules page before submitting; they can change.
 
 | Prize | Fit | What raises it |
 |---|---|---|
-| Grand / Best Use of PayPal + AI | Strong: Disputes API end to end, webhook, real sandbox, AI decides, code guards | Toolkit-shaped read-only tool layer is in (see "PayPal Agent Toolkit decision (Q3)" below). Still raises it: real-sandbox demo, and the read-only tool calls shown in the audit trail in the video |
+| Grand / Best Use of PayPal + AI | Strong: Disputes API end to end, webhook, real sandbox, AI decides, code guards | Planned, not yet merged: a toolkit-shaped read-only tool layer (see "PayPal Agent Toolkit decision (Q3)" below). Still raises it: that layer landing, a real-sandbox demo, and the read-only tool calls shown in the audit trail in the video |
 | Best Use of Agentic Commerce | Strong: disputes caused by AI shopping assistants are our hero case | Show the assistant-mandate evidence clearly; agent acting on PayPal after approval |
 | Most Impactful | Good: small merchants lose money and time to disputes | One sourced number on dispute cost; before/after time per dispute |
 | Best Demo Delivery | Depends on the video | Human narration, crisp 2:45, hero case live |
@@ -51,8 +51,8 @@ Devpost rules page before submitting; they can change.
 1. Close the engineering-signal gap cheaply and for free: security scanners in CI (CodeQL, OSV-Scanner, OpenSSF
    Scorecard, gitleaks), coverage reporting, short architecture decision records for the safety design.
 2. Use PayPal's own AI tooling: the PayPal Agent Toolkit (or the PayPal MCP server) for the agent's read-only PayPal
-   lookups, keeping `execute` as the only writer. Done in Q3 as a read-only adapter in the toolkit's tool format; the
-   official package could not be installed or made strictly read-only, details below.
+   lookups, keeping `execute` as the only writer. Planned as a read-only adapter in the toolkit's tool format, not yet
+   merged; the official package could not be installed or made strictly read-only, details below.
 3. Real-sandbox judge path: create test disputes through the API with a second sandbox **business** account acting as
    buyer (a builder on Discord confirmed personal accounts cannot own a REST app). Needs that account once (USER item).
 4. Hosted demo with testing credentials for judges (demo mode, A6) moves up: judges must be able to try it.
@@ -75,16 +75,22 @@ Findings:
   calls.
 - Missing field. Its `list_transactions` does not pass `fields=all`.
 
-What we built: `backend/rebuttal/agent/toolkit.py`, a read-only adapter with the toolkit's tool shape. It exposes
-`get_dispute` and `list_transactions` under the toolkit's names, plus `get_order_trackers` and
-`get_capture_order_id`. It runs over `client.read_only()`. The `gather_facts` step uses it. `execute` in
-`rebuttal/approval.py` remains the only PayPal writer.
+What is planned, not in the repo yet: `backend/rebuttal/agent/toolkit.py`, a read-only adapter with the toolkit's tool
+shape. It would expose `get_dispute`, `list_transactions`, `get_order_trackers` and `get_capture_order_id` under the
+toolkit's names, running over `client.read_only()`. `PayPalClient` has no `list_transactions` today, so the adapter
+would wrap the existing `search_transactions`. The adapter is not wired into `gather_facts`: `backend/rebuttal/agent/facts.py`
+still calls `PayPalClient` directly. `execute` in `rebuttal/approval.py` is the only writer in the agent
+graph and the API; the manual sandbox and demo scripts in `backend/scripts/` are the exception.
 
 How the boundary is proven:
 
-- `backend/tests/test_toolkit.py` covers the adapter.
-- `backend/tests/test_write_boundary.py` and `backend/tests/test_core.py::test_analyze_never_writes_to_paypal` guard
-  the write boundary: analysis never writes to PayPal.
+- Today: `backend/tests/test_write_boundary.py` scans the source so that only the approval module can reach a PayPal
+  write, and `backend/tests/test_core.py::test_analyze_never_writes_to_paypal` checks at run time that analysis makes
+  no write calls.
+- Planned with the adapter: `backend/tests/test_toolkit.py`, which does not exist yet. It should check that only the
+  four read tools are registered, that a write name such as `accept_dispute_claim`, `create_order` or `pay_order`
+  raises, and that calls go through `read_only()` and issue only GET. A test that `gather_facts` calls the adapter is
+  also needed.
 
 What we do not claim:
 
@@ -92,4 +98,6 @@ What we do not claim:
 - The PayPal sandbox MCP server (from the `paypal` plugin enabled in `.claude/settings.json`) is a developer tool we
   use while building. It is not part of the runtime.
 
-Follow-up: swap in the official package if its langchain pin is lifted and it gains a read-only mode.
+Follow-up: land the read-only adapter with `test_toolkit.py` and a `gather_facts` test on a branch, then update the
+"planned" wording above to match the code. Swap in the official package if its langchain pin is lifted and it gains a
+read-only mode.
