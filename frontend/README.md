@@ -32,7 +32,7 @@ wrong size"), create the dispute, and it opens in the case view.
 
 ```bash
 npm run dev          # Vite dev server
-npm run build        # type-check + production build into dist/
+npm run build        # type-check + production build into dist/ (refuses VITE_API_TOKEN, see below)
 npm run lint         # oxlint
 npx playwright test  # end-to-end: starts the mock backend and the built dashboard itself, uses your Google Chrome
 SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
@@ -43,7 +43,17 @@ SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
 | Variable | Default | Meaning |
 |---|---|---|
 | `VITE_API_BASE` | `http://localhost:8000` | Backend base URL |
-| `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. Anything in `VITE_*` is public in the built bundle, and the backend has one token, which is the one that authorizes approve. Use it for local runs only. A hosted build must not set it: add a login or session before the dashboard is deployed (slice 2). |
+| `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. **For `npm run dev` only: `npm run build` fails while it is set** (see below). |
+
+### The build refuses `VITE_API_TOKEN`
+
+Anything in `VITE_*` is inlined into the built JavaScript, so a token there is readable by every visitor, and the
+backend has one token, the one that authorizes approve. `vite.config.ts` therefore stops any `vite build` (whatever
+`--mode`) with a clear error while `VITE_API_TOKEN` is set, in your shell or in a `.env*` file, before it writes
+anything. Pass it inline to the dev server (`VITE_API_TOKEN=... npm run dev`); if you keep it in `.env.local`
+(git-ignored), take it out before you build. A hosted dashboard needs a login or session first (slice 2). CI never sets
+it, and the Playwright run blanks it for its own build, so a token on your machine can neither break nor leak into the
+end-to-end run. `e2e/build-guard.spec.ts` checks the refusal.
 
 The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` on the backend (comma separated, no
 wildcard). Playwright sets it for `http://localhost:4173`.
@@ -58,5 +68,5 @@ src/components/Inbox.tsx   AG Grid inbox
 src/components/CaseView.tsx  assistant-vs-shipped, facts, proposal, guard note, approve / edit / reject, audit
 src/components/ConfirmDialog.tsx  native modal <dialog>
 src/components/SimulatorPanel.tsx  mock-only case picker
-e2e/                       Playwright tests
+e2e/                       Playwright tests (dispute flows, and the build guard)
 ```

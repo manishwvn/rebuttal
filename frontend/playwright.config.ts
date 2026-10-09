@@ -52,6 +52,9 @@ export default defineConfig({
       url: APP_ORIGIN,
       reuseExistingServer: false,
       timeout: 120_000,
+      // The build refuses a VITE_API_TOKEN (it would be public in the bundle). The mock backend above takes no
+      // token, so a token in the developer's shell or .env.local must not reach this build.
+      env: { VITE_API_TOKEN: '' },
     },
   ],
 })
