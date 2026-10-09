@@ -1,0 +1,287 @@
+[
+ {
+  "id": "ho2_inr_nothing_shipped",
+  "title": "Three weeks of silence, no shipping notice",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 21,
+  "days_open": 2,
+  "buyer_message": "Ordered over 3 weeks ago and I havent gotten a shipping email or a tracking number. Nothing from your end either.",
+  "item": {
+   "sku": "BALM-6PK",
+   "name": "Beeswax lip balm",
+   "variant": "Mint / 6-pack",
+   "price": 23.0
+  },
+  "ship_to": "1740 Lakeshore Ln, Duluth, MN 55802",
+  "shipment": null,
+  "expected": "ACCEPT_CLAIM",
+  "hard": false,
+  "why": "Nothing was ever shipped and 21 days have passed. There is no tracking to defend with and the shop has not delivered, so refund now and end it before it escalates. Promising the buyer it is on its way would be false."
+ },
+ {
+  "id": "ho2_inr_unit_format",
+  "title": "Says nothing is at the door; carrier wrote the same address differently",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 8,
+  "days_open": 1,
+  "buyer_message": "Tracking says its been dropped off but theres nothing at my door. Theres been a bunch of packages going missing in our building lately.",
+  "item": {
+   "sku": "DESKPAD-XL",
+   "name": "Felt desk pad",
+   "variant": "Charcoal / XL",
+   "price": 37.0
+  },
+  "ship_to": "310 Mill Street Apt 4B, Reno, NV 89501",
+  "shipment": {
+   "carrier": "UPS",
+   "number": "1Z8E4R200398112207",
+   "status": "DELIVERED",
+   "delivered_to": "310 Mill St #4B, Reno, NV 89501",
+   "days_after_purchase": 4
+  },
+  "expected": "SHARE_TRACKING",
+  "hard": true,
+  "why": "'Mill Street Apt 4B' and 'Mill St #4B' are one address written two ways: same number, street, city and ZIP. It was delivered to the order address, so the delivery proof stands. Treating the spelling difference as a misdelivery would send a free replacement for a parcel that was delivered correctly. At inquiry stage, share the delivery proof."
+ },
+ {
+  "id": "ho2_inr_digits_swapped",
+  "title": "Delivered a few doors down, two digits swapped in the carrier's scan",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 9,
+  "days_open": 1,
+  "buyer_message": "It says delivered but I dont have it. Asked around my street, nobody has seen it. Could you just ship me another one?",
+  "item": {
+   "sku": "TRIVET-4",
+   "name": "Cork trivet set",
+   "variant": "Natural / 4-piece",
+   "price": 28.0
+  },
+  "ship_to": "2831 Alder Way, Spokane, WA 99203",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100347821",
+   "status": "DELIVERED",
+   "delivered_to": "2813 Alder Way, Spokane, WA 99203",
+   "days_after_purchase": 4
+  },
+  "expected": "OFFER_REPLACEMENT",
+  "hard": true,
+  "why": "The order is for 2831 Alder Way and the carrier scan says 2813. The digits are swapped, so the parcel went to the wrong house and the carrier, not the buyer, is at fault. The buyer asked for another one, and a replacement keeps the sale. Sending the tracking as proof would be proof of delivery to the wrong address."
+ },
+ {
+  "id": "ho2_snad_dead_fan",
+  "title": "Costly gadget barely works, buyer asks for a working one",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 11,
+  "days_open": 1,
+  "buyer_message": "fan runs for maybe 10 mins then dies and theres a grinding noise the whole time. listing said 8 hrs of battery?? can i just get a working one",
+  "item": {
+   "sku": "FAN-RCHG",
+   "name": "Rechargeable desk fan",
+   "variant": "White",
+   "price": 64.0
+  },
+  "ship_to": "47 Hollis Ave, Fargo, ND 58102",
+  "shipment": {
+   "carrier": "UPS",
+   "number": "1Z8E4R200398114415",
+   "status": "DELIVERED",
+   "delivered_to": "47 Hollis Ave, Fargo, ND 58102",
+   "days_after_purchase": 3
+  },
+  "expected": "OFFER_RETURN_FOR_REFUND",
+  "hard": true,
+  "why": "Defective on arrival (battery life far below the listing, grinding motor) and $64, well over the $20 line, so policy wants the unit back. The buyer asked for a working one, but PayPal not-as-described inquiries only accept refund-type offers, so offer a refund on return and ship a fresh fan once the return is scanned."
+ },
+ {
+  "id": "ho2_snad_rough_spoon",
+  "title": "Spoon cracked through and unusable, cheap item, buyer wants the money back",
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 5,
+  "days_open": 0,
+  "buyer_message": "the middle spoon arrived cracked all the way through the bowl and it snaps when you press on it, so it is useless. not what the photos showed. please refund me, I don't want a replacement",
+  "item": {
+   "sku": "SPOON-3",
+   "name": "Olive wood spoons",
+   "variant": "3-piece",
+   "price": 11.0
+  },
+  "ship_to": "62 Tamarack Dr, Bozeman, MT 59715",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100352208",
+   "status": "DELIVERED",
+   "delivered_to": "62 Tamarack Dr, Bozeman, MT 59715",
+   "days_after_purchase": 3
+  },
+  "expected": "ACCEPT_CLAIM",
+  "hard": true,
+  "why": "The defect is plain and the item is unusable, and the buyer asks for money back, not a replacement. The order is only $11, and the store's under-$20 policy refunds in full with no return. Fighting it costs more than the spoons. Accept the claim."
+ },
+ {
+  "id": "ho2_unauth_over_cap",
+  "title": "Assistant paid well over its owner's spending cap, nothing shipped yet",
+  "reason": "UNAUTHORISED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 2,
+  "days_open": 1,
+  "buyer_message": "Never signed off on that price. The limit I gave it was forty.",
+  "item": {
+   "sku": "BAGLINER-OL",
+   "name": "Down sleeping bag liner",
+   "variant": "Olive / Regular",
+   "price": 64.0
+  },
+  "ship_to": "7 Alpine Way, Bend, OR 97701",
+  "shipment": null,
+  "agent_purchase": {
+   "agent": "Nova (buyer's AI shopping assistant)",
+   "instruction": "Get me a sleeping bag liner in olive, regular length, no more than $40.",
+   "constraints": {
+    "variant": "Olive / Regular",
+    "max_price": 40
+   }
+  },
+  "expected": "ACCEPT_CLAIM",
+  "hard": true,
+  "why": "The shop's own intent record caps the purchase at $40 and the order went through at $64, so the charge is beyond what the buyer authorised. That record helps the buyer, not the shop, and nothing has shipped. Cancel and refund; submitting it as evidence would mean arguing a mandate the record disproves."
+ },
+ {
+  "id": "ho2_unauth_standing_filters",
+  "title": "Doesn't know the shop; the charge is a standing reorder by their assistant",
+  "reason": "UNAUTHORISED",
+  "stage": "CHARGEBACK",
+  "days_since_purchase": 12,
+  "days_open": 5,
+  "buyer_message": "who even is this?? i dont shop with you. charge on my paypal i did not make.",
+  "item": {
+   "sku": "FILT-2PK",
+   "name": "Pitcher filters",
+   "variant": "Standard / 2-pack",
+   "price": 24.0
+  },
+  "ship_to": "233 Delancey Pl, Asheville, NC 28801",
+  "shipment": {
+   "carrier": "UPS",
+   "number": "1Z8E4R200398118833",
+   "status": "DELIVERED",
+   "delivered_to": "233 Delancey Pl, Asheville, NC 28801",
+   "days_after_purchase": 3
+  },
+  "agent_purchase": {
+   "agent": "Nova (buyer's AI shopping assistant)",
+   "instruction": "Keep me stocked on water pitcher filters: reorder a standard 2-pack every three months, max $30.",
+   "constraints": {
+    "variant": "Standard / 2-pack",
+    "max_price": 30
+   }
+  },
+  "expected": "SUBMIT_EVIDENCE",
+  "hard": false,
+  "why": "Placed by the buyer's own assistant under a standing quarterly reorder: same variant, $24 against a $30 cap, delivered to the buyer's address. At claim stage the instruction record plus delivery proof is the evidence."
+ },
+ {
+  "id": "ho2_dup_already_refunded",
+  "title": "Two identical charges, but the extra one was refunded yesterday",
+  "reason": "DUPLICATE_TRANSACTION",
+  "stage": "INQUIRY",
+  "days_since_purchase": 4,
+  "days_open": 1,
+  "buyer_message": "Got hit with the same charge two times for one order. Haven't seen anything come back yet.",
+  "item": {
+   "sku": "TOTE-CNV",
+   "name": "Canvas tote bag",
+   "variant": "Natural",
+   "price": 45.0
+  },
+  "ship_to": "58 Granite St, Concord, NH 03301",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100361119",
+   "status": "IN_TRANSIT",
+   "delivered_to": null,
+   "days_after_purchase": 2
+  },
+  "refund": {
+   "amount": 45.0,
+   "days_ago": 1
+  },
+  "duplicate_charge": true,
+  "expected": "SUBMIT_REFUND_PROOF",
+  "hard": true,
+  "why": "The buyer is right that two identical charges exist, but the duplicate was already refunded in full yesterday and may not have posted yet. Refunding again would hand over the whole order. Showing the refund record closes it; 'duplicate confirmed, so refund' double-refunds."
+ },
+ {
+  "id": "ho2_cnp_refund_posted",
+  "title": "Returned a mat, says no credit; the refund went out a week ago",
+  "reason": "CREDIT_NOT_PROCESSED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 42,
+  "days_open": 2,
+  "buyer_message": "Posted the mat back over two weeks ago and my account still shows nothing coming in.",
+  "item": {
+   "sku": "YOGA-CORK",
+   "name": "Cork yoga mat",
+   "variant": "Teal / 5mm",
+   "price": 48.0
+  },
+  "ship_to": "9 Orchard Row, Providence, RI 02903",
+  "shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100374456",
+   "status": "DELIVERED",
+   "delivered_to": "9 Orchard Row, Providence, RI 02903",
+   "days_after_purchase": 4
+  },
+  "return_shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100380077",
+   "status": "DELIVERED",
+   "days_ago": 17
+  },
+  "refund": {
+   "amount": 48.0,
+   "days_ago": 8
+  },
+  "expected": "SUBMIT_REFUND_PROOF",
+  "hard": false,
+  "why": "The return reached the shop 17 days ago and the full refund went out 8 days ago, so the shop has paid. The refund record is the answer. Refunding again would pay twice."
+ },
+ {
+  "id": "ho2_cnp_return_received",
+  "title": "Return was delivered to the shop and nothing has been refunded",
+  "reason": "CREDIT_NOT_PROCESSED",
+  "stage": "INQUIRY",
+  "days_since_purchase": 38,
+  "days_open": 1,
+  "buyer_message": "Sent the jacket back, tracking says it got to you. Its been 11 days and no refund, no email. Pls advise.",
+  "item": {
+   "sku": "JKT-PACK",
+   "name": "Packable rain jacket",
+   "variant": "Forest / M",
+   "price": 89.0
+  },
+  "ship_to": "2204 Ash St, Eau Claire, WI 54701",
+  "shipment": {
+   "carrier": "UPS",
+   "number": "1Z8E4R200398122291",
+   "status": "DELIVERED",
+   "delivered_to": "2204 Ash St, Eau Claire, WI 54701",
+   "days_after_purchase": 4
+  },
+  "return_shipment": {
+   "carrier": "USPS",
+   "number": "9400109205551100391335",
+   "status": "DELIVERED",
+   "days_ago": 11
+  },
+  "expected": "ACCEPT_CLAIM",
+  "hard": false,
+  "why": "The return was delivered to the shop 11 days ago and no refund exists, so the refund is owed and late. Accept now: the jacket is back in stock and contesting a refund the shop owes only escalates it."
+ }
+]

@@ -28,10 +28,11 @@ from rebuttal.runtime import Runtime
 from rebuttal.scenarios import load_cases, seed_case
 
 HERE = Path(__file__).resolve().parent
-# Two labeled sets. The held-out one was written independently of the guard and the facts code and is never used for
-# tuning: it is only run and reported.
-SETS = {"main": HERE / "cases.json", "holdout": HERE / "holdout.json"}
-DATASETS = {"main": None, "holdout": "rebuttal-disputes-holdout"}  # Langfuse dataset names (None = the default)
+# Labeled sets. The held-out ones were written independently of the guard and the facts code and are never used for
+# tuning: they are only run and reported.
+SETS = {"main": HERE / "cases.json", "holdout": HERE / "holdout.json", "holdout2": HERE / "holdout2.json"}
+DATASETS = {"main": None, "holdout": "rebuttal-disputes-holdout",
+            "holdout2": "rebuttal-disputes-holdout2"}  # Langfuse dataset names (None = the default)
 
 
 def pct(value: float | None) -> str:
@@ -54,6 +55,15 @@ JUDGMENT_CALLS = {
                            "business choice that avoids a fight over $40, so models that pick it are not clearly wrong.",
 }
 
+# Cases in the held-out sets whose miss is a known limit of the facts code, not a model failure. Same display as
+# JUDGMENT_CALLS; the labels are kept (they are the correct outcome) and nothing is tuned against them.
+HOLDOUT2_NOTES = {
+    "ho2_inr_unit_format": "Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' "
+                           "are one address, but the code that compares the ship-to with the delivered-to address "
+                           "does not normalise street suffixes or unit markers, so it can report a mismatch. We keep "
+                           "the case and the label, and do not tune against it.",
+}
+
 
 def results_dir() -> Path:
     return HERE / "results"
@@ -66,7 +76,8 @@ def slug(text: str) -> str:
 def save_run(summary: dict) -> Path:
     """Keep every valid run as evals/results/<provider>-<model>-<date>.json (a same-day rerun gets -2, -3, ...)."""
     results_dir().mkdir(exist_ok=True)
-    tag = "-holdout" if summary.get("set") == "holdout" else ""
+    case_set = summary.get("set")
+    tag = "" if case_set in (None, "main") else "-" + case_set
     base = f"{summary['provider']}-{slug(summary['model'])}{tag}-{summary['date'].replace('-', '')}"
     path, n = results_dir() / f"{base}.json", 2
     while path.exists():
@@ -83,7 +94,8 @@ def _cell(row: dict | None) -> str:
     return text if raw is None or raw == row["got"] else f"{text} (model: {raw})"
 
 
-def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str]) -> list[str]:
+def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str],
+             kind: str = "judgment call") -> list[str]:
     lines = [f"## {title}", "", intro, "",
              "| Date | Provider | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens "
              "| Gate violations | Langfuse experiment |", "|---|---|---|---|---|---|---|---|---|---|---|"]
@@ -110,10 +122,10 @@ def _section(runs: list[dict], title: str, intro: str, judgment: dict[str, str])
             if row:
                 expected, hard = row["expected"], row["hard"]
             cells.append(_cell(row))
-        flag = " (judgment call)" if cid in judgment else " (hard)" if hard else ""
+        flag = f" ({kind})" if cid in judgment else " (hard)" if hard else ""
         lines.append(f"| {cid}{flag} | {expected} | " + " | ".join(cells) + " |")
     if judgment:
-        lines += ["", "Judgment calls:", ""] + [f"- `{cid}`: {note}" for cid, note in judgment.items()]
+        lines += ["", kind.capitalize() + "s:", ""] + [f"- `{cid}`: {note}" for cid, note in judgment.items()]
     return lines
 
 
@@ -122,11 +134,12 @@ def write_results_md() -> None:
     runs = sorted((json.loads(p.read_text()) | {"file": p.name} for p in results_dir().glob("*.json")),
                   key=lambda r: (r["date"], r["file"]))
     lines = ["# Eval results", "",
-             "Every valid run is kept in `evals/results/<provider>-<model>[-holdout]-<date>.json`. A run that hit a rate "
-             "or quota limit is invalid and is never saved. Rules baseline = no model. **Model alone** is the model's own "
-             "choice before `guard()`; **final** is what the agent would propose after the guard."]
+             "Every valid run is kept in `evals/results/<provider>-<model>[-holdout|-holdout2]-<date>.json`. "
+             "A run that hit a rate or quota limit is invalid and is never saved. Rules baseline = no model. "
+             "**Model alone** is the model's own choice before `guard()`; **final** is what the agent would propose after the guard."]
     main = [r for r in runs if r.get("set", "main") == "main"]
     holdout = [r for r in runs if r.get("set") == "holdout"]
+    holdout2 = [r for r in runs if r.get("set") == "holdout2"]
     if main:
         lines += [""] + _section(main, "Main set (evals/cases.json)",
                                  "20 labeled disputes. The guard rules and the facts were developed against these.",
@@ -135,6 +148,10 @@ def write_results_md() -> None:
         lines += [""] + _section(holdout, "Held-out (not used for tuning)",
                                  "evals/holdout.json: 10 disputes written independently of the guard and facts code. "
                                  "Run and reported only; no code is tuned against these results.", {})
+    if holdout2:
+        lines += [""] + _section(holdout2, "Held-out set 2 (not used for tuning)",
+                                 "evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. "
+                                 "Run and reported only; no code is tuned against these results.", HOLDOUT2_NOTES, "facts limit")
     (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
 
 
@@ -208,7 +225,7 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
             raise SystemExit("--langfuse runs the whole dataset; drop --only.")
         by_id = {c["id"]: c for c in cases}
         probe = Runtime(settings=settings, seed_cases=[], force_rules=force_rules, tracing=False, provider=provider)
-        name = f"{probe.reasoner.name}-{probe.reasoner.model_name.split('/')[-1]}{'-holdout' if case_set == 'holdout' else ''}-" \
+        name = f"{probe.reasoner.name}-{probe.reasoner.model_name.split('/')[-1]}{'' if case_set == 'main' else '-' + case_set}-" \
                f"{datetime.now(timezone.utc):%Y%m%d-%H%M%S}"
         dataset = DATASETS[case_set] or tracing.DATASET_NAME
         tracing.upload_dataset(cases, dataset)
@@ -263,7 +280,7 @@ if __name__ == "__main__":
     ap.add_argument("--langfuse", action="store_true",
                     help="trace every case and record the run as a Langfuse experiment (needs the Langfuse keys)")
     ap.add_argument("--set", dest="case_set", choices=list(SETS), default="main",
-                    help="main = cases.json; holdout = the held-out set (never used for tuning)")
+                    help="main = cases.json; holdout, holdout2 = the held-out sets (never used for tuning)")
     ap.add_argument("--rebuild-md", action="store_true", help="regenerate RESULTS.md from evals/results/ and exit")
     ap.add_argument("--provider", choices=PROVIDERS, help="pin the model provider (needs its key in backend/.env)")
     args = ap.parse_args()
