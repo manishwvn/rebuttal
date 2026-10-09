@@ -4,9 +4,11 @@ Each demo session gets its own Runtime: a private mock PayPal seeded with the de
 model is ever called), an in-memory checkpointer and audit log, and no tracing or database. Settings are rebuilt with
 credentials, database and model keys blanked, and the PayPal client only talks to the mock, so the real environment
 cannot reach a demo session. Nothing is persisted: sessions live in this process's memory. DemoManager keeps the demo
-bounded: at most max_sessions sessions (the least recently used is evicted), idle and absolute expiry, a cap on disputes
+bounded: at most max_sessions sessions (at capacity only a session idle for a few minutes is evicted, else new sessions
+get 429), idle and absolute expiry, a cap on disputes
 per session, a budget of workflow runs per session (each run adds checkpoints and audit rows to memory, and Reset demo
-restores the budget), and a sliding-window limit on creating or resetting sessions. Work on one session is serialised by its lock.
+restores the budget), and sliding-window limits on creating or resetting sessions, one per client and one for the whole service. Work on one
+session is serialised by its lock; a caller waits for it only briefly, then gets 429.
 """
 
 from __future__ import annotations
@@ -62,6 +64,14 @@ class DemoRateLimited(DemoError):
         self.retry_after = retry_after
 
 
+class DemoBusy(DemoError):
+    """The session lock stayed taken for the whole wait: another request is still working on this session."""
+
+
+class DemoUnavailable(DemoError):
+    """The demo runtime could not be built."""
+
+
 def build_demo_runtime() -> Runtime:
     """A mock-only Runtime with the demo disputes seeded and the hero proposal waiting for approval. Analysis only:
     nothing is sent to PayPal."""
@@ -115,6 +125,9 @@ class DemoManager:
         max_runs: int = 100,
         create_limit: int = 20,
         create_window: float = 60.0,
+        client_create_limit: int = 5,
+        recent_window: float = 300.0,
+        lock_timeout: float = 10.0,
         clock: Callable[[], float] = time.monotonic,
         runtime_factory: Callable[[], Runtime] = build_demo_runtime,
     ) -> None:
@@ -125,22 +138,29 @@ class DemoManager:
         self._max_sessions = max_sessions
         self._create_limit = create_limit
         self._create_window = create_window
+        self._client_create_limit = client_create_limit
+        self._recent_window = recent_window
+        self._lock_timeout = lock_timeout
         self._clock = clock
         self._runtime_factory = runtime_factory
         self._lock = threading.Lock()  # guards _sessions and _attempts
         self._sessions: dict[str, DemoSession] = {}
         self._attempts: deque[float] = deque()  # when create and reset calls happened, oldest first
+        self._client_attempts: dict[str, deque[float]] = {}  # the same, per client key
 
-    def create(self) -> DemoSession:
+    def create(self, client: str = "") -> DemoSession:
         with self._lock:
-            self._admit_locked(self._clock())
-        runtime = self._runtime_factory()  # built outside the lock: it takes a moment
+            now = self._clock()
+            self._sweep_locked(now)
+            self._check_room_locked(now)  # refuse before spending a build and a rate-limit slot
+            self._admit_locked(now, client)
+        runtime = self._build()  # outside the lock: it takes a moment
         with self._lock:
             now = self._clock()
             self._sweep_locked(now)  # after the build: a session that lapsed during it is dropped, not evicted for
-            while len(self._sessions) >= self._max_sessions:
-                least_recent = min(self._sessions.values(), key=lambda s: s.last_used)
-                del self._sessions[least_recent.id]
+            victim = self._check_room_locked(now)
+            if victim is not None:
+                del self._sessions[victim.id]
             session = DemoSession(id=secrets.token_urlsafe(16), runtime=runtime, lock=threading.RLock(),
                                   created_at=now, last_used=now)
             self._sessions[session.id] = session
@@ -148,7 +168,8 @@ class DemoManager:
 
     @contextmanager
     def use(self, session_id: str) -> Iterator[DemoSession]:
-        """Hold one session for the duration of the with block; other callers on that session wait."""
+        """Hold one session for the duration of the with block; other callers on that session wait up to lock_timeout
+        seconds, then get DemoBusy."""
         with self._lock:
             now = self._clock()
             self._sweep_locked(now)
@@ -156,17 +177,31 @@ class DemoManager:
             if session is None:
                 raise DemoSessionNotFound("no live demo session has this id")
             session.last_used = now
-        with session.lock:  # outside the table lock, so one busy session does not block the others
+        # outside the table lock, so one busy session does not block the others
+        if not session.lock.acquire(timeout=self._lock_timeout):
+            raise DemoBusy("this demo session is busy")
+        try:
             yield session
+        finally:
+            session.lock.release()
 
-    def reset(self, session_id: str) -> DemoSession:
+    def reset(self, session_id: str, client: str = "") -> DemoSession:
         """Give a session a fresh demo runtime under the same id. Its previous state is discarded."""
+        with self.use(session_id):  # lookup only: an unknown id answers 404 before reset spends the rate limit
+            pass
         with self._lock:
-            self._admit_locked(self._clock())
+            self._admit_locked(self._clock(), client)
+        runtime = self._build()  # built before taking the session lock, so a rebuild never holds it
         with self.use(session_id) as session:
-            session.runtime = self._runtime_factory()
+            session.runtime = runtime
             session.runs = 0
             return session
+
+    def _build(self) -> Runtime:
+        try:
+            return self._runtime_factory()
+        except RuntimeError as exc:
+            raise DemoUnavailable("the demo runtime could not be built") from exc
 
     def charge_run(self, session: DemoSession) -> None:
         """Counts one workflow run against the session's budget, or refuses it. Call it before every analyze, approve,
@@ -206,12 +241,32 @@ class DemoManager:
             if now - session.last_used <= self.idle_ttl and now - session.created_at <= self.max_age
         }
 
-    def _admit_locked(self, now: float) -> None:
-        """The limit shared by create() and reset(): records this attempt, or refuses it with the seconds to wait."""
+    def _check_room_locked(self, now: float) -> DemoSession | None:
+        """None when there is a free slot. At capacity, the least recently used session that has been idle for at least
+        recent_window (the one to evict), or DemoRateLimited when every session was active more recently than that."""
+        if len(self._sessions) < self._max_sessions:
+            return None
+        least_recent = min(self._sessions.values(), key=lambda s: s.last_used)
+        idle = now - least_recent.last_used
+        if idle < self._recent_window:
+            raise DemoRateLimited(max(1, math.ceil(self._recent_window - idle)))
+        return least_recent
+
+    def _admit_locked(self, now: float, client: str = "") -> None:
+        """The limits shared by create() and reset(): one for the client, one for the whole service. Records this
+        attempt in both, or refuses it with the seconds to wait and records nothing."""
+        window = self._create_window
+        for key in [k for k, q in self._client_attempts.items() if not q or now - q[-1] >= window]:
+            del self._client_attempts[key]  # keeps the table at the clients active within the window
+        mine = self._client_attempts.get(client, deque())
+        while mine and now - mine[0] >= window:
+            mine.popleft()
         attempts = self._attempts
-        while attempts and now - attempts[0] >= self._create_window:
+        while attempts and now - attempts[0] >= window:
             attempts.popleft()
-        if len(attempts) >= self._create_limit:
-            wait = math.ceil(self._create_window - (now - attempts[0]))
-            raise DemoRateLimited(max(1, wait))
+        for queue, limit in ((mine, self._client_create_limit), (attempts, self._create_limit)):
+            if len(queue) >= limit:
+                raise DemoRateLimited(max(1, math.ceil(window - (now - queue[0]))))
+        mine.append(now)
         attempts.append(now)
+        self._client_attempts[client] = mine

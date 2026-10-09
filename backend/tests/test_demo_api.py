@@ -24,11 +24,13 @@ from rebuttal import demo_api
 from rebuttal.agent.pipeline import Proposal
 from rebuttal.demo import (
     HERO_DISPUTE_ID,
+    DemoBusy,
     DemoLimitReached,
     DemoManager,
     DemoRateLimited,
     DemoSession,
     DemoSessionNotFound,
+    DemoUnavailable,
     DemoUnknownCase,
     simulator_cases,
 )
@@ -65,7 +67,7 @@ class FakeManager:
         if operation in self.failures:
             raise self.failures[operation]
 
-    def create(self) -> DemoSession:
+    def create(self, client: str = "") -> DemoSession:
         self._fail_if_set("create")
         session = self._new_session(uuid.uuid4().hex)
         with self._lock:
@@ -81,7 +83,7 @@ class FakeManager:
         with session.lock:
             yield session
 
-    def reset(self, session_id: str) -> DemoSession:
+    def reset(self, session_id: str, client: str = "") -> DemoSession:
         self._fail_if_set("reset")
         with self.use(session_id):  # like DemoManager.reset: unknown ids 404, and the session lock is taken
             fresh = self._new_session(session_id)
@@ -347,3 +349,40 @@ def test_the_module_does_not_import_the_app():
         elif isinstance(node, ast.ImportFrom):
             imported += [node.module or ""] + [alias.name for alias in node.names]
     assert not any("app" in name.split(".") for name in imported), imported
+
+
+def test_runtime_build_failure_gives_json_503_for_create_and_reset(client, manager):
+    sid = new_session(client)
+    manager.failures["create"] = DemoUnavailable("x")
+    manager.failures["reset"] = DemoUnavailable("x")
+    for r in (client.post("/api/demo/sessions"), client.post(f"/api/demo/{sid}/reset")):
+        assert r.status_code == 503 and r.json()["detail"].startswith("The demo is unavailable")
+
+
+def test_real_manager_build_failure_gives_503():
+    def broken():
+        raise RuntimeError("boom")
+
+    app = FastAPI()
+    app.include_router(make_demo_router(DemoManager(runtime_factory=broken)))
+    r = TestClient(app, raise_server_exceptions=False).post("/api/demo/sessions")
+    assert r.status_code == 503 and "detail" in r.json()
+
+
+def test_a_busy_session_gives_429(client, manager):
+    manager.failures["charge_run"] = DemoBusy("busy")
+    sid = new_session(client)
+    r = client.post(f"/api/demo/{sid}/disputes/{HERO_DISPUTE_ID}/analyze")
+    assert r.status_code == 429 and r.headers["retry-after"] == "1"
+
+
+def test_the_per_client_limit_keys_on_the_first_forwarded_hop():
+    manager = DemoManager(client_create_limit=1, runtime_factory=lambda: Runtime(seed_cases=SEED_CASES, force_rules=True))
+    app = FastAPI()
+    app.include_router(make_demo_router(manager))
+    http = TestClient(app)
+    ok = http.post("/api/demo/sessions", headers={"X-Forwarded-For": "1.1.1.1, 10.0.0.1"})
+    again = http.post("/api/demo/sessions", headers={"X-Forwarded-For": "1.1.1.1, 10.0.0.2"})
+    other = http.post("/api/demo/sessions", headers={"X-Forwarded-For": "2.2.2.2"})
+    assert (ok.status_code, again.status_code, other.status_code) == (200, 429, 200)
+    assert "retry-after" in again.headers

@@ -44,12 +44,14 @@ The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 
 | Limit | Value | What happens |
 |---|---|---|
-| Live sessions | 40 | The least recently used session is evicted. |
+| Live sessions | 40 | At capacity, a session idle for 5 minutes or more is evicted to make room; if every session was active more recently, the new one gets 429 with `Retry-After`. |
 | Idle expiry | 30 minutes | The session expires and its state is gone. |
 | Maximum age | 2 hours | The session expires, even when in use. A reset does not restart it. |
 | Disputes per session | 16 | Creating more returns 429. |
 | Workflow runs per session | 100 | Analyze, approve, reject, retry and simulate each count as one run. Every run adds checkpoints and audit rows to the session's memory, so the 101st returns 429 until the visitor clicks **Reset demo**, which restores the budget. |
-| Session creations and resets | 20 per minute, whole service | Returns 429 with `Retry-After`. |
+| Session creations and resets | 5 per minute per client (first `X-Forwarded-For` hop, else the peer address), 20 per minute for the whole service | Returns 429 with `Retry-After`. |
+| Waiting for a busy session | 10 seconds | Returns 429. |
+| Runtime build failure | none | Returns 503 with JSON. |
 | Edited message | 2000 characters | Longer bodies are refused. |
 | Reject reason | 500 characters | Longer bodies are refused. |
 

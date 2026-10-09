@@ -69,13 +69,16 @@ export function createApi(prefix = '/api', options: { sendToken?: boolean } = {}
     simulatorCases: () => request<SimulatorCase[]>(`${prefix}/simulator/cases`, { sendToken }),
     simulate: (caseId: string) =>
       request<Proposal>(`${prefix}/simulator/dispute/${encodeURIComponent(caseId)}`, { method: 'POST', sendToken }),
-    analytics: () => request<AnalyticsReport>(`${prefix}/analytics`, { sendToken }),
   }
 }
 
 export type Api = ReturnType<typeof createApi>
 
-export const api = createApi()
+// The dashboard-only call stays off the factory, so a demo client (Api) carries nothing the demo routes lack.
+export const api = {
+  ...createApi(),
+  analytics: () => request<AnalyticsReport>('/api/analytics'),
+}
 
 // The session id becomes a path segment. encodeURIComponent leaves '.' and '..' unchanged and fetch resolves them,
 // so the id is checked against a plain alphabet before any path is built.

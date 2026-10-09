@@ -12,10 +12,12 @@ from rebuttal.agent.pipeline import Proposal
 from rebuttal.demo import (
     DEMO_CASE_IDS,
     HERO_DISPUTE_ID,
+    DemoBusy,
     DemoLimitReached,
     DemoManager,
     DemoRateLimited,
     DemoSessionNotFound,
+    DemoUnavailable,
     DemoUnknownCase,
     build_demo_runtime,
     simulator_cases,
@@ -183,7 +185,7 @@ def test_expires_in_counts_down_to_the_nearer_limit():
 
 def test_session_count_stays_within_max_sessions():
     clock = FakeClock()
-    manager = DemoManager(max_sessions=5, create_limit=1000, clock=clock, runtime_factory=SimpleNamespace)
+    manager = DemoManager(max_sessions=5, create_limit=1000, client_create_limit=1000, recent_window=0.0, clock=clock, runtime_factory=SimpleNamespace)
     for _ in range(100):
         clock.now += 1.0
         manager.create()
@@ -202,7 +204,8 @@ def test_create_sweeps_expired_sessions_out_of_the_table():
 
 def test_at_capacity_the_least_recently_used_session_is_evicted():
     clock = FakeClock()
-    manager = DemoManager(max_sessions=2, create_limit=1000, clock=clock, runtime_factory=SimpleNamespace)
+    manager = DemoManager(max_sessions=2, create_limit=1000, client_create_limit=1000, recent_window=0.0, clock=clock,
+                          runtime_factory=SimpleNamespace)
     clock.now = 1.0
     first = manager.create()
     clock.now = 2.0
@@ -229,7 +232,7 @@ def test_a_session_that_lapsed_during_a_build_is_dropped_not_evicted_in_its_plac
         clock.now += build_seconds[0]  # the build takes time on the fake clock
         return SimpleNamespace()
 
-    manager = DemoManager(max_sessions=2, idle_ttl=1000.0, max_age=100.0, create_limit=1000, clock=clock,
+    manager = DemoManager(max_sessions=2, idle_ttl=1000.0, max_age=100.0, create_limit=1000, client_create_limit=1000, recent_window=0.0, clock=clock,
                           runtime_factory=slow_factory)
     clock.now = 0.0
     lapsing = manager.create()  # created at 0
@@ -251,7 +254,7 @@ def test_a_session_that_lapsed_during_a_build_is_dropped_not_evicted_in_its_plac
 
 def test_creates_are_rate_limited_and_recover_after_the_window():
     clock = FakeClock()
-    manager = DemoManager(create_limit=3, create_window=60.0, clock=clock, runtime_factory=SimpleNamespace)
+    manager = DemoManager(create_limit=3, client_create_limit=1000, create_window=60.0, clock=clock, runtime_factory=SimpleNamespace)
     for now in (0.0, 1.0, 2.0):
         clock.now = now
         manager.create()
@@ -349,3 +352,80 @@ def test_charge_run_refuses_runs_past_the_budget_and_reset_restores_it():
     manager.reset(session.id)
     assert session.runs == 0
     manager.charge_run(session)
+
+
+def test_one_client_is_limited_without_using_up_the_service_wide_limit():
+    clock = FakeClock()
+    manager = DemoManager(create_limit=10, client_create_limit=2, create_window=60.0, clock=clock,
+                          runtime_factory=SimpleNamespace)
+    manager.create("a")
+    manager.create("a")
+    with pytest.raises(DemoRateLimited) as refused:
+        manager.create("a")
+    assert refused.value.retry_after == 60
+    for _ in range(8):  # the refused attempt was not counted globally: 8 slots are left for other clients
+        manager.create("b" if _ < 2 else f"c{_}")
+    clock.now = 61.0
+    manager.create("a")
+
+
+def test_a_client_cannot_evict_recently_active_sessions_at_capacity():
+    clock = FakeClock()
+    manager = DemoManager(max_sessions=2, create_limit=1000, client_create_limit=1000, recent_window=300.0, clock=clock,
+                          runtime_factory=SimpleNamespace)
+    first = manager.create("a")
+    clock.now = 100.0
+    second = manager.create("a")
+    clock.now = 200.0
+    with pytest.raises(DemoRateLimited) as refused:
+        manager.create("evil")
+    assert refused.value.retry_after == 100  # the oldest-used session turns idle at t=300
+    with manager.use(first.id), manager.use(second.id):
+        pass
+    clock.now = 301.0  # now `second` was used 1s ago but `first`... both touched at 200, so wait out the window
+    with pytest.raises(DemoRateLimited):
+        manager.create("evil")
+    clock.now = 501.0
+    manager.create("evil")  # an idle session is evicted
+    assert manager.session_count() == 2
+
+
+def test_a_failed_runtime_build_raises_demo_unavailable_from_create_and_reset():
+    def broken():
+        raise RuntimeError("boom")
+
+    manager = DemoManager(runtime_factory=SimpleNamespace)
+    session = manager.create()
+    manager._runtime_factory = broken
+    with pytest.raises(DemoUnavailable):
+        manager.create()
+    with pytest.raises(DemoUnavailable):
+        manager.reset(session.id)
+    with manager.use(session.id):  # the session survived the failed reset
+        pass
+
+
+def test_waiting_for_a_busy_session_times_out_with_demo_busy():
+    manager = DemoManager(lock_timeout=0.05, runtime_factory=SimpleNamespace)
+    session = manager.create()
+    held, release = threading.Event(), threading.Event()
+
+    def hold():
+        with manager.use(session.id):
+            held.set()
+            release.wait(5)
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    held.wait(5)
+    try:
+        with pytest.raises(DemoBusy):
+            with manager.use(session.id):
+                pass
+        with pytest.raises(DemoBusy):
+            manager.reset(session.id)
+    finally:
+        release.set()
+        thread.join()
+    with manager.use(session.id):
+        pass

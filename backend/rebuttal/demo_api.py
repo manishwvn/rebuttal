@@ -11,18 +11,20 @@ from contextlib import contextmanager
 from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from .agent.graph import DisputeAgent
 from .approval import ApprovalError
 from .demo import (
     HERO_DISPUTE_ID,
+    DemoBusy,
     DemoLimitReached,
     DemoManager,
     DemoRateLimited,
     DemoSession,
     DemoSessionNotFound,
+    DemoUnavailable,
     DemoUnknownCase,
     simulator_cases,
 )
@@ -53,10 +55,23 @@ def _demo_errors() -> Iterator[None]:
     except DemoRateLimited as exc:
         raise HTTPException(429, "Too many demo sessions right now. Try again shortly.",
                             headers={"Retry-After": str(exc.retry_after)}) from exc
+    except DemoBusy as exc:
+        raise HTTPException(429, "This demo session is busy. Try again in a moment.", headers={"Retry-After": "1"}) from exc
+    except DemoUnavailable as exc:
+        raise HTTPException(503, "The demo is unavailable right now. Try again shortly.", headers={"Retry-After": "5"}) from exc
     except ApprovalError as exc:
         raise HTTPException(409, str(exc)) from exc
     except (PayPalError, httpx.TransportError) as exc:
         raise HTTPException(502, "The demo sandbox failed. Reset the demo.") from exc
+
+
+def client_key(request: Request) -> str:
+    """Who the per-client limit counts: the first X-Forwarded-For hop (the proxy in front of the service sets it), else
+    the socket peer."""
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if forwarded:
+        return forwarded[:64]
+    return request.client.host if request.client else ""
 
 
 def _own_proposal(session: DemoSession, proposal_id: str) -> None:
@@ -79,16 +94,14 @@ def make_demo_router(manager: DemoManager) -> APIRouter:
         }
 
     @router.post("/sessions")
-    def create_session() -> dict:
+    def create_session(request: Request) -> dict:
         with _demo_errors():
-            return info(manager.create())
+            return info(manager.create(client_key(request)))
 
     @router.post("/{session_id}/reset")
-    def reset(session_id: str) -> dict:
+    def reset(session_id: str, request: Request) -> dict:
         with _demo_errors():
-            with manager.use(session_id):  # lookup only: an unknown id answers 404 before reset spends the rate limit
-                pass
-            return info(manager.reset(session_id))
+            return info(manager.reset(session_id, client_key(request)))
 
     @router.get("/{session_id}/health")
     def health(session_id: str) -> dict:

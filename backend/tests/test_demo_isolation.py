@@ -233,7 +233,7 @@ def test_a_hostile_environment_still_gives_a_mock_rules_demo(guarded, monkeypatc
 
 def test_the_creation_and_simulation_limits_hold_over_http():
     app = FastAPI()
-    app.include_router(make_demo_router(DemoManager(max_disputes=7, create_limit=2, create_window=60.0)))
+    app.include_router(make_demo_router(DemoManager(max_disputes=7, create_limit=2, client_create_limit=10, create_window=60.0)))
     client = BoundedClient(TestClient(app))
     first = client.post("/api/demo/sessions")
     second = client.post("/api/demo/sessions")
@@ -260,7 +260,7 @@ def test_an_expired_session_answers_404():
 
 def test_max_sessions_evicts_the_oldest_session():
     app = FastAPI()
-    manager = DemoManager(max_sessions=2, create_limit=10, create_window=60.0)
+    manager = DemoManager(max_sessions=2, create_limit=10, client_create_limit=10, recent_window=0.0, create_window=60.0)
     app.include_router(make_demo_router(manager))
     client = BoundedClient(TestClient(app))
     sids = []
