@@ -73,7 +73,9 @@ def build_demo_runtime() -> Runtime:
                  checkpointer=InMemorySaver(), tracing=False)
     if rt.mock is None or rt.mode != "mock / rules":
         raise RuntimeError(f"demo runtime must be mock / rules, got {rt.mode}")
-    rt.analyze(HERO_DISPUTE_ID)
+    hero = rt.analyze(HERO_DISPUTE_ID)
+    if hero.status != "PENDING":
+        raise RuntimeError(f"the hero proposal must wait for approval, got {hero.status}")
     return rt
 
 
@@ -89,7 +91,7 @@ def simulator_cases() -> list[dict]:
 class DemoSession:
     id: str
     runtime: Runtime
-    lock: threading.Lock  # serialises all work on this session's runtime
+    lock: threading.RLock  # serialises all work on this session's runtime; reentrant, so a call may nest use()
     created_at: float
     last_used: float
 
@@ -127,16 +129,15 @@ class DemoManager:
 
     def create(self) -> DemoSession:
         with self._lock:
-            now = self._clock()
-            self._sweep_locked(now)
-            self._admit_locked(now)
+            self._admit_locked(self._clock())
         runtime = self._runtime_factory()  # built outside the lock: it takes a moment
         with self._lock:
+            now = self._clock()
+            self._sweep_locked(now)  # after the build: a session that lapsed during it is dropped, not evicted for
             while len(self._sessions) >= self._max_sessions:
                 least_recent = min(self._sessions.values(), key=lambda s: s.last_used)
                 del self._sessions[least_recent.id]
-            now = self._clock()
-            session = DemoSession(id=secrets.token_urlsafe(16), runtime=runtime, lock=threading.Lock(),
+            session = DemoSession(id=secrets.token_urlsafe(16), runtime=runtime, lock=threading.RLock(),
                                   created_at=now, last_used=now)
             self._sessions[session.id] = session
         return session

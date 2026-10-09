@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import rebuttal.demo as demo_module
 import rebuttal.runtime as runtime_module
 from rebuttal.agent.pipeline import Proposal
 from rebuttal.demo import (
@@ -39,6 +40,8 @@ def test_demo_runtime_is_mock_rules_and_ignores_real_environment(monkeypatch):
     monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "fake-client-secret")
     monkeypatch.setenv("GROQ_API_KEY", "fake-groq-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-anthropic-key")
+    monkeypatch.setenv("NVIDIA_API_KEY", "fake-nvidia-key")
+    monkeypatch.setenv("PAYPAL_WEBHOOK_ID", "fake-webhook-id")
     monkeypatch.setenv("REBUTTAL_REASONER", "auto")
     monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@localhost:5432/x")
 
@@ -54,13 +57,38 @@ def test_demo_runtime_is_mock_rules_and_ignores_real_environment(monkeypatch):
     assert rt.mock is not None
     assert rt.mode == "mock / rules"
     assert rt.settings.mock is True
+    assert rt.settings.client_id == ""
+    assert rt.settings.client_secret == ""
     assert rt.settings.database_url is None
     assert rt.settings.anthropic_api_key is None
+    assert rt.settings.nvidia_api_key is None
     assert rt.settings.groq_api_key is None
+    assert rt.settings.paypal_webhook_id is None
     assert rt.audit._pool is None
+    assert rt.audit.path is None  # demo audit lines never reach the file the live app writes
     assert rt.mock.write_calls() == []
     assert len(rt.mock.disputes) == len(DEMO_CASE_IDS)
+    hero_case = next(c for c in load_cases() if c["id"] == "agent_wrong_size")
+    assert rt.mock.disputes[HERO_DISPUTE_ID]["messages"][0]["content"] == hero_case["buyer_message"]
     assert rt.approvals.latest_for(HERO_DISPUTE_ID).status == "PENDING"
+
+
+@pytest.mark.parametrize("stub", [
+    SimpleNamespace(mock=None, mode="sandbox / rules"),
+    SimpleNamespace(mock=object(), mode="mock / groq"),
+])
+def test_build_refuses_a_runtime_that_is_not_mock_rules(monkeypatch, stub):
+    monkeypatch.setattr(demo_module, "Runtime", lambda *args, **kwargs: stub)
+    with pytest.raises(RuntimeError, match="mock / rules"):
+        build_demo_runtime()
+
+
+def test_build_refuses_a_hero_that_does_not_wait_for_approval(monkeypatch):
+    stub = SimpleNamespace(mock=object(), mode="mock / rules",
+                           analyze=lambda dispute_id: SimpleNamespace(status="EXECUTED"))
+    monkeypatch.setattr(demo_module, "Runtime", lambda *args, **kwargs: stub)
+    with pytest.raises(RuntimeError, match="wait for approval"):
+        build_demo_runtime()
 
 
 def test_two_runtimes_share_nothing():
@@ -122,6 +150,21 @@ def test_sessions_expire_at_max_age_even_while_busy():
             pass
 
 
+def test_reset_restarts_the_absolute_lifetime():
+    clock = FakeClock()
+    manager = DemoManager(max_age=100.0, clock=clock, runtime_factory=SimpleNamespace)
+    session = manager.create()  # created at 0
+    clock.now = 90.0
+    manager.reset(session.id)  # the fresh runtime starts a new 100 second life at 90
+    clock.now = 150.0  # 150 seconds since create, 60 since reset
+    with manager.use(session.id):
+        pass
+    clock.now = 191.0  # 101 seconds since reset
+    with pytest.raises(DemoSessionNotFound):
+        with manager.use(session.id):
+            pass
+
+
 def test_expires_in_counts_down_to_the_nearer_limit():
     clock = FakeClock()
     by_idle = DemoManager(idle_ttl=100.0, max_age=1000.0, clock=clock, runtime_factory=SimpleNamespace)
@@ -148,6 +191,15 @@ def test_session_count_stays_within_max_sessions():
     assert manager.session_count() == 5
 
 
+def test_create_sweeps_expired_sessions_out_of_the_table():
+    clock = FakeClock()
+    manager = DemoManager(idle_ttl=100.0, clock=clock, runtime_factory=SimpleNamespace)
+    manager.create()
+    clock.now = 101.0  # the first session is now idle past its limit
+    manager.create()
+    assert manager.session_count() == 1
+
+
 def test_at_capacity_the_least_recently_used_session_is_evicted():
     clock = FakeClock()
     manager = DemoManager(max_sessions=2, create_limit=1000, clock=clock, runtime_factory=SimpleNamespace)
@@ -167,6 +219,34 @@ def test_at_capacity_the_least_recently_used_session_is_evicted():
     with pytest.raises(DemoSessionNotFound):
         with manager.use(second.id):
             pass
+
+
+def test_a_session_that_lapsed_during_a_build_is_dropped_not_evicted_in_its_place():
+    clock = FakeClock()
+    build_seconds = [0.0]
+
+    def slow_factory():
+        clock.now += build_seconds[0]  # the build takes time on the fake clock
+        return SimpleNamespace()
+
+    manager = DemoManager(max_sessions=2, idle_ttl=1000.0, max_age=100.0, create_limit=1000, clock=clock,
+                          runtime_factory=slow_factory)
+    clock.now = 0.0
+    lapsing = manager.create()  # created at 0
+    clock.now = 40.0
+    live = manager.create()  # created at 40, never used since
+    clock.now = 90.0
+    with manager.use(lapsing.id):  # the lapsing session is the most recently used
+        pass
+    clock.now = 95.0
+    build_seconds[0] = 10.0
+    manager.create()  # the build ends at 105, when `lapsing` is 105 seconds old and `live` is 65
+    with manager.use(live.id):  # still alive: the full table was not used to evict it
+        pass
+    with pytest.raises(DemoSessionNotFound):
+        with manager.use(lapsing.id):
+            pass
+    assert manager.session_count() == 2
 
 
 def test_creates_are_rate_limited_and_recover_after_the_window():
@@ -239,3 +319,19 @@ def test_work_on_one_session_is_serialised():
     for worker in workers:
         worker.join(5)
     assert events == ["first in", "first out", "second in", "second out"]
+
+
+def test_a_nested_reset_inside_use_on_the_same_thread_finishes():
+    manager = DemoManager(runtime_factory=SimpleNamespace)
+    session = manager.create()
+    done = threading.Event()
+
+    def nested() -> None:
+        with manager.use(session.id):
+            manager.reset(session.id)  # takes the same session's lock again on this thread
+        done.set()
+
+    worker = threading.Thread(target=nested, daemon=True)  # a deadlock must not hang the test run
+    worker.start()
+    worker.join(5)
+    assert done.is_set()
