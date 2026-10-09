@@ -1,7 +1,7 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `fix/frontend-followups`:
-PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `feat/paypal-toolkit`:
+PR #28: Q3, read-only PayPal toolkit adapter). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
 `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
@@ -24,6 +24,11 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
 - **Hero case correct live** (dispute `PP-R-SVN-10190455`): order found, assistant said "medium" vs shipped L,
   `buyer_asks_for_refund` true; Groq chose OFFER_REPLACEMENT, the guard converted it to "refund $48 after return". Older live disputes
   `PP-R-GFH-10190453` and `PP-R-HDU-10190454` hold stale proposals; leave them unapproved.
+- **PayPal Agent Toolkit shape, read-only (PR #28, Q3):** the official `paypal-agent-toolkit` 1.11.0 cannot be used
+  strictly read-only (langchain pin conflicts with ours, `run()` dispatches any tool by name, it uses `requests`
+  past our transport, `list_transactions` lacks `fields=all`). `rebuttal/agent/toolkit.py` is a four-tool adapter in its
+  tool shape over `client.read_only()`; `gather` reads PayPal only through it and the audit lines name the tool. ADR 0008;
+  tests `test_toolkit.py`, `test_gather_toolkit.py`. No dependency added.
 - **Guard rules** (facts decide, the model does not): no offer type PayPal does not allow (fallback to the proven
   REFUND / REFUND_WITH_RETURN when PayPal lists none; execute refuses too), assistant mis-orders get the friendly
   fix, no tracking on not-received gets a refund, damaged high-value items get return-for-refund (`f4cb66d`, added after the 90% run:
@@ -59,7 +64,7 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
   allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
-- **Tests:** 241 pass (47 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 293 pass (47 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 

@@ -78,10 +78,26 @@ flowchart LR
   refuses any write outside `permit_writes()`, and `read_only()` gives the analysis steps a clone whose transport
   refuses everything but GET.
 - `rebuttal/paypal/mock.py`: in-memory sandbox behind `httpx.MockTransport`; the same client runs against both.
+- [`rebuttal/agent/toolkit.py`](backend/rebuttal/agent/toolkit.py): the read-only, PayPal-Agent-Toolkit-shaped tool
+  layer for showing a dispute, listing transactions, order trackers and capture-to-order lookups. `gather` in
+  `facts.py` reads PayPal only through it.
 - `rebuttal/agent/`: `facts.py` (gather + hard facts), `llm.py` (LangChain chat models, Pydantic `DecisionOut`),
   `reasoner.py` (rules baseline, `guard`, prompt), `pipeline.py` (planning, evidence PDF), `graph.py` (the graph).
 - `rebuttal/approval.py`: the approval interrupt and the `execute` node, the only code that writes to PayPal.
 - `evals/cases.json`: 20 labeled disputes, 4 marked hard (the buyer's wording changes the right answer).
+
+### PayPal Agent Toolkit (read-only)
+
+Rebuttal does not depend on PayPal's official `paypal-agent-toolkit` package (v1.11.0 on PyPI), for four verified reasons:
+
+1. It pins `langchain==0.3.23` (and `openai-agents==0.0.2`, `crewai-tools==0.13.2`), which cannot resolve with the `langchain>=1.4.3` that our LangGraph 1.x stack uses.
+2. Its `PayPalAPI.run(method, params)` runs any tool by name, including `accept_dispute_claim`, `create_order` and `pay_order`, without checking the configured actions, so choosing read tools in `get_tools()` is not a hard boundary.
+3. It sends requests with `requests` directly, so our read-only HTTP transport and the mock sandbox cannot gate it.
+4. Its `list_transactions` does not request `fields=all`, so the payer email needed for the duplicate-charge fact is not returned.
+
+`rebuttal/agent/toolkit.py` is therefore a substitute with the same tool shape (`method`, `name`, `description`, `args_schema`, `actions`, `execute`; `run(method, params)` returns a JSON string), tools named like the toolkit's (`get_dispute`, `list_transactions`) plus Rebuttal's `get_order_trackers` and `get_capture_order_id`, all over `PayPalClient.read_only()`. Only these four read tools exist; any other name raises `ToolNotAvailable`. The official package could replace it only after its langchain pin is lifted and PayPal fixes reasons 2 to 4 upstream.
+
+The write path is unchanged: `execute` in `rebuttal/approval.py` is still the only writer in the agent graph and the API (the named manual sandbox and demo scripts in `backend/scripts/` are the exception). The adapter calls only the four read methods. It is covered by `backend/tests/test_toolkit.py`, `backend/tests/test_gather_toolkit.py` (every `gather` read goes through it) and the package scan in `backend/tests/test_write_boundary.py`.
 
 ## Payments-grade guarantees
 
@@ -106,13 +122,13 @@ experiment.
 
 ## Architecture decisions
 
-The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals) are recorded in [docs/adr/](docs/adr/README.md).
+The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md)) are recorded in [docs/adr/](docs/adr/README.md).
 
 ## Sponsor tools (planned)
 
 AG Studio (dashboard and agent), APIMatic Context Plugin (used while building the PayPal integration in Claude Code,
-see [docs/apimatic-log.md](docs/apimatic-log.md)), Render (hosting), Bryntum Scheduler (backup), Elastic (optional
-retrieval).
+see [docs/apimatic-log.md](docs/apimatic-log.md)), PayPal Agent Toolkit (tool format used read-only, see above), Render
+(hosting), Bryntum Scheduler (backup), Elastic (optional retrieval).
 
 ## License
 

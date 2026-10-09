@@ -1,0 +1,43 @@
+# 0008. A read-only adapter shaped like the PayPal Agent Toolkit
+
+Status: Accepted
+
+## Context
+
+PayPal promotes its Agent Toolkit for the hackathon. We wanted the agent's read-only lookups (show dispute, list
+transactions) to use that tool format, behind the ADR 0002 boundary. We read PyPI `paypal-agent-toolkit` 1.11.0 and
+found four problems:
+
+- It pins `langchain==0.3.23` (also `openai-agents==0.0.2`, `crewai-tools==0.13.2`). That cannot resolve with our
+  `langchain>=1.4.3` (uv: no solution).
+- `PayPalAPI.run(method, params)` dispatches any tool by name without checking the configured actions, so write tools
+  (`accept_dispute_claim`, `create_order`, `pay_order`) stay callable.
+- It uses `requests` directly, so our `ReadOnlyTransport` and the httpx mock do not apply.
+- `list_transactions` omits `fields=all`, so `payer_info` (used by the duplicate-charge fact) is not returned.
+
+Source: https://pypi.org/project/paypal-agent-toolkit/ (version 1.11.0). We inspected the package metadata (pinned
+dependencies) and the unpacked source: `PayPalAPI.run`, the tool definitions, and how the HTTP calls are made.
+
+## Decision
+
+[`agent/toolkit.py`](../../backend/rebuttal/agent/toolkit.py) defines `READ_TOOLS`: exactly four read tools in the
+toolkit's tool-dict shape (method, name, description, args_schema, actions, execute): `get_dispute`,
+`list_transactions`, `get_order_trackers`, `get_capture_order_id`. `ReadOnlyToolkit(client)` stores
+`client.read_only()` even if it is given the full client. It validates parameters with pydantic (`extra=forbid`, id
+pattern), offers `call` and `run` (JSON string, like the toolkit), and raises `ToolNotAvailable` for any other name.
+`gather` in [`agent/facts.py`](../../backend/rebuttal/agent/facts.py) reads PayPal only through it, and each
+audit-trail line starts with the tool name.
+
+## Consequences
+
+- No write tool exists in the registry. The module may reference only `read_only()` and the four read methods; an
+  AST test in `backend/tests/test_toolkit.py` checks this.
+- `backend/tests/test_gather_toolkit.py` checks that `gather` calls nothing on the client except `read_only()`, so every
+  read goes through the toolkit.
+- The package-wide scan in `test_write_boundary.py` also covers the file, because it is outside `paypal/` and is not
+  `approval.py`.
+- `execute` remains the only writer (ADR 0001).
+- A later swap to the official package needs its langchain pin lifted, its `run` limited to our four names, its
+  `requests` traffic going through our read-only transport, and `list_transactions` sending `fields=all`. None of these
+  holds in 1.11.0.
+- Cost: a small module to maintain, and a Rebuttal-specific pair of tools the official toolkit does not have.
