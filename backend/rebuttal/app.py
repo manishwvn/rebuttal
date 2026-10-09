@@ -6,16 +6,22 @@ Run:  uvicorn rebuttal.app:app --reload   (from backend/)
 from __future__ import annotations
 
 import hmac
+import logging
 import os
 
+import httpx
 from fastapi.concurrency import run_in_threadpool
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .agent.graph import DisputeAgent
 from .approval import ApprovalError
+from .paypal.client import PayPalError
 from .runtime import Runtime
 from .scenarios import load_cases, seed_case
+
+logger = logging.getLogger(__name__)
 
 DEMO_CASES = ["agent_wrong_size", "inr_delivered", "inr_misdelivered",
               "snad_damaged_low_value", "unauth_agent_mandate", "cnp_refunded"]
@@ -54,6 +60,27 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 
 
 protected = [Depends(require_token)]
+
+
+def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError) -> HTTPException:
+    """PayPal failed (or could not be reached) while an approved action was being sent or while the dispute was being
+    read first. The approval is already saved (the proposal now reads APPROVED), so say that in a normal JSON error:
+    an unhandled exception would become a bare 500 that browsers on another origin cannot even read, because it
+    carries no CORS headers. The response says nothing about PayPal's reply beyond its status; the status and
+    debug_id go to the server log and the audit trail, where an operator can follow them up."""
+    status = exc.status if isinstance(exc, PayPalError) else None
+    debug_id = exc.debug_id if isinstance(exc, PayPalError) else None
+    logger.warning("PayPal call interrupted for %s: %s status=%s debug_id=%s", proposal_id, type(exc).__name__,
+                   status, debug_id)
+    try:
+        rt.audit.log(DisputeAgent.dispute_of(proposal_id), "execute_interrupted",
+                     {"proposal": proposal_id, "status": status, "debug_id": debug_id, "error": type(exc).__name__})
+    except Exception:  # noqa: BLE001 - the audit store must not turn a readable 502 back into a bare 500
+        logger.exception("Could not audit the interrupted PayPal call for %s", proposal_id)
+    what = f"PayPal answered with an error ({status})" if status is not None else "PayPal could not be reached"
+    retryable = status is None or status >= 500  # a 4xx is an answer: retrying the same call will not change it
+    return HTTPException(502, f"{what} while sending or checking the dispute. Your approval is saved"
+                              + ("; retry to continue." if retryable else "."))
 
 
 class ApproveBody(BaseModel):
@@ -95,6 +122,8 @@ def approve(proposal_id: str, body: ApproveBody):
         return rt.approvals.approve(proposal_id, body.edited_message).to_dict()
     except ApprovalError as exc:
         raise HTTPException(409, str(exc)) from exc
+    except (PayPalError, httpx.TransportError) as exc:
+        raise paypal_interrupted(proposal_id, exc) from exc
 
 
 @app.post("/api/proposals/{proposal_id}/retry", dependencies=protected)
@@ -105,6 +134,8 @@ def retry(proposal_id: str):
         return rt.approvals.retry(proposal_id).to_dict()
     except ApprovalError as exc:
         raise HTTPException(409, str(exc)) from exc
+    except (PayPalError, httpx.TransportError) as exc:
+        raise paypal_interrupted(proposal_id, exc) from exc
 
 
 @app.get("/api/proposals/pending", dependencies=protected)
@@ -156,6 +187,16 @@ def simulator_cases():
         raise HTTPException(501, "The simulator only runs against the mock sandbox.")
     return [{"id": c["id"], "title": c["title"], "reason": c["reason"], "agent_purchase": bool(c.get("agent_purchase"))}
             for c in load_cases()]
+
+
+@app.post("/api/simulator/interrupt-next-write", dependencies=protected)
+def interrupt_next_write():
+    """Mock mode only. The next PayPal write is applied and then answered with a 503, as when a gateway fails after
+    PayPal acted: the approved proposal is left APPROVED and the dashboard's Retry has something to do."""
+    if rt.mock is None:
+        raise HTTPException(501, "Only the mock sandbox can be made to fail.")
+    rt.mock.interrupt_next_write = True
+    return {"armed": True}
 
 
 @app.post("/api/simulator/dispute/{case_id}", dependencies=protected)

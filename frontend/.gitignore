@@ -24,3 +24,7 @@ dist-ssr
 *.sw?
 test-results
 playwright-report
+
+# Local environment files (VITE_API_TOKEN lives here for `npm run dev`); only the example is tracked
+.env*
+!.env.example

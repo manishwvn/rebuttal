@@ -7,6 +7,18 @@ final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
 ## Tasks
 
+### Q1 Deterministic quality gates in CI — size M — todo — priority now
+Catch basic mistakes without spending model usage. Add to `.github/workflows/tests.yml` (all free):
+- Secret scan of every push and PR with gitleaks (free for personal accounts; `gitleaks/gitleaks-action@v2` or the
+  gitleaks binary), with an allowlist only for the vendored skill examples if needed.
+- Backend lint with `ruff check` (add `ruff` to the `dev` dependency group with `uv add --dev ruff`, a minimal
+  `[tool.ruff]` config in `backend/pyproject.toml`; fix what it flags in the same PR, do not disable rules wholesale).
+- Frontend: confirm `npm run build` (already `tsc -b && vite build`) and `npm run lint` stay in CI; add `tsc --noEmit`
+  for the e2e folder if it is not covered.
+- A test that every environment variable read by the backend (`os.getenv` / `os.environ`) is listed in
+  `backend/.env.example` or explicitly allowlisted.
+Done when CI runs the new jobs on the PR and they pass.
+
 ### A1 Keep the live backend awake (free) — size S — done #6
 GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.onrender.com/api/health` every
 10 minutes (public repo, so Actions minutes are free; one free Render service running 24/7 fits the 750 free hours a
@@ -18,7 +30,7 @@ accuracy and the per-case misses in `docs/evals.md` (create it, include the main
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
-### A3 Frontend follow-ups from the PR #3 review — size M — in-progress (branch fix/frontend-followups)
+### A3 Frontend follow-ups from the PR #3 review — size M — in review (branch fix/frontend-followups)
 - Delete the unused Vite scaffold (`frontend/src/assets/`, `frontend/public/icons.svg`, unused CSS).
 - Register only the AG Grid modules in use instead of `AllCommunityModule` (`ag-mcp` for module names); report the
   bundle size before and after.
@@ -46,6 +58,17 @@ Judges must be able to try Rebuttal without PayPal accounts. Add a demo mode on 
 button that runs the hero case and the other demo cases against the in-memory mock sandbox in a separate, isolated
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
 behind the token. Reviewer must confirm the isolation. Document it in the README.
+
+### A7 Approve dialog closes at once under `npm run dev` — size S — todo
+Found by the A4 dry run: in the Vite dev server the Approve confirm dialog closes immediately (likely a React
+StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
+a Playwright test against the dev server, fix the effect, keep StrictMode on.
+
+### A8 Re-run the main eval on current code — size S — todo — after Oct 10
+The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
+once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
+`docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
+two do not share one day's Groq quota.
 
 ### B1 AG Studio dashboard, first pass — size L — todo — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:

@@ -74,6 +74,8 @@ export interface Proposal {
   case_summary: CaseSummary
   status: ProposalStatus
   result: ActionResult[]
+  /** The buyer text the merchant approved (their edit, or the draft approved as is); null before a decision, after a rejection and for evidence. */
+  approved_message: string | null
   has_evidence_document: boolean
 }
 

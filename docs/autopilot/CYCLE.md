@@ -65,12 +65,15 @@ marked `size: S` this cycle.
      your notes. Per task: a Sonnet tech lead plans up to 12 small disjoint pieces (about one file plus its test each);
      a Haiku fleet builds them in parallel in their own worktrees (effort xhigh, max for hard pieces); every piece gets
      3 independent Haiku auditors at max effort (spec, correctness, safety) and up to 2 Haiku fix + re-audit rounds;
-     the Sonnet tech lead integrates, runs every test and opens the PR; the reviewer agent checks the whole PR (Opus
-     when it touches PayPal or money paths) with up to two Sonnet fix rounds. Manish asked for this team structure:
+     the Sonnet tech lead integrates, runs every test and opens the PR; a review panel checks the whole PR: 3
+     independent Sonnet reviewers (correctness and tests, safety and money, design and docs), then an Opus principal
+     engineer who verifies each finding, adds what they missed and decides; up to two Sonnet fix rounds, each
+     re-reviewed by the full panel. Manish asked for this team structure:
      Haiku does most of the building because it is cheap on the usage limit, and it gets the most auditing. At most
      6 agents run at once on this Mac (8 cores); the rest queue.
    - Size S tasks and docs-only tasks: one agent (`chores` with `model: "haiku"` for docs, or a `general-purpose`
-     agent with `model: "sonnet"` for small code), then the reviewer.
+     agent with `model: "sonnet"` for small code), then one independent `reviewer` agent (`model: "sonnet"`; `"opus"`
+     if the diff touches PayPal or money paths). Fix its findings before merge.
    - Groq only for evals and the AG Studio agent, at most one eval run per day.
    - After the workflow, `git worktree list` shows leftover worker worktrees; remove them with `git worktree remove`
      once their commits are in the PR.
@@ -119,8 +122,12 @@ Cycles that did work also update the repo:
 - `LOG.md`: one block per working cycle, newest at the top:
   `## <local date time> | W start→end % | F start→end % | <task id> | <result: merged #n / in-progress / skipped why>`
   plus up to 3 lines of decisions or problems.
-- Once a day (first cycle after 08:00 local): put a 5-line plain-English progress summary at the top of `LOG.md`
-  under `# Daily summary <date>`, and refresh `STATUS.md`.
+- Once a day (first cycle after 08:00 local), before picking tasks: run the `system-audit` workflow
+  (`scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/system-audit.js"`, `args: {sha: <main HEAD>,
+  scratch: <a new empty folder under ~/.rebuttal-autopilot/audit-<date>>}`). Add every returned task to `QUEUE.md`
+  (priority `now` goes to the top of `## Tasks`), log the summary and the rejected count, and alert if `critical`.
+  Then put a 5-line plain-English progress summary at the top of `LOG.md` under `# Daily summary <date>`, and refresh
+  `STATUS.md`.
 - Commit `QUEUE.md`, `LOG.md` and `STATUS.md` updates on the task's PR. If the task ended without a PR
   (waiting, blocked), commit them on a branch `autopilot/log-<date>`, PR, and merge once CI is green (docs only).
 - Never commit `LEARNING.md` (local only).
