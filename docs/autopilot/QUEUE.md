@@ -59,6 +59,17 @@ button that runs the hero case and the other demo cases against the in-memory mo
 runtime (no access to the real sandbox client, never writes to PayPal, resets itself). The real-sandbox inbox stays
 behind the token. Reviewer must confirm the isolation. Document it in the README.
 
+### A7 Approve dialog closes at once under `npm run dev` — size S — todo
+Found by the A4 dry run: in the Vite dev server the Approve confirm dialog closes immediately (likely a React
+StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
+a Playwright test against the dev server, fix the effect, keep StrictMode on.
+
+### A8 Re-run the main eval on current code — size S — todo — after Oct 10
+The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
+once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
+`docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
+two do not share one day's Groq quota.
+
 ### B1 AG Studio dashboard, first pass — size L — todo — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:
 disputes by reason and by product, money kept vs refunded, response deadlines, model-vs-final agreement from the
