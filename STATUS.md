@@ -10,6 +10,7 @@ A6, judge demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/dep
 
 ## Where we are
 
+- **Q4 (branch `feat/q4-sandbox-dispute`, PR open):** `backend/scripts/make_sandbox_dispute.py` opens a sandbox dispute as the buyer business account (`PAYPAL_BUYER_CLIENT_ID/SECRET`) via `PayPalClient.create_dispute`. Not yet run against the real sandbox; request body carries a VERIFY note. Manual step: the buyer approves the order link once.
 - **Live backend:** Render free plan, service `rebuttal` (render.yaml names it `rebuttal-api`), id
   `srv-db3179ss728c73b0do1g`, `https://rebuttal-oq3g.onrender.com`, health `/api/health`. Real PayPal sandbox
   (`REBUTTAL_MOCK=0`), Groq as the model (`GROQ_MODEL` unset on Render, so the code default `qwen/qwen3.8-27b`),

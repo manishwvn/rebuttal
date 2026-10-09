@@ -14,11 +14,11 @@ PACKAGE = Path(__file__).resolve().parents[1] / "rebuttal"
 BACKEND = PACKAGE.parent
 # Every PayPalClient method that changes something at PayPal, and the private ways to reach one.
 WRITE_METHODS = {"send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "require_evidence",
-                 "adjudicate", "create_order", "capture_order", "add_order_tracking"}
+                 "adjudicate", "create_order", "capture_order", "add_order_tracking", "create_dispute"}
 PRIVATE = {"_request", "_http", "_init"}
 ALLOWED = {"approval.py"}  # the gate; paypal/client.py defines the methods, paypal/mock.py is the fake server
 # Manual tools that talk to the PayPal sandbox on purpose. They are not part of the agent and run only when a person starts them.
-MANUAL_SCRIPTS = {"spike_sandbox.py", "spike_retry.py", "spike_fresh.py", "make_test_order.py", "demo.py"}
+MANUAL_SCRIPTS = {"spike_sandbox.py", "spike_retry.py", "spike_fresh.py", "make_test_order.py", "make_sandbox_dispute.py", "demo.py"}
 
 
 LOOKUPS = {"getattr", "attrgetter", "methodcaller", "__getattribute__"}
@@ -73,7 +73,8 @@ def test_scripts_and_evals_do_not_write_to_paypal_except_the_named_manual_tools(
 
 
 def test_the_manual_sandbox_tools_use_the_write_permit_explicitly():
-    for name in ("spike_sandbox.py", "spike_retry.py", "spike_fresh.py", "make_test_order.py"):
+    for name in ("spike_sandbox.py", "spike_retry.py", "spike_fresh.py", "make_test_order.py",
+                 "make_sandbox_dispute.py"):
         assert "with permit_writes()" in (BACKEND / "scripts" / name).read_text(), name
 
 
