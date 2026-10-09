@@ -1,5 +1,8 @@
 # Autopilot log
 
+## 2026-10-09 18:15 CDT | W 83→84 % | F 14→? % | Q4 | merged #42
+make_sandbox_dispute.py + PayPalClient.create_dispute (write only inside permit_writes, manual script). Opus review: no blockers; 8 should-fix/low items fixed. Request body still VERIFY until a live run. Daily system-audit skipped: weekly headroom too small.
+
 ## 2026-10-09 16:15 CDT | W 82→82 % | F 3→3 % | S1 | PR open
 Checked Orders v2 payloads and carrier values against the paypal-server-sdk models (installed in a scratch venv): no drift; SDK has no Disputes API. Logged in apimatic-log.md. QUEUE A4 marked done (script already on main). Docs only; no code touched.
 

@@ -229,6 +229,16 @@ class PayPalClient:
         )
 
     # ---------------------------------------------- sandbox-only simulation
+    def create_dispute(self, seller_transaction_id: str, reason: str, amount: dict, note: str | None = None) -> dict:
+        """Open a dispute AS THE BUYER (a second sandbox business account's keys). Only the manual script
+        scripts/make_sandbox_dispute.py calls this; the agent never creates disputes. VERIFY: body shape against the
+        live sandbox on first run (disputed_transactions[].seller_transaction_id, reason, dispute_amount)."""
+        body: dict[str, Any] = {"disputed_transactions": [{"seller_transaction_id": seller_transaction_id}],
+                                "reason": reason, "dispute_amount": amount}
+        if note:
+            body["messages"] = [{"posted_by": "BUYER", "content": note}]
+        return self._request("POST", "/v1/customer/disputes", json=body)
+
     def require_evidence(self, dispute_id: str, action: str = "SELLER_EVIDENCE") -> dict:
         return self._request(
             "POST", f"/v1/customer/disputes/{dispute_id}/require-evidence", json={"action": action}
