@@ -23,6 +23,15 @@ and the proposal is waiting for approval in the checkpointed workflow. No PayPal
 Backend test coverage: 91% of lines and branches (`cd backend && uv run pytest --cov`; CI prints it on every run).
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard.
 
+### Judge demo (no accounts needed)
+
+Judges can try Rebuttal without a PayPal account. The dashboard has a **Try the demo** link in its header, or you can
+add `#demo` to the dashboard address. Each visitor gets a demo session on the same service, with six seeded disputes
+(the hero case is already waiting for approval) and a simulator for the 20 labeled cases. Demo sessions use the
+in-memory PayPal mock and the rules reasoner, with no keys and no model. Each session has its own in-memory runtime
+and never reaches the real PayPal client, the real runtime or a database. Steps, routes, limits and tests:
+[docs/demo-mode.md](docs/demo-mode.md).
+
 ## Run it
 
 The backend is a [uv](https://docs.astral.sh/uv/) project (`backend/pyproject.toml`, locked in `backend/uv.lock`).
@@ -122,7 +131,7 @@ experiment.
 
 ## Architecture decisions
 
-The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md)) are recorded in [docs/adr/](docs/adr/README.md).
+The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md), [isolated judge demo runtime](docs/adr/0009-isolated-judge-demo-runtime.md)) are recorded in [docs/adr/](docs/adr/README.md).
 
 ## Sponsor tools (planned)
 

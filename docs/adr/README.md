@@ -12,3 +12,4 @@ Short records of the decisions that shape Rebuttal. Each is grounded in the code
 | [0006](0006-supabase-postgres-free-tier.md) | Free Supabase Postgres holds checkpoints and the audit log instead of paid Postgres. |
 | [0007](0007-held-out-evals.md) | Held-out eval sets, never tuned against, give the honest accuracy numbers. |
 | [0008](0008-read-only-paypal-toolkit-adapter.md) | Analysis reads PayPal through a four-tool read-only adapter shaped like the PayPal Agent Toolkit, because the official package cannot be installed or made strictly read-only. |
+| [0009](0009-isolated-judge-demo-runtime.md) | Judges get a demo on the same service: per-visitor sessions with their own mock runtime, no token, bounded, and isolated from the real runtime. |

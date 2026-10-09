@@ -58,6 +58,17 @@ end-to-end run. `e2e/build-guard.spec.ts` checks the refusal.
 The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` on the backend (comma separated, no
 wildcard). Playwright sets it for `http://localhost:4173`.
 
+## Demo mode
+
+The judge demo is at the `#demo` route (for example `http://localhost:5173/#demo`). It needs no `VITE_API_TOKEN`: the
+demo routes take no token and reach only the backend's demo manager. `src/components/DemoApp.tsx` mounts the same
+`Desk` as the dashboard, with an API context that points at `/api/demo/{session}`. Setup and the isolation guarantees
+are in [docs/demo-mode.md](../docs/demo-mode.md). End-to-end test:
+
+```bash
+npx playwright test e2e/demo.spec.ts
+```
+
 ## Layout
 
 ```
