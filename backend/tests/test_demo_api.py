@@ -25,6 +25,7 @@ from rebuttal.agent.pipeline import Proposal
 from rebuttal.demo import (
     HERO_DISPUTE_ID,
     DemoLimitReached,
+    DemoManager,
     DemoRateLimited,
     DemoSession,
     DemoSessionNotFound,
@@ -33,6 +34,7 @@ from rebuttal.demo import (
 )
 from rebuttal.demo_api import make_demo_router
 from rebuttal.paypal.client import PayPalError
+from rebuttal.persistence import DisputeLocks
 from rebuttal.runtime import Runtime
 from rebuttal.scenarios import load_cases, seed_case
 
@@ -57,7 +59,7 @@ class FakeManager:
     def _new_session(self, session_id: str) -> DemoSession:
         now = time.time()
         runtime = Runtime(seed_cases=SEED_CASES, force_rules=True)
-        return DemoSession(id=session_id, runtime=runtime, lock=threading.Lock(), created_at=now, last_used=now)
+        return DemoSession(id=session_id, runtime=runtime, lock=threading.RLock(), created_at=now, last_used=now)
 
     def _fail_if_set(self, operation: str) -> None:
         if operation in self.failures:
@@ -80,12 +82,12 @@ class FakeManager:
             yield session
 
     def reset(self, session_id: str) -> DemoSession:
-        # The router calls this inside use(), which holds the session lock, so reset must not take that lock.
         self._fail_if_set("reset")
-        fresh = self._new_session(session_id)
-        with self._lock:
-            self.sessions[session_id] = fresh
-        return fresh
+        with self.use(session_id):  # like DemoManager.reset: unknown ids 404, and the session lock is taken
+            fresh = self._new_session(session_id)
+            with self._lock:
+                self.sessions[session_id] = fresh
+            return fresh
 
     def expires_in(self, session: DemoSession) -> int:
         return 1800
@@ -188,6 +190,51 @@ def test_reset_starts_over_under_the_same_session_id(client):
     assert all(d["proposal"] is None for d in client.get(f"{base}/disputes").json())
 
 
+def test_reset_with_the_real_manager_finishes_and_leaves_the_session_usable():
+    manager = DemoManager(runtime_factory=lambda: Runtime(seed_cases=SEED_CASES, force_rules=True))
+    app = FastAPI()
+    app.include_router(make_demo_router(manager))
+    http = TestClient(app)
+    sid = http.post("/api/demo/sessions").json()["session_id"]
+    result: dict = {}
+
+    def run() -> None:
+        result["reset"] = http.post(f"/api/demo/{sid}/reset").status_code
+        result["health"] = http.get(f"/api/demo/{sid}/health").status_code
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(timeout=10)  # a lock deadlock fails here instead of hanging the run
+    assert not worker.is_alive(), "reset did not finish"
+    assert result == {"reset": 200, "health": 200}
+
+
+def test_an_unknown_session_reset_does_not_spend_the_rate_limit():
+    manager = DemoManager(runtime_factory=lambda: Runtime(seed_cases=SEED_CASES, force_rules=True), create_limit=2)
+    app = FastAPI()
+    app.include_router(make_demo_router(manager))
+    http = TestClient(app)
+    for _ in range(5):
+        assert http.post(f"/api/demo/{UNKNOWN}/reset").status_code == 404
+    assert http.post("/api/demo/sessions").status_code == 200
+
+
+def test_a_proposal_for_a_dispute_the_session_does_not_hold_is_refused_before_any_lock(client):
+    sid = new_session(client)
+    with patch.object(DisputeLocks, "hold") as hold:
+        for action, body in (("approve", {}), ("retry", None), ("reject", {})):
+            r = client.post(f"/api/demo/{sid}/proposals/prop_abc_PP-D-9999/{action}", json=body)
+            assert r.status_code == 409 and r.json() == {"detail": "Unknown proposal prop_abc_PP-D-9999"}
+    hold.assert_not_called()
+
+
+def test_retry_refuses_a_proposal_that_is_still_waiting_for_approval(client):
+    sid = new_session(client)
+    proposal = client.post(f"/api/demo/{sid}/disputes/PP-D-2001/analyze").json()
+    r = client.post(f"/api/demo/{sid}/proposals/{proposal['id']}/retry")
+    assert r.status_code == 409 and "not waiting to continue" in r.json()["detail"]
+
+
 def test_simulator_lists_the_cases_and_runs_one(client):
     sid = new_session(client)
     base = f"/api/demo/{sid}"
@@ -201,6 +248,8 @@ UNKNOWN_SESSION_CALLS = [
     pytest.param("GET", f"/api/demo/{UNKNOWN}/disputes", None, id="disputes"),
     pytest.param("POST", f"/api/demo/{UNKNOWN}/disputes/{HERO_DISPUTE_ID}/analyze", None, id="analyze"),
     pytest.param("POST", f"/api/demo/{UNKNOWN}/proposals/prop_x_{HERO_DISPUTE_ID}/approve", {}, id="approve"),
+    pytest.param("POST", f"/api/demo/{UNKNOWN}/proposals/prop_x_{HERO_DISPUTE_ID}/approve", None, id="approve-no-body"),
+    pytest.param("POST", f"/api/demo/{UNKNOWN}/proposals/prop_x_{HERO_DISPUTE_ID}/reject", None, id="reject-no-body"),
     pytest.param("POST", f"/api/demo/{UNKNOWN}/proposals/prop_x_{HERO_DISPUTE_ID}/retry", None, id="retry"),
     pytest.param("POST", f"/api/demo/{UNKNOWN}/proposals/prop_x_{HERO_DISPUTE_ID}/reject", {}, id="reject"),
     pytest.param("GET", f"/api/demo/{UNKNOWN}/proposals/pending", None, id="pending"),

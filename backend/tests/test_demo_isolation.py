@@ -190,6 +190,14 @@ def test_every_api_route_is_guarded_except_the_demo_and_the_two_open_ones():
     assert demo_routes > 0
 
 
+def test_no_api_path_is_served_by_something_other_than_an_api_route():
+    # add_route() and mount() paths are not APIRoutes, so the inventory above would never see them.
+    for route in app_module.app.routes:
+        path = str(getattr(route, "path", "") or "")
+        if path.startswith("/api") and not hasattr(route, "original_router"):
+            assert isinstance(route, APIRoute), f"{type(route).__name__} at {path} escapes the route inventory"
+
+
 def test_a_demo_approval_writes_only_to_its_own_mock(monkeypatch):
     monkeypatch.setattr(app_module, "rt", Runtime(seed_cases=["agent_wrong_size"], force_rules=True))
     client = BoundedClient(TestClient(app_module.app))

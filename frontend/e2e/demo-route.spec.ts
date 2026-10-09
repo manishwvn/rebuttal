@@ -14,7 +14,7 @@ test('the demo route makes no /api/disputes or /api/health request', async ({ pa
   await page.waitForLoadState('networkidle')
 
   await expect(page).toHaveURL(/#demo$/)
-  await expect(page.getByTestId('mode-badge')).toHaveCount(0)
+  await expect(page.getByTestId('mode-badge')).toContainText('demo')
   await expect(page.getByTestId('tab-desk')).toHaveCount(0)
   expect(dashboardRequests).toEqual([])
 })

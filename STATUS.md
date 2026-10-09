@@ -1,7 +1,7 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `feat/paypal-toolkit`:
-PR #28: Q3, read-only PayPal toolkit adapter). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `feat/demo-mode`:
+A6, judge demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
 `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
@@ -64,7 +64,15 @@ PR #28: Q3, read-only PayPal toolkit adapter). Detail: `docs/handoff-2026-10-07.
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
   allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
-- **Tests:** 293 pass (47 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Judge demo mode (A6, branch `feat/demo-mode`):** "Try the demo" (`/#demo`) gives each visitor a private mock-only
+  Runtime (mock PayPal, rules reasoner, in-memory checkpoints and audit, no database, no tracing) behind the public
+  `/api/demo/{session}/...` routes, with hard bounds (40 sessions, 30 min idle, 2 h max age, 16 disputes, 20 creates or
+  resets a minute). `rebuttal/demo.py` and `demo_api.py` import nothing from the app, and `app.py` passes nothing from
+  `rt` into the demo; `approval.py`, `paypal/`, `facts.py`, `reasoner.py` and `config.py` are untouched, and the
+  approve button still runs the one `execute` node, on the mock. Every other `/api` route keeps the token
+  (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
+  `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
+- **Tests:** 374 pass (backend), 22 Playwright specs; the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 

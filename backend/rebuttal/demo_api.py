@@ -8,11 +8,13 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import Annotated
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
+from .agent.graph import DisputeAgent
 from .approval import ApprovalError
 from .demo import (
     HERO_DISPUTE_ID,
@@ -38,7 +40,8 @@ class RejectBody(BaseModel):
 @contextmanager
 def _demo_errors() -> Iterator[None]:
     """Turns the demo's own errors and sandbox failures into JSON errors. A bare 500 would carry no CORS headers.
-    A failed sandbox call gets one fixed message: PayPal's reply is never sent to the browser."""
+    A sandbox call that raises (a PayPal error or a network failure) gets one fixed message. A 4xx answer to a write is
+    different: the workflow records it as the proposal's result, and it is returned as the mock sent it."""
     try:
         yield
     except DemoSessionNotFound as exc:
@@ -54,6 +57,13 @@ def _demo_errors() -> Iterator[None]:
         raise HTTPException(409, str(exc)) from exc
     except (PayPalError, httpx.TransportError) as exc:
         raise HTTPException(502, "The demo sandbox failed. Reset the demo.") from exc
+
+
+def _own_proposal(session: DemoSession, proposal_id: str) -> None:
+    """Refuses a proposal whose dispute the session does not hold, before the workflow takes a per-dispute lock for it:
+    that lock table never shrinks, so caller-chosen ids must not reach it."""
+    if not session.has_dispute(DisputeAgent.dispute_of(proposal_id)):
+        raise ApprovalError(f"Unknown proposal {proposal_id}")
 
 
 def make_demo_router(manager: DemoManager) -> APIRouter:
@@ -75,8 +85,10 @@ def make_demo_router(manager: DemoManager) -> APIRouter:
 
     @router.post("/{session_id}/reset")
     def reset(session_id: str) -> dict:
-        with _demo_errors(), manager.use(session_id) as session:
-            return info(manager.reset(session.id))
+        with _demo_errors():
+            with manager.use(session_id):  # lookup only: an unknown id answers 404 before reset spends the rate limit
+                pass
+            return info(manager.reset(session_id))
 
     @router.get("/{session_id}/health")
     def health(session_id: str) -> dict:
@@ -107,18 +119,21 @@ def make_demo_router(manager: DemoManager) -> APIRouter:
             return session.runtime.analyze(dispute_id).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/approve")
-    def approve(session_id: str, proposal_id: str, body: ApproveBody) -> dict:
+    def approve(session_id: str, proposal_id: str, body: Annotated[ApproveBody, Body(default_factory=ApproveBody)]) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
+            _own_proposal(session, proposal_id)
             return session.runtime.approvals.approve(proposal_id, body.edited_message).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/retry")
     def retry(session_id: str, proposal_id: str) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
+            _own_proposal(session, proposal_id)
             return session.runtime.approvals.retry(proposal_id).to_dict()
 
     @router.post("/{session_id}/proposals/{proposal_id}/reject")
-    def reject(session_id: str, proposal_id: str, body: RejectBody) -> dict:
+    def reject(session_id: str, proposal_id: str, body: Annotated[RejectBody, Body(default_factory=RejectBody)]) -> dict:
         with _demo_errors(), manager.use(session_id) as session:
+            _own_proposal(session, proposal_id)
             return session.runtime.approvals.reject(proposal_id, body.reason).to_dict()
 
     @router.get("/{session_id}/proposals/pending")

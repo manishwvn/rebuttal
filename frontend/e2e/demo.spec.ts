@@ -117,3 +117,15 @@ test('The real dashboard still works after visiting the demo', async ({ page }) 
   await expect(badge).toContainText('mock')
   await expect(badge).not.toContainText('demo')
 })
+
+test('A rate-limited reset shows the message and offers no Try again', async ({ page }) => {
+  await enterDemo(page)
+  const detail = 'Too many demo sessions right now. Try again shortly.'
+  await page.route('**/api/demo/*/reset', (route) =>
+    route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ detail }) }),
+  )
+  await page.getByTestId('reset-demo').click()
+  const problem = page.getByTestId('demo-error')
+  await expect(problem).toContainText(detail)
+  await expect(problem.getByRole('button', { name: 'Try again' })).toHaveCount(0)
+})

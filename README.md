@@ -57,7 +57,7 @@ Configuration lives in `backend/.env` (copy `backend/.env.example`; the file is 
 | `REBUTTAL_REASONER=rules` | Never call a model, whatever keys are set. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `REBUTTAL_MOCK=0` | Run against the real PayPal **sandbox** (anything else is refused). |
 | `PAYPAL_WEBHOOK_ID` | The id PayPal gives the webhook you register for `/api/webhooks/paypal`; deliveries are verified against it. |
-| `REBUTTAL_API_TOKEN` | When set, every `/api` route except health and the PayPal webhook needs `Authorization: Bearer <token>`. Whoever can call approve is the human in the approval gate, so set it on any deployment. |
+| `REBUTTAL_API_TOKEN` | When set, every `/api` route except health, the PayPal webhook and the public demo under `/api/demo` (each demo session reaches only its own mock) needs `Authorization: Bearer <token>`. Whoever can call approve is the human in the approval gate, so set it on any deployment. |
 | `DATABASE_URL` | A `postgresql://` URL (we use a free Supabase project, session pooler on port 5432; needs `uv sync --extra postgres`). Paused proposals and the audit log then live in Postgres. Unset: SQLite, so no setup is needed to run locally. |
 | `REBUTTAL_CHECKPOINT_URL` | Override for the checkpoints only: a SQLite file or a `postgresql://` URL. Default: in memory in mock mode, `checkpoints.sqlite` against the real sandbox. |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL` (or `LANGFUSE_HOST`) | Turn on Langfuse tracing. Off when unset; `REBUTTAL_TRACING=0` forces it off. |
