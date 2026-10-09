@@ -101,7 +101,7 @@ AG Grid, APIMatic.
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
 | 1:52-2:02 | [Static card from `backend/evals/RESULTS.md` and an `evals.run --rules` run; see 4.3.] Title "20 labeled disputes". Two columns. Left: "Rules only, no model: 85% overall, hard cases 1 of 4". Right (greyed until the next row): "Model + guard (Groq qwen/qwen3.8-27b)". Footer, small: "4 hard cases = the buyer's wording changes the right answer." | “Twenty labeled disputes. A rules-only baseline solves one of the four hard cases, where the buyer's words change the answer.” | Tech (PayPal + AI) |
-| 2:02-2:10 | Same card, right column lights up: "90% (18 of 20), hard cases 4 of 4, PayPal writes before approval: 0". Footer chips: "Single run; runs swing 80-95%. The 20 cases were used for tuning." and "Held-out set, 10 cases: [TBD]". | “The model plus the guard solves all four: eighteen of twenty overall, with zero PayPal writes before approval.” | Tech, Presentation |
+| 2:02-2:10 | Same card, right column lights up: "90% (18 of 20), hard cases 4 of 4, PayPal writes before approval: 0". Footer chips: "Single run; runs swing 80-95%. The 20 cases were used for tuning." and "Held-out set, 10 unseen cases: model alone 8/10, with the guard 10/10". | “The model plus the guard solves all four: eighteen of twenty overall, with zero PayPal writes before approval.” | Tech, Presentation |
 
 [CONDITIONAL, once the held-out run exists (STATUS next step 1): replace the footer chip with the real number and add
 "On ten cases I never tuned against, it got N." only if you can drop about 5 seconds elsewhere (cut the 1:10-1:18
@@ -216,7 +216,7 @@ await page.getByTestId('case-status').filter({ hasText: 'Executed' }).waitFor()
 |---|---|---|---|
 | Terminal clip T1 | Shot 12 | The real stdout of the pytest command in segment 6. Either screen-record Terminal.app, or run the command with `tee` and render the captured text in a monospace HTML card and screenshot it. Do not fake the output. | Command works today (24 passed in about 2 s). |
 | Static card A | Shot 11 | The pipeline row from segment 6, drawn in the dashboard's design tokens (`preview/template.html`: ink `#14202e`, accent `#0e6b63`, background `#f2f5f8`; Bricolage Grotesque, Public Sans, JetBrains Mono). | To author in B4. |
-| Static card B | Shot 13 | Eval numbers. Verified Oct 9: Groq `qwen/qwen3.8-27b` run `groq-qwen3.8-27b-20261007-112629`: 90% overall (18 of 20), standard 88%, hard 100% of 4, gate violations 0. Rules baseline (`uv run python -m evals.run --rules`, run on this commit Oct 9): 85% overall, 100% standard, 25% hard (1 of 4), gate violations 0. Re-run `--rules` on the release commit in a throwaway checkout, because it rewrites `evals/RESULTS.md` and adds a file under `evals/results/`. | Numbers verified; card to author. Held-out chip is [TBD] (task A2). |
+| Static card B | Shot 13 | Eval numbers. Verified Oct 9: Groq `qwen/qwen3.8-27b` run `groq-qwen3.8-27b-20261007-112629`: 90% overall (18 of 20), standard 88%, hard 100% of 4, gate violations 0. Rules baseline (`uv run python -m evals.run --rules`, run on this commit Oct 9): 85% overall, 100% standard, 25% hard (1 of 4), gate violations 0. Re-run `--rules` on the release commit in a throwaway checkout, because it rewrites `evals/RESULTS.md` and adds a file under `evals/results/`. | Numbers verified; card to author. Held-out chip verified Oct 9: run `groq-qwen3.8-27b-holdout-20261009-054233`, model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0. |
 | Static cards C and D | Shot 15 | Close cards from segment 9. | To author in B4. |
 | AG Studio view | Shot 14 | See segment 8. | **[PLANNED]** tasks B1, B2. |
 | Live-proof insert | Segment 9, optional | Dashboard on the Render service with the live dispute pending. | **[PLANNED]** task A5. |
@@ -260,7 +260,7 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | 20 labeled disputes, 4 hard | `evals/cases.json` | Verified |
 | 90% (18 of 20), hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, run `groq-qwen3.8-27b-20261007-112629` | Verified; single run, runs swing 80-95%, the set was used for tuning (shown on the card). The guard rule `f4cb66d` came after that run, so current code is unmeasured. |
 | Rules-only baseline solves 1 of 4 hard cases | `evals.run --rules` on this commit, Oct 9: 85% overall, 25% hard | Verified |
-| Held-out result | `evals/holdout.json`, not run yet | **[TBD]** |
+| Held-out result | `evals/holdout.json`, run Oct 9 (`groq-qwen3.8-27b-holdout-20261009-054233`) | Verified: model alone 80%, final 100%, 0 gate violations |
 | Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live", dispute `PP-R-SVN-10190455` | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
 | Inbox is built with AG Grid | `frontend/src/components/Inbox.tsx` (AG Grid Community) | Verified |
 | AG Studio dashboard, Studio agent | none yet | **[PLANNED]** B1, B2 |
