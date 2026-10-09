@@ -2,7 +2,7 @@
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
-## 2026-10-09 | B1 part 1 | in review (PR #PRN)
+## 2026-10-09 | B1 part 1 | in review (PR #16)
 Analytics endpoints, AG Studio 3.0.0 Analytics tab and docs/ag-studio.md, built by the team workflow. Decision: Studio
 runs unlicensed (watermark allowed); deadlines read the due date per waiting dispute because the mock/list may omit it.
 

@@ -58,7 +58,7 @@ PR #9: review follow-ups for the frontend slice). Detail: `docs/handoff-2026-10-
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
   allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
-- **Tests:** 230 pass (186 + 44 for analytics and the rest of main); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 230 pass (36 of them in tests/test_analytics.py); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 
