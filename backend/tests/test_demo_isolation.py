@@ -181,6 +181,9 @@ def test_every_api_route_is_guarded_except_the_demo_and_the_two_open_ones():
         calls = [dependency.call for dependency in route.dependant.dependencies]
         if route.path.startswith("/api/demo"):
             demo_routes += 1
+            # The handler must come from demo_api. A path built at runtime (such as "/api/" + "demo/peek") hides from
+            # the literal scan of app.py, but a handler defined elsewhere still shows up here.
+            assert route.endpoint.__module__ == "rebuttal.demo_api", route.path
             assert not any(call is app_module.require_token for call in calls), route.path
         elif route.path not in ("/api/health", "/api/webhooks/paypal"):
             assert any(call is app_module.require_token for call in calls), route.path
