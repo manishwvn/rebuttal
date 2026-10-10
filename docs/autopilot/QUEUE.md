@@ -82,7 +82,7 @@ cutaways, the eval number on screen. Columns: time, what is on screen (exact UI 
 which judging criterion it serves (Tech, Design, Impact, Innovation, Presentation). Include a shot list the
 automated recorder (B4) can follow step by step.
 
-### A5 Dashboard on the live service with a login — size M — merged #39; waiting: live `/` still 404 ~15 min after merge (Node missing on Render, or deploy still pending). Next cycle: re-check `/`; if still 404, use the nodeenv fallback in docs/deploy.md in render.yaml
+### A5 Dashboard on the live service with a login — size M — merged #39; done #39; live `/` returns 200 and health ok (checked Oct 10)
 Serve the built frontend from the FastAPI app on the existing Render service (same origin: no CORS, no new Render
 resource, no cost). Replace `VITE_API_TOKEN` with a sign-in screen where the merchant pastes the API token; keep it in
 `sessionStorage`, never in the bundle. Update `render.yaml` build to also build the frontend (check Node is available
