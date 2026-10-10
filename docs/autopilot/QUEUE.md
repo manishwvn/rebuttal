@@ -102,7 +102,7 @@ Found by the A4 dry run: in the Vite dev server the Approve confirm dialog close
 StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
 a Playwright test against the dev server, fix the effect, keep StrictMode on.
 
-### A8 Re-run the main eval on current code — size S — todo — after Oct 10
+### A8 Re-run the main eval on current code — size S — todo — after Oct 11 (Oct 10 Groq run used by B3)
 The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
 once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
@@ -119,7 +119,7 @@ Studio Agent Framework: plain-English questions over the dispute data ("which pr
 month?"), using Groq free tier, read-only data access only. Saved views. Playwright screenshots of every widget into
 `docs/screenshots/`.
 
-### B3 More evals — size M — waiting: cases merged; run `--set holdout2 --provider groq --langfuse` once on or after Oct 10 (one Groq eval per day), then update RESULTS/STATUS
+### B3 More evals — size M — done (holdout2 run Oct 10: final 100%, model alone 80%; this PR)
 Grow to about 40 cases: 10 more held-out cases written by a subagent that is **not allowed to read**
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.

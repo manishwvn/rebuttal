@@ -41,7 +41,8 @@ A6, judge demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/dep
   `groq-qwen3.8-27b-holdout-20261009-054233`). Both guard changes turned OFFER_REPLACEMENT (an offer type PayPal does
   not allow) into OFFER_RETURN_FOR_REFUND. Small sample: 10 cases. No code changed. Table: `backend/evals/RESULTS.md`.
   **Second held-out set** (`evals/holdout2.json`, 10 cases, 5 hard, written blind by a subagent that never read the
-  agent code): not run yet (`--set holdout2`).
+  agent code): ran Oct 10 on Groq: model alone 80% (8/10), final 100% (10/10), hard 6/6 by the run's count, gate
+  violations 0, 14.0k tokens (run `groq-qwen3.8-27b-holdout2-20261010-051607`). Guard changed 2/10. No code changed.
 - **Frontend slice 1 (merged, PR #3; follow-ups in PR #9, `fix/frontend-followups`):** `frontend/` is Vite + React + TS with an AG Grid
   Community inbox (only the five grid modules it uses; JS bundle 1,399 kB -> 996 kB, gzip 398 -> 288 kB), case view
   (assistant instruction vs shipped, facts, reasoner choice vs final action, guard note, editable message), approve / edit /
