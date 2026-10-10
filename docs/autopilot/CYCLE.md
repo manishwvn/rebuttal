@@ -48,6 +48,11 @@ marked `size: S` this cycle.
 - `W >= 80`: do no work. If `LOG.md` has no `ALERT weekly-80 <resetsAt>` line yet, send the alert (section 5) with
   the numbers and the reset time, log that line, and stop. There is no slower pacing below 80%: the weekly budget is
   the same whether it is spent early or late, and early work matters more for the deadlines.
+- Sleep instead of idling (Oct 10, Manish: no hourly runs that can't work). Whenever a cycle ends with no task done
+  because of the weekly cap (`W >= C`, or `H` too small for any runnable task), call the scheduled-tasks tool
+  `update_scheduled_task` for `rebuttal-autopilot` with `fireAt` = weekly `resetsAt` + 10 minutes, so no run happens
+  until the reset. Do the same with `fireAt` = the earliest `after` date when every remaining task is date-gated.
+  A cycle that finds the task on a one-time `fireAt` (no cron) first restores `cronExpression: "12 * * * *"`.
 - `F >= 85`: log `PAUSE 5h F%` and stop; the next cycle retries after the 5-hour window moves on.
 - Other scheduled tasks on this account (for example the ETF monitor) share the same budget; the numbers already
   include them.
