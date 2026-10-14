@@ -54,7 +54,7 @@ Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK 
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
 First pass now: use it to check our Disputes calls and mock shapes against the SDK models, fix any drift, log it.
 
-### S2 More of the Disputes API — size M — todo — after Q4
+### S2 More of the Disputes API — size M — in-progress (cycle 2026-10-14T20:11Z) — after Q4
 Strengthens Best Use of PayPal + AI. Add the appeal and escalate paths and more evidence types (proof of
 fulfillment, refund, return tracking), each proposed by the agent and executed only by `execute` after approval,
 with deterministic `PayPal-Request-Id`, mock parity and tests. Look up shapes with the paypal plugin and APIMatic
@@ -119,7 +119,7 @@ disputes by reason and by product, money kept vs refunded, response deadlines, m
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with
 tests). Split into PRs: data endpoints, Studio layout and theme, custom widgets.
 
-### B2 AG Studio depth — size L — todo [30%] — needs B1
+### B2 AG Studio depth — size L — in-progress (cycle 2026-10-14T20:11Z) [30%] — needs B1
 Studio Agent Framework: plain-English questions over the dispute data ("which products cause most disputes this
 month?"), using Groq free tier, read-only data access only (assistant + read-only proxy done #52; left: one live
 Groq smoke check of the assistant, prompt starters showing, AI module licence note). Saved views. Playwright screenshots of every widget into
@@ -130,7 +130,7 @@ Grow to about 40 cases: 10 more held-out cases written by a subagent that is **n
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
 
-### B4 Automated demo video — size L — in-progress [40%] (part 1 #66: one-command rough cut, 2:31; left: AG Studio segment, live-proof insert, USER item to review and upload) — after A4, B1 — rough cut deadline Oct 23
+### B4 Automated demo video — size L — in-progress (cycle 2026-10-14T20:11Z) [40%] (part 1 #66: one-command rough cut, 2:31; left: AG Studio segment, live-proof insert, USER item to review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from
 the A4 script via macOS `say` (pick a natural voice, export AIFF); `ffmpeg` (`brew install ffmpeg`) joins them,
 adds captions and title cards. Output `media/rebuttal-demo.mp4` (git-ignored; keep the script and the build command
