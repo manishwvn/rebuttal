@@ -134,7 +134,7 @@ Fresh backend process for every take: the mock is in memory, and after one appro
 ```bash
 # Terminal 1. Mock PayPal sandbox, real model (Groq key comes from backend/.env), no database, no tracing.
 cd backend
-REBUTTAL_MOCK=1 REBUTTAL_ALLOW_OPEN_API=1 REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_TRACING=0 REBUTTAL_AUDIT_PATH="$TMPDIR/rebuttal-video-audit.jsonl" \
   REBUTTAL_CORS_ORIGINS=http://localhost:4173 uv run uvicorn rebuttal.app:app --port 8000
 

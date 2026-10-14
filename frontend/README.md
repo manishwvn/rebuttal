@@ -13,7 +13,7 @@ Terminal 1, the backend on the in-memory mock sandbox with the offline rules bas
 
 ```bash
 cd backend
-REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_ALLOW_OPEN_API=1 REBUTTAL_API_TOKEN= DATABASE_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 

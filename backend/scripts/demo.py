@@ -6,8 +6,8 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -20,7 +20,10 @@ OUT = Path(__file__).resolve().parents[1] / "preview_data.json"
 EVALS = Path(__file__).resolve().parents[1] / "evals" / "results.json"
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--save", action="store_true", help="write preview_data.json (default: print only)")
+    args = ap.parse_args(argv)
     # The demo approves every proposal itself, so it only ever runs on the in-memory mock, whatever REBUTTAL_MOCK says.
     rt = Runtime(settings=replace(load_settings(), mock=True, database_url=None, checkpoint_target=None), seed_cases=DEMO_CASES)
     assert rt.mock is not None
@@ -52,7 +55,7 @@ def main() -> None:
         })
     data = {"mode": rt.mode, "now": rt.clock().isoformat(), "store": rt.store.name, "cases": cases,
             "evals": json.loads(EVALS.read_text()) if EVALS.exists() else None}
-    if "--save" in sys.argv[1:]:
+    if args.save:
         OUT.write_text(json.dumps(data, indent=2, default=str))
         print(f"\nWrote {OUT.name} ({len(cases)} disputes, mode {rt.mode})")
     else:

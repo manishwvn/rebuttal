@@ -31,7 +31,7 @@ reaches the real PayPal client or the real runtime. Routes, limits and tests: [d
 ```bash
 cd backend
 uv sync                                    # creates .venv from the lockfile (Python 3.12)
-REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_ALLOW_OPEN_API=1 REBUTTAL_API_TOKEN= DATABASE_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 
@@ -50,7 +50,7 @@ cd backend
 uv run pytest                              # tests: never call a model, never send traces
 uv run python -m evals.run --rules         # eval suite, offline baseline; prints only (--save writes evals/results/ and RESULTS.md)
 uv run python -m scripts.demo              # the agent handles 6 demo disputes end to end; prints only (--save writes preview_data.json)
-REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_ALLOW_OPEN_API=1 REBUTTAL_API_TOKEN= DATABASE_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000   # API docs on http://127.0.0.1:8000/docs
 ```
 
