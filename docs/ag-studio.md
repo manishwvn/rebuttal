@@ -101,16 +101,18 @@ What the Analytics tab uses (`frontend/src/components/analytics/widgets/`):
 - Each component renders `data-widget-id` (the dashboard widget id), and rows carry `data-testid` plus value attributes, so `frontend/e2e/analytics.spec.ts` checks the numbers against `GET /api/analytics`.
 - Custom widgets read colours and fonts from the CSS variables in `index.css` (`--accent`, `--muted`, `--line`, `--display`), which follow the colour scheme. The card around each widget is Studio's, and takes its colours from the theme (section 5).
 
-## 7. Studio Agent Framework (built in B1 part 3)
+## 7. Studio Agent Framework (planned for part 3)
+
+Status: the backend and frontend files named below are NOT on main at this commit. Everything under "How it is planned here" and "Limits" is a design, not checked code. None of its limits, error mappings, log lines or file names has been verified against committed files.
 
 - Users explore data and build or change dashboards in natural language, using an LLM that the host app supplies. Studio ships no model, server or backend, and sends no data to an AG Grid service ([agent overview](https://www.ag-grid.com/studio/archive/3.0.0/react/ai/)). It is opt-in. The project skill says it is experimental and its behaviour varies by LLM.
 - Enable it by registering the module, `<AgStudioProvider modules={[AgStudioAiModule]}>`, then pass `ai={({ api }) => createAiHarness(api, { adapter, promptStarters, models })}` to `AgStudio` ([AI quick start](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-quickstart/)).
 - `createAiHarness` gives five built-in agents, with the lead agent fronting the chat. Tools can be customised ([built-in agents](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-builtin-agents/), [tools](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-tools/)).
 - The adapter, which translates Studio's request format to a provider's format, is NOT shipped. The docs' example is an OpenAI Responses adapter that calls the provider from the browser, and the docs warn that this may expose the key. They say to route the requests through your own endpoint.
 
-**How it is built here**
+**How it is planned here (NOT VERIFIED; not on main)**
 
-- Backend (`backend/rebuttal/studio_ai.py`, mounted in `app.py` behind the API token):
+- Backend (`backend/rebuttal/studio_ai.py`, to be mounted in `app.py` behind the API token):
   - `GET /api/studio/ai/status` returns `{enabled}`.
   - `POST /api/studio/ai` forwards a chat-completions request (messages, tools, tool_choice, optional json_object response_format) to Groq's OpenAI-compatible endpoint, using `settings.groq_api_key` and `settings.groq_model`. The client cannot set the model, token count, stream or temperature.
   - The key never reaches the browser, and upstream bodies and keys are never returned or logged. Only the status is logged.
@@ -121,7 +123,7 @@ What the Analytics tab uses (`frontend/src/components/analytics/widgets/`):
 - Dashboard (`StudioDashboard.tsx`): registers `AgStudioAiModule` through `AgStudioProvider`, and passes `ai={({ api }) => createAiHarness(api, { adapter, promptStarters })}` only when the status route says enabled. Four prompt starters: top disputed products, why buyers dispute, money at risk, deadlines. No `models` option, so there is no model picker; the server owns the model. Studio's tools run in the browser over the analytics data, which is already read-only. The Analytics chunk stays lazy-loaded.
 - Demo mode (`DemoApp`) has no Analytics tab, so it has no AI. Adding it would need a strict per-visitor limit and a daily cap on the Groq quota.
 
-**Limits**
+**Limits (planned, NOT VERIFIED)**
 
 - Request body at most 128 KiB, at most 200 messages and 64 tools per request.
 - Output capped at 512 tokens. Upstream timeout 30 s.
@@ -138,6 +140,7 @@ Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B
 
 ## 9. NOT VERIFIED
 
+- The whole of section 7 at this commit: the part 3 backend and frontend code is not on main, so nothing in "How it is planned here" or "Limits" has been run.
 - Watermark behaviour in a production build. In the Playwright screenshot (`docs/screenshots/analytics.png`) no
   watermark shows; the unlicensed banner appears as console errors only. Checked once, in the mock-backed build.
 - Whether the Discord confirmation covers Studio specifically. It was given for AG Grid (repo `CLAUDE.md`).
