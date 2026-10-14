@@ -31,10 +31,11 @@ Read this at the start of a session; update it at the end of every task. Last up
   tests `test_toolkit.py`, `test_gather_toolkit.py`. No dependency added.
 - **Guard rules** (facts decide, the model does not): no offer type PayPal does not allow (fallback to the proven
   REFUND / REFUND_WITH_RETURN when PayPal lists none; execute refuses too), assistant mis-orders get the friendly
-  fix, no tracking on not-received gets a refund, damaged high-value items get return-for-refund (`f4cb66d`, added after the 90% run:
+  fix, no tracking on not-received gets a refund, damaged high-value items get return-for-refund (`f4cb66d`, added after the Oct 7 90% run; the Oct 14 run measures it:
   `snad_damaged_high_value` went 1/3 to 3/3).
-- **Evals:** main set (20 cases) on Groq 90% (18/20), hard cases 4/4, run `groq-qwen3.8-27b-20261007-112629`;
-  swings 80-95% run to run. The main set has been used for tuning. `snad_outside_window` is a judgment call.
+- **Evals:** main set (20 cases) on Groq, latest run Oct 14 on current code (guard `f4cb66d` included): final 95% (19/20),
+  model alone 75%, hard 4/4, gate violations 0, run `groq-qwen3.8-27b-20261014-001228`. Earlier Oct 7 run: 90% (18/20),
+  run `groq-qwen3.8-27b-20261007-112629`. Swings 75-95% run to run. The main set has been used for tuning. `snad_outside_window` is a judgment call.
   **Held-out set** (`evals/holdout.json`, 10 cases, written without reading the guard or facts code) ran Oct 9 on
   Groq: model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0, 13.7k tokens (run
   `groq-qwen3.8-27b-holdout-20261009-054233`). Both guard changes turned OFFER_REPLACEMENT (an offer type PayPal does
