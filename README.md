@@ -48,10 +48,13 @@ Backend only, no browser:
 ```bash
 cd backend
 uv run pytest                              # tests: never call a model, never send traces
-uv run python -m evals.run --rules         # eval suite, offline baseline
-uv run python -m scripts.demo              # the agent handles 6 demo disputes end to end
-uv run uvicorn rebuttal.app:app --reload   # API docs on http://127.0.0.1:8000/docs
+uv run python -m evals.run --rules         # eval suite, offline baseline; prints only (--save writes evals/results/ and RESULTS.md)
+uv run python -m scripts.demo              # the agent handles 6 demo disputes end to end; prints only (--save writes preview_data.json)
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
+  REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000   # API docs on http://127.0.0.1:8000/docs
 ```
+
+None of these change a tracked file, so `git status` stays clean.
 
 The dashboard's own commands (build, lint, Playwright) are in [frontend/README.md](frontend/README.md).
 
@@ -65,7 +68,7 @@ Live end to end (Oct 7, 2026): deployed on Render with Groq and Supabase Postgre
 real PayPal sandbox arrived as a signature-verified webhook, the agent gathered the facts and drafted a resolution,
 and the proposal is waiting for approval in the checkpointed workflow. No PayPal writes happened before approval.
 
-469 backend tests, 93% combined line and branch coverage (`cd backend && uv run pytest --cov`; CI prints it on every run).
+488 backend tests, 94% combined line and branch coverage (`cd backend && uv run pytest --cov --cov-branch`; CI prints it on every run).
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard, and the Playwright end-to-end tests.
 
 Not verified live: an approved write to the real PayPal sandbox through the deployed app (the hero dispute was
@@ -214,7 +217,8 @@ Read these honestly:
 - `snad_outside_window` is a judgment call (a partial refund is defensible), and `ho2_inr_unit_format` hits a known
   limit: the facts code does not normalise street suffixes, so it can report an address mismatch that is not real.
 - The gap between "model alone" and "final" is the guard at work. In the held-out runs the guard's changes turned
-  OFFER_REPLACEMENT, an offer type PayPal does not allow on those disputes, into OFFER_RETURN_FOR_REFUND.
+  OFFER_REPLACEMENT, an offer type PayPal does not allow on those disputes, into OFFER_RETURN_FOR_REFUND, and on
+  `ho2_inr_nothing_shipped` (nothing shipped, so no delivery can be proved: `cannot_prove_delivery`) into ACCEPT_CLAIM.
 
 `uv run python -m evals.run --langfuse` records a run as a Langfuse experiment (needs the Langfuse keys).
 

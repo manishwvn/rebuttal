@@ -66,7 +66,7 @@ GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.o
 month). This replaces the planned paid Render plan. Done when the workflow is merged and its first run is green.
 
 ### A2 Held-out eval — size S — done (this PR): model alone 80%, final 100%, results in `backend/evals/RESULTS.md`
-`cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse`. Report model-alone vs final
+`cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse --save`. Report model-alone vs final
 accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
@@ -108,7 +108,7 @@ StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the pr
 a Playwright test against the dev server, fix the effect, keep StrictMode on.
 
 ### A8 Re-run the main eval on current code — size S — done Oct 14 (final 95%, model alone 75%, run groq-qwen3.8-27b-20261014-001228) — after Oct 11 (Oct 10 Groq run used by B3)
-The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
+The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse --save`
 once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
 two do not share one day's Groq quota.
@@ -190,7 +190,7 @@ Evidence: (1) In reasoner.py:276-288, fallback() returns RuleReasoner().decide(c
 ### R3 Duplicate-charge fact: match the invoice and successful status only — size S — done #58 — audit Oct 14, priority next
 Evidence: facts.py:226-233 counts every transaction with the same buyer email and amount, ignoring transaction_info.invoice_id and transaction_status. A second legitimate same-price order, or a denied attempt, sets duplicate_charge_found True, and the rules then propose ACCEPT_CLAIM at 0.9. holdout.json ho_duplicate_two_orders seeds only one transaction, so it never tests this. Fix: count only transactions with transaction_status == 'S' and, when present, invoice_id == order.invoice_id. Check that the mock (paypal/mock.py) and scenarios.py transaction shapes include both keys, and mirror the real Transaction Search shape. Acceptance: unit tests cover a different invoice (duplicate False), a denied 'D' transaction (False) and two 'S' transactions on the same invoice (True). Evals stay at or above the current main-set accuracy. Do not edit held-out labels to fit.
 
-### R4 Verify the PROOF_OF_REFUND evidence_info.refund_ids shape against PayPal — size S — in-progress (cycle 2026-10-14T11:11) — audit Oct 14, priority next
+### R4 Verify the PROOF_OF_REFUND evidence_info.refund_ids shape against PayPal — size S — done #61 — audit Oct 14, priority next
 Evidence: pipeline.py:130-131 sends evidence_info.refund_ids as a list of strings. As far as I recall, PayPal's provide-evidence schema defines refund_ids as an array of objects ({"refund_id": "..."}), like tracking_info. No VERIFY note exists, and the mock does not validate evidence shape, so tests cannot catch this. A wrong shape fails at execute, after the human has approved. Fix: check the schema with the paypal-sandbox MCP (read-only lookup) or the APIMatic PayPal SDK skill, and log the APIMatic use in docs/apimatic-log.md. If objects are required, send [{'refund_id': id}], make mock.py reject the string form with a 400 INVALID_REQUEST like the real API, and add a plan_actions test plus a mock rejection test. Otherwise add a VERIFY note at pipeline.py:131 and in mock.py. Acceptance: the shape is cited from the docs or the SDK model, and a test pins it.
 
 ### R5 API hardening: webhook and analyze never return a bare 500 — size S — done (this PR) — audit Oct 14, priority next
@@ -205,7 +205,7 @@ Evidence: (a) CaseView.tsx:112 falls back to decision.resolution while the audit
 ### R8 Fix stale agent brief and status docs (CLAUDE.md, STATUS.md, deploy.md, PLAN.md) — size S — done #60 — audit Oct 14, priority next
 Evidence: CLAUDE.md:104 lists 'Frontend (frontend/, none yet)' and the AG Grid dashboard as next tasks, but both have shipped. The Layout block omits frontend/, analytics.py, studio_ai.py and agent/toolkit.py. STATUS.md:93 says 398 backend tests (actual 469 passed) and 29 Playwright tests (about 43 test() calls). STATUS:8 says 44% (progress.py prints 58%). STATUS:15 says Q4 'PR open' (it merged as #42). STATUS:114 and PLAN.md plan a paid Render plan, while docs/autopilot/QUEUE.md says A1's keep-render-awake.yml replaced it. deploy.md:125 says the keep-alive does not keep Render awake, but .github/workflows/keep-render-awake.yml exists. deploy.md:115 still calls Node on Render unverified, yet the live root serves the Vite build. Fix: point 'Next, in order' at QUEUE.md and update the Layout; correct the counts, percentages and merge state; make deploy.md, PLAN.md and STATUS agree on Render (best-effort 10-minute ping, no paid plan unless Manish decides otherwise); mark the Node build as verified. Acceptance: running `uv run pytest -q` and `npx playwright test --list` gives the counts quoted in the docs, and the docs contain no contradictory Render plan. CLAUDE.md is the project brief, so keep the change limited to facts.
 
-### R9 README judge path: make the documented commands leave the git tree clean — size S — in-progress (cycle 2026-10-14T11:11) — audit Oct 14, priority next
+### R9 README judge path: make the documented commands leave the git tree clean — size S — done #62 — audit Oct 14, priority next
 Evidence: the README's 'Backend only' commands rewrite tracked files. `uv run python -m evals.run --rules` rewrites backend/evals/RESULTS.md (run.py:269-271) and adds evals/results/*.json. `uv run python -m scripts.demo` rewrites backend/preview_data.json. The run.py:279 --only help says results are overwritten, but a partial run writes nothing. The README says 93% coverage while `pytest --cov --cov-branch` gives 94%. README.md:216 credits the held-out guard change with OFFER_RETURN_FOR_REFUND only, but ho2_inr_nothing_shipped became ACCEPT_CLAIM through cannot_prove_delivery. README.md and frontend/README.md give different backend start commands. frontend/README.md does not say Playwright needs ports 8000, 4173 and 5174 free (reuseExistingServer is false). Fix: add a --no-save flag, or make --rules print only unless --save is given, and document it. Fix the --only help, the coverage number and the held-out sentence; use one backend start command in both READMEs; add the note about free ports. Acceptance: after the README quickstart commands, `git status --short` is clean.
 
 ### R10 Approval/audit and mock fidelity nits — size M — todo — audit Oct 14, priority later

@@ -3,13 +3,15 @@
     uv run python -m evals.run             # the model for the first provider key set, else the rules baseline
     uv run python -m evals.run --rules     # force the offline baseline
     uv run python -m evals.run --provider nvidia   # pin the model provider: groq | nvidia | anthropic
+    uv run python -m evals.run --save      # also write evals/results/*.json and refresh RESULTS.md (default: print only)
     uv run python -m evals.run --langfuse  # also record the run as a Langfuse experiment (needs the Langfuse keys)
 
 A model run is strict: if the model hits a rate or quota limit (or any call fails) the run stops and is marked
 INVALID. Nothing falls back to the rules, and no results files are written for an invalid run.
 
-Each case runs in a fresh mock sandbox with an in-memory checkpointer. Saves the run to evals/results/ and
-refreshes evals/RESULTS.md. Tracing is off unless --langfuse is given, so a plain run never sends anything anywhere.
+Each case runs in a fresh mock sandbox with an in-memory checkpointer. With --save, saves the run to evals/results/
+and refreshes evals/RESULTS.md; without it nothing is written, so the git tree stays clean.
+Tracing is off unless --langfuse is given, so a plain run never sends anything anywhere.
 """
 
 from __future__ import annotations
@@ -187,7 +189,7 @@ def run_case(case: dict, settings: Settings, *, force_rules: bool, tracing: bool
 
 
 def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, langfuse: bool = False,
-        provider: str | None = None, case_set: str = "main") -> dict:
+        provider: str | None = None, case_set: str = "main", save: bool = False) -> dict:
     settings = eval_settings()
     cases = [c for c in load_cases(SETS[case_set]) if not only or c["id"] in only]
     rows: list[dict] = []
@@ -266,7 +268,7 @@ def run(force_rules: bool, pause: float = 0.0, only: set[str] | None = None, lan
     first = rows[0] if rows else {"provider": "rules", "model": "rules"}
     summary.update(provider=first["provider"], model=first["model"],
                    date=datetime.now(UTC).strftime("%Y-%m-%d"))
-    if not only:  # a partial run (--only) is not a result worth keeping
+    if save and not only:  # a partial run (--only) is never saved
         save_run(summary)
         write_results_md()
     return summary
@@ -276,7 +278,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--rules", action="store_true", help="force the offline rules baseline")
     ap.add_argument("--pause", type=float, default=0.0, help="seconds to wait between cases (rate limits)")
-    ap.add_argument("--only", help="comma-separated case ids (results files are overwritten with just these)")
+    ap.add_argument("--only", help="comma-separated case ids (a partial run is never saved, even with --save)")
+    ap.add_argument("--save", action="store_true",
+                    help="write the run to evals/results/ and refresh RESULTS.md (default: print only)")
     ap.add_argument("--langfuse", action="store_true",
                     help="trace every case and record the run as a Langfuse experiment (needs the Langfuse keys)")
     ap.add_argument("--set", dest="case_set", choices=list(SETS), default="main",
@@ -289,7 +293,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
     try:
         s = run(force_rules=args.rules, pause=args.pause, only=set(args.only.split(",")) if args.only else None,
-                langfuse=args.langfuse, provider=args.provider, case_set=args.case_set)
+                langfuse=args.langfuse, provider=args.provider, case_set=args.case_set, save=args.save)
     except InvalidRun as exc:
         raise SystemExit(f"EVAL INVALID, no results written: {exc}") from exc
     print(f"{s['mode']} [{s['set']}]: model alone {pct(s['raw_accuracy'])}, guard changed {s['guard_changes']}/{s['cases']}, "

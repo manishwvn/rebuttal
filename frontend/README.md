@@ -13,7 +13,7 @@ Terminal 1, the backend on the in-memory mock sandbox with the offline rules bas
 
 ```bash
 cd backend
-REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_ALLOW_OPEN_API=1 REBUTTAL_API_TOKEN= DATABASE_URL= \
+REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTTAL_CHECKPOINT_URL= \
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 
@@ -57,6 +57,9 @@ end-to-end run. `e2e/build-guard.spec.ts` checks the refusal.
 
 The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` on the backend (comma separated, no
 wildcard). Playwright sets it for `http://localhost:4173`.
+
+Playwright starts its own backend, preview build and dev server (`reuseExistingServer` is false), so ports 8000, 4173 and
+5174 must be free: stop `uvicorn` and `npm run dev`/`vite preview` before `npm run e2e`, or it fails to start.
 
 ## Demo mode
 

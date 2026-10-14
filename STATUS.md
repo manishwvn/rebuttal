@@ -5,7 +5,7 @@ Read this at the start of a session; update it at the end of every task. Last up
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md`. An hourly cron fires it; the
 wake file `~/.rebuttal-autopilot/next-wake` (written by `docs/autopilot/next_run.py` from usage) skips runs that cannot
 work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`; completion percent:
-`python3 docs/autopilot/progress.py` (52% on Oct 14 after R3, R6 and R8 merged), logged after every run.
+`python3 docs/autopilot/progress.py` (54% on Oct 14 after R3, R4, R6, R8 and R9 merged), logged after every run.
 
 **Prize strategy:** `docs/prize-fit.md` (prizes, rules, competition, decisions; read Oct 9 from Devpost and Discord).
 

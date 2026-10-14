@@ -85,8 +85,9 @@ preview/                    template.html -> rebuttal-preview.html (design targe
 uv sync                                  # once, and after pyproject.toml changes (creates backend/.venv)
 uv run pytest
 uv run python -m evals.run               # model if a provider key is set; --rules forces the baseline
+uv run python -m evals.run --save        # also write evals/results/*.json and RESULTS.md (default: print only)
 uv run python -m evals.run --langfuse    # also record the run as a Langfuse experiment (needs the Langfuse keys)
-uv run python -m scripts.demo && uv run python -m scripts.build_preview
+uv run python -m scripts.demo --save && uv run python -m scripts.build_preview
 uv run python -m scripts.spike_sandbox
 uv run uvicorn rebuttal.app:app --reload
 uv add <package>                         # add a dependency (never pip install, never a requirements.txt)
