@@ -212,8 +212,8 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
                     continue
                 # VERIFY: for escalate and appeal this refusal can follow a send that landed (a crash, then a retry).
                 # Retry safety for them rests on PayPal removing the link after success; confirm on the sandbox
-                # (S3: send, then re-GET the dispute) that PayPal removes the link after a successful send. `sent` means this attempt
-                # sent nothing; the reason says an earlier attempt may have.
+                # (S3: send, then re-GET the dispute) that PayPal removes the link after a successful send.
+                # `sent` False means this attempt sent nothing; the reason says an earlier attempt may have.
                 if reason := not_allowed_now(current, action):
                     results.append({"action": action["kind"], "ok": False, "error": reason, "sent": False,
                                     "idempotency_key": key})
