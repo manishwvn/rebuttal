@@ -161,7 +161,7 @@ design (single write path, guard, approval), eval table, how each sponsor tool i
 `docs/apimatic-log.md`, PayPal APIs), license. Draft `docs/devpost.md` (every Devpost field) and
 `docs/discord-preview.md` (short post asking for judge-style feedback). Prepare the APIMatic form answers.
 
-### C3 Discord preview — size S — after C2 and A5 — target Oct 23
+### C3 Discord preview — size S — in-progress (cycle 2026-10-14T14:11) — after C2 and A5 — target Oct 23
 Make the USER item: post `docs/discord-preview.md` in the AG Grid and general channels (exact steps). Do not post.
 
 ### D1 Feature freeze — Nov 3
