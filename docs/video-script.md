@@ -334,9 +334,10 @@ scripts/make_video.sh
 ```
 
 Output: `media/rebuttal-demo.mp4`, plus `media/rebuttal-demo.srt` and intermediate files in `media/work/`. Never commit
-`media/`. It is not git-ignored yet: the make_video piece adds `media/` to `.gitignore`. Until then, never `git add` it.
+`media/` (it is git-ignored).
 
-Requirements, all free tooling: macOS (for `say`), `brew install ffmpeg`, Node and `uv`, Google Chrome.
+Requirements, all free tooling: macOS (for `say`), `brew install ffmpeg`, Node and `uv`, Google Chrome. Playwright also needs its own video encoder: run `npx playwright install ffmpeg` once
+in `frontend/` (the recorder fails with "Executable doesn't exist ... ffmpeg" until you do).
 
 Pipeline:
 

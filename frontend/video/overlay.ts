@@ -15,7 +15,7 @@ export async function setOverlay(page: Page, o: OverlayOptions): Promise<void> {
     const CURSOR_ID = 'rb-cursor'
     const BADGE_TEXT = 'Mock PayPal sandbox. Demo data.'
     const CHIP_CSS =
-      'position:fixed;font-size:15px;background:rgba(255,255,255,0.92);color:#14202e;border:1px solid #d5dde6;border-radius:6px;padding:4px 10px'
+      'position:fixed;font-family:system-ui, sans-serif;font-size:15px;background:rgba(255,255,255,0.92);color:#14202e;border:1px solid #d5dde6;border-radius:6px;padding:4px 10px'
 
     let root = document.getElementById(ROOT_ID)
     if (!root) {

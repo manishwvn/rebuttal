@@ -213,6 +213,8 @@ test('record the demo video', async ({ browser }) => {
     // Setup, not a shot: the mock runs on a fixed clock, so the inbox Age column is the same in every take.
     await page.clock.setFixedTime(new Date('2026-10-06T16:00:00Z'))
     await page.goto('/')
+    // Playwright's default action timeout is none: bound it so a missing selector fails the take fast.
+    page.setDefaultTimeout(10_000)
     await expect(page.getByTestId('mode-badge')).toContainText('mock / rules')
     await expect(row(page)).toBeVisible()
     await expect(page.locator('[row-id]')).toHaveCount(6)

@@ -76,6 +76,8 @@ backend/
   scripts/spike_sandbox.py  Gate 1 real-sandbox test     scripts/demo.py   demo run -> preview_data.json
   scripts/build_preview.py  preview page from template
 frontend/                   React + Vite dashboard: AG Grid inbox and case view, AG Studio analytics tab
+  video/                    demo video recorder (Playwright config, spec, overlay, cards, shots.json); run scripts/make_video.sh
+scripts/make_video.sh        records and assembles media/rebuttal-demo.mp4 (backend/scripts/video_assemble.py)
 preview/                    template.html -> rebuttal-preview.html (design target for the React app)
 ```
 

@@ -42,6 +42,12 @@ stop_tree() {
     stop_tree "$child"
   done < <(pgrep -P "$pid" 2>/dev/null || true)
   kill "$pid" 2>/dev/null || true
+  # Wait up to 10 s for a clean exit, then force it, so a child that ignores TERM cannot hang the cleanup.
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 1
+  done
+  kill -KILL "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
 }
 
