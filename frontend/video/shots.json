@@ -1,0 +1,102 @@
+{
+  "shots": [
+    {
+      "id": "hook",
+      "minSeconds": 10,
+      "narration": "Every PayPal dispute costs a small seller time and money. And now there's a new kind: the buyer's AI assistant ordered the wrong size.",
+      "badge": true,
+      "tag": "Inbox: AG Grid"
+    },
+    {
+      "id": "open",
+      "minSeconds": 6,
+      "narration": "This is Rebuttal. Normally a PayPal webhook starts it; here I click Analyze.",
+      "badge": true
+    },
+    {
+      "id": "analyze",
+      "minSeconds": 6,
+      "narration": "It only reads: the dispute from PayPal, plus the order, tracking and store policies.",
+      "badge": true
+    },
+    {
+      "id": "mismatch",
+      "minSeconds": 10,
+      "narration": "The buyer says she asked for a medium. Her assistant, Atlas, was told the same, and ordered a large.",
+      "badge": true
+    },
+    {
+      "id": "facts",
+      "minSeconds": 14,
+      "narration": "The store shipped exactly what was ordered, to the right address. Every one of these facts is computed in code, not guessed by a model.",
+      "badge": true
+    },
+    {
+      "id": "decision",
+      "minSeconds": 10,
+      "narration": "Now the decision. The baseline reasoner's first instinct is a free replacement, which would keep the sale.",
+      "badge": true,
+      "scriptText": "Now the decision. The model's first instinct is a free replacement, which would keep the sale."
+    },
+    {
+      "id": "guard",
+      "minSeconds": 14,
+      "narration": "But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.",
+      "badge": true
+    },
+    {
+      "id": "edit",
+      "minSeconds": 8,
+      "narration": "I add a line in my own words, then approve.",
+      "badge": true
+    },
+    {
+      "id": "confirm",
+      "minSeconds": 10,
+      "narration": "Before anything leaves, it shows the exact PayPal call: make offer, refund with return, forty-eight dollars, with my wording.",
+      "badge": true
+    },
+    {
+      "id": "approved",
+      "minSeconds": 6,
+      "narration": "One click. The audit trail records my approval and the single write.",
+      "badge": true
+    },
+    {
+      "id": "safety-graph",
+      "minSeconds": 10,
+      "narration": "Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.",
+      "badge": false
+    },
+    {
+      "id": "safety-tests",
+      "minSeconds": 8,
+      "narration": "Analysis runs on a read-only client, and tests scan the code for any other route to a write.",
+      "badge": false
+    },
+    {
+      "id": "eval-held-out",
+      "minSeconds": 8,
+      "narration": "On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.",
+      "badge": false
+    },
+    {
+      "id": "eval-main",
+      "minSeconds": 10,
+      "narration": "On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.",
+      "badge": false
+    },
+    {
+      "id": "close-pitch",
+      "minSeconds": 8,
+      "narration": "Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.",
+      "badge": false
+    },
+    {
+      "id": "close-real",
+      "minSeconds": 13,
+      "narration": "This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.",
+      "badge": false
+    }
+  ]
+}

@@ -7,6 +7,11 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 13:30 CDT | W 39→45 % | F 23→70 % | R2, R7, B4 part 1 | merged #65, #64, #66
+One team-cycle workflow (81 agents, 63 min) built all three in parallel worktrees. R2 (strict, Opus principal confirmed write boundary and guard intact): rules fallback re-runs guard(), no-order cases cap at 0.3 and propose SUBMIT_EVIDENCE, CHARGEBACK without an option list refuses offers (VERIFY); rules evals unchanged at 85%.
+R7: inbox load failure + Retry, readable execute_failed/interrupted audit text, widget remap shows incompleteDataMapping, DashboardErrorBoundary. B4 part 1: scripts/make_video.sh renders a 2:31 rough cut locally (ffmpeg installed via Homebrew; Playwright ffmpeg cache stubbed to system ffmpeg on this Mac).
+Integrators edited STATUS/QUEUE despite the spec; resolved the STATUS conflicts by hand. Leftover worktree-wf_* local branches stay (git branch -D blocked).
+
 ## 2026-10-14 12:55 CDT | R2 | PR #65 open
 Tech lead integrated R2: guard fallback re-runs guard(), missing order caps confidence at 0.3, CHARGEBACK without an option list refuses offers, _pick uses damage facts. Also fixed two audit findings in facts.py (damage words match at word start; refund-without-return sized by disputed amount). Rules evals unchanged (85% overall, 0 gate violations). ADR 0004 updated.
 
