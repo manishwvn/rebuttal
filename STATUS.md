@@ -1,7 +1,6 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 9, 2026 (branch `feat/demo-mode`:
-A6, judge demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
 `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.

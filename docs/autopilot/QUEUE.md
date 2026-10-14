@@ -102,7 +102,7 @@ Found by the A4 dry run: in the Vite dev server the Approve confirm dialog close
 StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the production build is fine. Reproduce with
 a Playwright test against the dev server, fix the effect, keep StrictMode on.
 
-### A8 Re-run the main eval on current code — size S — todo — after Oct 11 (Oct 10 Groq run used by B3)
+### A8 Re-run the main eval on current code — size S — done Oct 14 (final 95%, model alone 75%, run groq-qwen3.8-27b-20261014-001228) — after Oct 11 (Oct 10 Groq run used by B3)
 The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
 once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the

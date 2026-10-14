@@ -101,7 +101,7 @@ AG Grid, APIMatic.
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
 | 1:52-2:00 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "10 unseen disputes, never used for tuning: model alone 8 of 10, model + guard 10 of 10". Footer, small: "PayPal writes before approval: 0". | “On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.” | Tech (PayPal + AI) |
-| 2:00-2:10 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 90% (18 of 20), hard cases 4 of 4." Footer chips: "85-90% across two Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
+| 2:00-2:10 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 95% (19 of 20), hard cases 4 of 4." Footer chips: "85-95% across three Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
 
 ### Segment 8: [PLANNED] AG Studio dashboard (2:10-2:24)
 

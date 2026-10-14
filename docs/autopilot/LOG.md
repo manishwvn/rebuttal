@@ -14,6 +14,10 @@ Checked Orders v2 payloads and carrier values against the paypal-server-sdk mode
 
 Newest first. One block per working cycle; skipped cycles go to `~/.rebuttal-autopilot/runs.log` only.
 
+## 2026-10-13 19:20 CDT | W 0→0 % | F 0→? % | A8 eval re-run | done, PR open
+Weekly reset happened (W 0%, cap override 90 in `~/.rebuttal-autopilot/weekly-cap`, H=90). One Groq main-set run on current code: final 95% (19/20), model alone 75%, hard 4/4, gate violations 0, 27.5k tokens. Only miss `snad_outside_window` (judgment call). No agent code changed; numbers updated in `RESULTS.md`, `STATUS.md` and the video eval card. Live `/api/health` returned 502 once at 23:58 (keep-alive run failed) and 200 on recheck.
+Not done this cycle: daily system-audit (due, not run: lead time-boxed to A8 with no team workflow); B1 part 2, S2 deferred to the next cycle.
+
 ## 2026-10-09 17:20 CDT | W 83→83 % | F 13→13 % | A5 live check | confirmed
 `/api/health` ok and `/` returns 200 on Render, so the frontend build is served. No new task started: headroom H=7 (cap 90), nothing runnable beyond docs.
 
