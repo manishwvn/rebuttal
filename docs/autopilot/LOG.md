@@ -1,5 +1,9 @@
 # Autopilot log
 
+## 2026-10-14 07:11 CDT | W 26→? % | F 8→? % | B1 part 3 | merged #52
+Stale lock (04:11, 180 min) taken over; that cycle's team-cycle workflow had died after building and auditing 4 of 5 pieces. Salvaged them by cherry-pick, Sonnet integrator built p3 (Studio wiring, edit-mode toggle, since ag-studio 3.0.0 exposes `ai` only in edit mode) and opened #52. Sonnet reviewer, 3 rounds: shared Groq TokenBudget with the dispute agent (try_reserve), fixed an event-loop stall (reserve slept holding the budget lock), cancel on upstream failure, ADR 0010 + CLAUDE.md carve-out for the second model path.
+Not verified live: no real Groq turn yet (B2 left items).
+
 ## 2026-10-14 03:12 CDT | W 23→23 % | F 63→63 % | queue sync | docs-only PR
 Stale lock (Oct 13 21:31, over 170 min) taken over. Usage W 23%, cap 80 (no override), H 57, F 63. Queue status fixed: Q2 done #25, A3 done #9, B1 part 2 done #48 (were still 'in review'). No code task picked this cycle: remaining runnable work is S2 (M, PayPal write path, strict review) and B1 part 3 / B2 (L, Agent Framework); both need a full team-cycle run that will not fit the 2 h left in the 5-hour window, so they go to the next window. Progress 43→44 %.
 
