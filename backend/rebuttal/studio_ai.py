@@ -26,17 +26,18 @@ MAX_MESSAGES = 200  # longest chat history forwarded in one turn
 MAX_TOOLS = 64  # most tool definitions forwarded in one turn
 MAX_TEXT_CHARS = 100_000  # longest content of one message
 UPSTREAM_TIMEOUT = 30.0  # seconds; a slow model fails fast for the browser
-SHORT_WINDOW = 60.0  # seconds, the window of the per-client, global, output-token and token limits
+SHORT_WINDOW = 60.0  # seconds, the window of the per-client and global limits
 DAY_WINDOW = 86_400.0  # seconds, the window of the daily limit
 CLIENT_LIMIT = 6  # requests per SHORT_WINDOW for one client, so one client cannot drain the shared quota
 GLOBAL_LIMIT = 12  # requests per SHORT_WINDOW for the whole service, under Groq's 30 requests a minute
 DAILY_LIMIT = 150  # requests per DAY_WINDOW, well under the 1K a day that the dispute agent also uses
-# The studio's share of the Groq key's free-tier limits (1,000 output tokens and 8,000 tokens a minute). Not yet pooled
-# with agent/llm.py's TokenBudget, which reserves 500 output tokens per dispute call: until one budget is shared, a
-# studio reply can still push a dispute call over Groq's limit. Lead decision before merge.
-STUDIO_OUTPUT_TOKENS_PER_MINUTE = 512  # two replies of MAX_OUTPUT_TOKENS a minute
-STUDIO_TOKENS_PER_MINUTE = 4_000  # prompt estimate plus reply: half of Groq's 8,000 tokens a minute
-BYTES_PER_TOKEN = 4  # a rough English estimate; the prompt estimate bounds the prompt, it is not a count
+# Groq's per-minute limits belong to one key that the dispute agent also uses, so the proxy draws from the agent's
+# own TokenBudget (agent/llm.py), passed in by app.py. It books a turn only if the window keeps room for one dispute
+# call afterwards, so a Studio chat is refused before it can push the dispute agent into a Groq 429.
+KEEP_TOKENS = 3_000  # tokens a minute left free for one dispute call
+KEEP_OUTPUT_TOKENS = 500  # output tokens a minute left free for one dispute call (llm.GROQ_MAX_TOKENS)
+KEEP_REQUESTS = 2  # requests a minute left free for the dispute agent
+BYTES_PER_TOKEN = 3  # a rough estimate, low on purpose because JSON tool schemas tokenize densely; not a count
 RETRY_AFTER_DEFAULT = 5  # seconds, when Groq's 429 has no usable Retry-After
 RETRY_AFTER_MAX = 60  # seconds, the longest Retry-After passed on to the browser
 
@@ -96,9 +97,8 @@ class StudioAiRequest(BaseModel):
 
 
 class _RateLimiter:
-    """Sliding windows for one client, the whole service, the day, the studio's output tokens and its total tokens. A
-    request counts only when every window has room; then it charges each window: one request, its reply's
-    MAX_OUTPUT_TOKENS, and its estimated prompt plus reply tokens."""
+    """Sliding windows for one client, the whole service and the day. A request counts only when every window has
+    room. The token limits are not here: they come from the shared Groq budget."""
 
     def __init__(
         self,
@@ -107,26 +107,19 @@ class _RateLimiter:
         client_limit: int,
         global_limit: int,
         daily_limit: int,
-        output_limit: int,
-        token_limit: int,
     ) -> None:
         self._clock = clock
         self._client_limit = client_limit
         self._global_limit = global_limit
         self._daily_limit = daily_limit
-        self._output_limit = output_limit
-        self._token_limit = token_limit
         self._lock = threading.Lock()
         self._clients: dict[str, deque[tuple[float, int]]] = {}
         self._global: deque[tuple[float, int]] = deque()
         self._daily: deque[tuple[float, int]] = deque()
-        self._output: deque[tuple[float, int]] = deque()
-        self._tokens: deque[tuple[float, int]] = deque()
 
-    def acquire(self, client: str, prompt_tokens: int) -> int | None:
+    def acquire(self, client: str) -> int | None:
         """Count one request and return None, or return the whole seconds to wait (at least 1) when a window is full."""
         now = self._clock()
-        reply_and_prompt = prompt_tokens + MAX_OUTPUT_TOKENS
         with self._lock:
             self._sweep(now)
             hits = self._clients.setdefault(client, deque())
@@ -135,8 +128,6 @@ class _RateLimiter:
                 (hits, 1, self._client_limit, SHORT_WINDOW),
                 (self._global, 1, self._global_limit, SHORT_WINDOW),
                 (self._daily, 1, self._daily_limit, DAY_WINDOW),
-                (self._output, MAX_OUTPUT_TOKENS, self._output_limit, SHORT_WINDOW),
-                (self._tokens, reply_and_prompt, self._token_limit, SHORT_WINDOW),
             ]
             waits = [_wait(window, cost, limit, span, now) for window, cost, limit, span in windows]
             blocking = [wait for wait in waits if wait is not None]
@@ -281,15 +272,17 @@ def make_studio_ai_router(
     *,
     client: httpx.AsyncClient | None = None,
     clock: Callable[[], float] = time.monotonic,
+    budget: Any = None,
 ) -> APIRouter:
-    """The /api/studio/ai routes. No auth here (app.py adds the token dependency); a falsy api_key disables them."""
+    """The /api/studio/ai routes. No auth here (app.py adds the token dependency); a falsy api_key disables them.
+
+    `budget` is the process-wide Groq TokenBudget shared with the dispute agent (try_reserve, tpm); None skips the
+    shared-budget check, which only tests do."""
     limiter = _RateLimiter(
         clock,
         client_limit=CLIENT_LIMIT,
         global_limit=GLOBAL_LIMIT,
         daily_limit=DAILY_LIMIT,
-        output_limit=STUDIO_OUTPUT_TOKENS_PER_MINUTE,
-        token_limit=STUDIO_TOKENS_PER_MINUTE,
     )
     router = APIRouter(prefix="/api/studio/ai", tags=["studio-ai"])
 
@@ -304,17 +297,33 @@ def make_studio_ai_router(
         if _declared_length(request) > MAX_BODY_BYTES:
             raise HTTPException(413, "Request too large.")
         body = await _read_body(request)
-        prompt_tokens = len(body) // BYTES_PER_TOKEN
-        if prompt_tokens + MAX_OUTPUT_TOKENS > STUDIO_TOKENS_PER_MINUTE:
-            raise HTTPException(413, "Request too large.")  # larger than the whole token share: waiting would not help
-        retry = limiter.acquire(_client_key(request), prompt_tokens)
-        if retry is not None:
-            raise HTTPException(429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(retry)})
         try:
             payload = StudioAiRequest.model_validate_json(body)
         except ValidationError:
-            raise HTTPException(422, "Invalid AI request.") from None
+            raise HTTPException(422, "Invalid AI request.") from None  # before any limiter, so it costs no slot
+        reservation = None
+        if budget is not None:
+            estimate = len(body) // BYTES_PER_TOKEN + MAX_OUTPUT_TOKENS
+            if estimate + KEEP_TOKENS > budget.tpm:
+                raise HTTPException(413, "Request too large.")  # more than the whole share: waiting would not help
+            reservation, wait = budget.try_reserve(
+                estimate, MAX_OUTPUT_TOKENS,
+                keep_tokens=KEEP_TOKENS, keep_output=KEEP_OUTPUT_TOKENS, keep_requests=KEEP_REQUESTS,
+            )
+            if reservation is None:
+                raise HTTPException(
+                    429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(math.ceil(wait))}
+                )
+        retry = limiter.acquire(_client_key(request))
+        if retry is not None:
+            if reservation is not None:
+                reservation.cancel()
+            raise HTTPException(429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(retry)})
         response = await _forward(client, api_key, _upstream_body(payload, model))
-        return _reply(response, model)
+        reply = _reply(response, model)
+        usage = reply["usage"]
+        if reservation is not None and usage:
+            reservation.settle(usage["prompt_tokens"] + usage["completion_tokens"])
+        return reply
 
     return router

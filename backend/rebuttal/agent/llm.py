@@ -111,6 +111,28 @@ class TokenBudget:
                     return Reservation(event, self._lock)
                 self._sleep(max(0.5, 60 - (now - self._events[0][0])))
 
+    def try_reserve(self, estimate: int, output: int = 0, *, keep_tokens: int = 0, keep_output: int = 0,
+                    keep_requests: int = 0) -> tuple[Reservation | None, float]:
+        """Non-blocking `reserve` for a lower-priority caller (the Studio assistant proxy). It books the estimate only
+        if the window would still have `keep_*` room left over for the dispute agent, else returns (None, seconds to
+        wait). A busy budget (a dispute call is waiting on it) counts as full."""
+        if not self._lock.acquire(blocking=False):
+            return None, 1.0
+        try:
+            now = self._clock()
+            self._events = [e for e in self._events if now - e[0] < 60]
+            used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
+            fits = (len(self._events) + keep_requests < self.rpm and used + estimate + keep_tokens <= self.tpm
+                    and (self.otpm is None or reserved + output + keep_output <= self.otpm))
+            if fits:
+                event = [now, estimate, output]
+                self._events.append(event)
+                return Reservation(event, self._lock), 0.0
+            wait = 60 - (now - self._events[0][0]) if self._events else 1.0
+            return None, max(1.0, wait)
+        finally:
+            self._lock.release()
+
 
 class Reservation:
     def __init__(self, event: list, lock: threading.Lock):
@@ -119,6 +141,11 @@ class Reservation:
     def settle(self, tokens: int) -> None:
         with self._lock:
             self._event[1] = tokens
+
+    def cancel(self) -> None:
+        """Give the whole reservation back (the call was never made)."""
+        with self._lock:
+            self._event[1] = self._event[2] = 0
 
 
 def _total_tokens(raw: AIMessage | None) -> int:
