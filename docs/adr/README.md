@@ -13,3 +13,4 @@ Short records of the decisions that shape Rebuttal. Each is grounded in the code
 | [0007](0007-held-out-evals.md) | Held-out eval sets, never tuned against, give the honest accuracy numbers. |
 | [0008](0008-read-only-paypal-toolkit-adapter.md) | Analysis reads PayPal through a four-tool read-only adapter shaped like the PayPal Agent Toolkit, because the official package cannot be installed or made strictly read-only. |
 | [0009](0009-isolated-judge-demo-runtime.md) | Judges get a demo on the same service: per-visitor sessions with their own mock runtime, no token, bounded, and isolated from the real runtime. |
+| [0010](0010-studio-assistant-proxy.md) | The AG Studio assistant reaches Groq only through a read-only, token-gated proxy that shares the dispute agent's Groq budget and holds no PayPal client. |

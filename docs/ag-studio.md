@@ -122,14 +122,15 @@ Status: the proxy, adapter and dashboard wiring below are committed code with un
   - No key: the status route says `enabled: false` and the POST returns 503.
 - Frontend (`frontend/src/components/analytics/studioAiAdapter.ts`): our own `AgLlmAdapter`, since Studio ships none. It translates Studio's request (conversation items, tool schemas, tool choice, json format) to chat-completions messages and the non-streaming reply back into Studio events and a completed response (text, tool calls, usage; failed and cancelled states). `api.studioAi` calls the proxy with the bearer token.
 - Dashboard (`StudioDashboard.tsx`): asks the status route once. Studio reads `ai` only when it is created, so Studio mounts after the answer. Enabled: `AgStudioProvider` registers `AgStudioAiModule`, `ai` is `createAiHarness(api, { adapter, promptStarters })`, and the toggle button shows. A failed status call means no assistant. Four prompt starters: top disputed products, why buyers dispute, money at risk, deadlines. No `models` option, so there is no model picker; the server owns the model. Studio's tools run in the browser over the analytics data, which is already read-only. The Analytics chunk stays lazy-loaded.
-- Demo mode (`DemoApp`) has no Analytics tab, so it has no AI. `tests/test_demo_isolation.py` checks the demo process does not expose the proxy routes.
+- Demo mode (`DemoApp`) has no Analytics tab, so it has no AI. `tests/test_demo_isolation.py` checks that both proxy routes require the API token and that the status route exposes only `enabled`.
 
 **Limits (constants in `studio_ai.py`)**
 
 - Request body at most 128 KiB, at most 200 messages and 64 tools per request, 100,000 characters per message.
 - Output capped at 256 tokens per reply. Upstream timeout 30 s.
-- Rate limits, per process: per client 6 requests/min; whole service 12/min and 150/day; 512 output tokens/min and 4,000 estimated tokens/min for the service.
-- The Groq free tier is shared with the dispute agent: 30 rpm, 1K requests/day, 8K tokens/min, 1K output tokens/min.
+- Per process: per client 6 requests/min; whole service 12/min and 150/day.
+- The Groq budget is shared with the dispute agent: the proxy draws from the same `TokenBudget` (`agent/llm.py`, 8K tokens/min, 30 requests/min, 1K output tokens/min). It books a turn only if one dispute call's room (3,000 tokens, 500 output tokens, 2 requests) is left afterwards, and it refuses at once (429) rather than wait, so a Studio chat is refused before the dispute agent would be. The prompt estimate is 3 bytes a token. A malformed body is refused (422) before any limit is charged.
+- Groq free tier: 30 rpm, 1K requests/day, 8K tokens/min, 1K output tokens/min. The 1K requests/day is only guarded by the proxy's own 150/day cap, not by the shared budget.
 
 ## 8. Decision for this repo
 
@@ -150,7 +151,7 @@ Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B
   41 kB. Trimming (for example dropping `AllCommunityModule` from the Inbox) is a later task.
 - Dispute coverage. The analytics read one `list_disputes` call, which is not paginated (`PayPalClient.list_disputes`),
   so the totals cover only the first page PayPal returns. Paging through `next_page` is a later task.
-- Live Groq behaviour: the tool-calling quality of the configured Groq model through the non-streaming adapter; whether Studio's system prompt plus tool schemas fit the 128 KiB request cap and the 8K tokens/min Groq free tier; whether the 256-token output cap truncates answers.
+- Live Groq behaviour: the tool-calling quality of the configured Groq model through the non-streaming adapter; whether Studio's system prompt plus tool schemas fit the 128 KiB request cap and the share of the 8K tokens/min that the shared budget leaves the proxy (5,000 minus the 3,000 kept for a dispute call); whether the 256-token output cap truncates answers.
 - Whether the unlicensed trial licence covers the AI module. The docs' troubleshooting says a licence error appears when the key does not include AI.
 - Whether Studio's dashboard-changing tools behave well in edit mode on this dashboard. The panel opens in edit mode (the e2e test shows it); no real turn has run.
 - Streaming is not used: the adapter sends one non-streaming request per turn.
