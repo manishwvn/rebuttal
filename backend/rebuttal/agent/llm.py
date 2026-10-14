@@ -111,17 +111,20 @@ class TokenBudget:
 
     def reserve(self, estimate: int, output: int = 0) -> Reservation:
         with self._queue:  # held while waiting, which queues other callers behind this one
-            while True:
-                with self._lock:
-                    now = self._clock()
-                    if self._fits(now, estimate, output) or not self._events:
-                        event = [now, estimate, output]
-                        self._events.append(event)
-                        self._waiting = False
-                        return Reservation(event, self._lock)
-                    self._waiting = True
-                    wait = max(0.5, 60 - (now - self._events[0][0]))
-                self._sleep(wait)
+            try:
+                while True:
+                    with self._lock:
+                        now = self._clock()
+                        if self._fits(now, estimate, output) or not self._events:
+                            event = [now, estimate, output]
+                            self._events.append(event)
+                            return Reservation(event, self._lock)
+                        self._waiting = True
+                        wait = max(0.5, 60 - (now - self._events[0][0]))
+                    self._sleep(wait)
+            finally:
+                with self._lock:  # also when the sleep raises, so try_reserve never refuses forever
+                    self._waiting = False
 
     def try_reserve(self, estimate: int, output: int = 0, *, keep_tokens: int = 0, keep_output: int = 0,
                     keep_requests: int = 0) -> tuple[Reservation | None, float]:

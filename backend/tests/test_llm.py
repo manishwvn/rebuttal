@@ -220,28 +220,56 @@ def test_try_reserve_keeps_requests_free():
     b.reserve(1)  # the dispute agent still gets the kept room
 
 
-def test_try_reserve_refuses_while_a_reserve_is_waiting_and_never_blocks():
+def test_try_reserve_refuses_while_a_reserve_is_waiting_and_settle_and_cancel_never_block():
+    """With one lock held across reserve()'s sleep, settle and cancel (called on the event loop by the Studio proxy)
+    would wait for the whole sleep; here the sleep is a 5 s gate, so each must return in about a second."""
     import threading
     import time
 
     gate = threading.Event()
     b = TokenBudget(tpm=1000, rpm=30, sleep=lambda secs: gate.wait(5))
-    b.reserve(900)
+    r1 = b.reserve(900)
+    r2, _ = b.try_reserve(50)
+    assert r2 is not None
     waiter = threading.Thread(target=lambda: b.reserve(900))
     waiter.start()
-    deadline = time.monotonic() + 5
-    while not b._waiting and time.monotonic() < deadline:
-        time.sleep(0.01)
-    assert b._waiting
-    started = time.monotonic()
-    assert b.try_reserve(1)[0] is None  # refused at once although 1 token would fit
-    b._events[0].__setitem__(1, 10)  # a settle from another thread is not blocked by the waiting reserve either
-    assert time.monotonic() - started < 1
-    b._events[0][0] -= 61
-    gate.set()
-    waiter.join(timeout=5)
+    try:
+        deadline = time.monotonic() + 5
+        while not b._waiting and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert b._waiting
+
+        def timed(call) -> float:
+            started = time.monotonic()
+            call()
+            return time.monotonic() - started
+
+        assert timed(lambda: b.try_reserve(1)[0] is None or pytest.fail("try_reserve booked")) < 1  # refused at once
+        assert timed(lambda: r1.settle(10)) < 1
+        assert timed(r2.cancel) < 1
+        assert b._events[0][1] == 10 and b._events[1][1:] == [0, 0]
+    finally:
+        gate.set()
+        waiter.join(timeout=5)
     assert not waiter.is_alive()
     assert not b._waiting
+
+
+def test_a_sleep_that_raises_does_not_leave_try_reserve_refusing_forever():
+    now, clock, _ = fake_clock()
+
+    def broken_sleep(secs):
+        raise RuntimeError("interrupted")
+
+    b = TokenBudget(tpm=1000, rpm=30, clock=clock, sleep=broken_sleep)
+    b.reserve(900)
+    with pytest.raises(RuntimeError):
+        b.reserve(900)  # does not fit, so it sleeps, and the sleep raises
+    assert not b._waiting
+    now[0] += 61  # the first reservation ages out
+    reservation, _ = b.try_reserve(100)
+    assert reservation is not None
+    b.reserve(100)  # the queue lock was released too
 
 
 def test_reserve_still_works_after_try_reserve_and_cancel():
