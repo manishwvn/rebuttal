@@ -6,14 +6,20 @@ from rebuttal.audit import AuditLog
 
 
 class _Conn:
-    def execute(self, *args, **kwargs):
-        return None
+    def __init__(self, calls: list):
+        self.calls = calls
+
+    def execute(self, sql, params=None):
+        self.calls.append(sql)
 
 
 class _FakePool:
+    def __init__(self):
+        self.calls: list[str] = []
+
     @contextmanager
     def connection(self):
-        yield _Conn()
+        yield _Conn(self.calls)
 
 
 def test_records_grow_without_a_pool():
@@ -25,6 +31,7 @@ def test_records_grow_without_a_pool():
 def test_records_stay_empty_with_a_pool(monkeypatch):
     monkeypatch.setattr("rebuttal.audit.Jsonb", lambda value: value)  # psycopg is an optional extra
     audit = AuditLog()
-    audit._pool = _FakePool()
+    audit._pool = pool = _FakePool()
     audit.log("D1", "gather", {})
     assert audit.records == []
+    assert len(pool.calls) == 1 and pool.calls[0].startswith("INSERT INTO rebuttal_audit")

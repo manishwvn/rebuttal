@@ -83,4 +83,5 @@ class AuditLog:
                                     "WHERE dispute_id = %s ORDER BY id", (dispute_id,)).fetchall()
             return [{"ts": r["ts"].isoformat(timespec="seconds"), "dispute_id": r["dispute_id"], "step": r["step"],
                      "detail": r["detail"]} for r in rows]
+        # File-only (dev) mode reads this process's records, not the JSONL file: after a restart it starts empty.
         return [r for r in self.records if r["dispute_id"] == dispute_id]
