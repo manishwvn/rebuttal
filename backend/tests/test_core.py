@@ -373,7 +373,6 @@ def test_mock_rejects_malformed_refund_ids(bad):
 
 # --- R11: untrusted buyer text, address mismatch ---------------------------------------------------------------
 def _delivered_case(address_matches, **over):
-    from rebuttal.agent.facts import CaseFile  # noqa: F401  (type only)
     _, case = _case_facts("inr_delivered")
     case.facts.update(shipment_status="DELIVERED", has_tracking=True, delivered_on="2026-01-01",
                       delivered_address_matches=address_matches, **over)
