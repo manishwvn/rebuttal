@@ -165,8 +165,33 @@ test('an interrupted PayPal call: the approval is saved, Retry shows the approve
   await expect(statusCell(page, disputeId)).toHaveText('Executed')
   await expect(caseView.getByLabel(/Message the buyer will receive/)).toHaveValue(EDITED)
   await expect(page.getByTestId('audit-trail')).toContainText('Already at PayPal from the first attempt, not sent again')
+  await expect(page.getByTestId('audit-trail')).toContainText('PayPal call interrupted')
   // (`execute` re-runs on a retry and logs its approval line again, so `approve` can appear twice.)
   const steps = await auditSteps(page)
+  expect(steps).toContain('execute_interrupted')
   expect(steps.filter((step) => step === 'execute')).toHaveLength(1)
   expect(steps.at(-1)).toBe('record')
+})
+
+test('the Reasoner row shows a placeholder until the audit has loaded', async ({ page }) => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/api/audit/*', async (route) => {
+    await gate
+    await route.continue()
+  })
+  try {
+    await simulate(page, 'agent_wrong_size')
+    const caseView = page.getByTestId('case-view')
+
+    // The case renders before the audit arrives, so the reasoner's pick is unknown and must not show the final action.
+    await expect(caseView.getByTestId('reasoner-choice')).toHaveText('Loading…')
+    await expect(caseView.getByTestId('final-action')).toHaveText('Refund after the item is returned')
+
+    release()
+    await expect(caseView.getByTestId('reasoner-choice')).toHaveText('Offer a free replacement')
+  } finally {
+    release()
+    await page.unroute('**/api/audit/*')
+  }
 })

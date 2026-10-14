@@ -14,6 +14,10 @@ type WidgetRows = NonNullable<ReturnType<typeof useWidgetRows>>
 // Used only once the data has loaded and holds no row: nothing has been compared yet.
 const NO_DATA: Metrics = { pct: 0, compared: 0, agreed: 0, guardChanges: 0 }
 
+const METRIC_COUNT = 4
+// Module scope keeps the slots array stable: useWidgetRows re-runs its effect when slots changes.
+const METRICS = ['metrics']
+
 // Reads the one 'metrics' row. Fields are in order: agreement_pct (percentage points), compared, agreed, guard_changes.
 function readMetrics({ fields, rows }: WidgetRows): Metrics {
   const row = rows[0]
@@ -46,7 +50,7 @@ const FILL: CSSProperties = { height: '100%', background: 'var(--accent)' }
 const DETAIL: CSSProperties = { color: 'var(--muted)', fontSize: '0.875rem' }
 
 export default function AgreementWidget(params: AgWidgetParams) {
-  const data = useWidgetRows(params, ['metrics'])
+  const data = useWidgetRows(params, METRICS, METRIC_COUNT)
   if (!data) {
     return (
       <div data-widget-id={params.widgetId} style={ROOT}>

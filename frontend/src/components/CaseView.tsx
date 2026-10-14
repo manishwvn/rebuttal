@@ -110,8 +110,8 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
 
   // The reasoner's own pick comes from the audit log; the proposal only holds the final, guarded decision.
   const picked = [...audit].reverse().find((e) => e.step === 'decide')?.detail.resolution
-  const reasonerChoice = typeof picked === 'string' ? picked : decision.resolution
-  const guardChanged = reasonerChoice !== decision.resolution || decision.guard_notes.length > 0
+  const reasonerChoice = typeof picked === 'string' ? picked : null
+  const guardChanged = (reasonerChoice !== null && reasonerChoice !== decision.resolution) || decision.guard_notes.length > 0
 
   // What a retry will send: the draft, or the merchant's edit (the proposal carries it once approved).
   const approvedWithEdits = proposal.approved_message !== null && proposal.approved_message !== originalText
@@ -208,7 +208,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           <h3 id="why-title">Why this proposal</h3>
           <dl className="compare">
             <dt>Reasoner ({decision.source})</dt>
-            <dd data-testid="reasoner-choice">{resolutionLabel(reasonerChoice)}</dd>
+            <dd data-testid="reasoner-choice">{reasonerChoice === null ? 'Loading…' : resolutionLabel(reasonerChoice)}</dd>
             <dt>Final action</dt>
             <dd data-testid="final-action">
               <strong>{resolutionLabel(decision.resolution)}</strong>

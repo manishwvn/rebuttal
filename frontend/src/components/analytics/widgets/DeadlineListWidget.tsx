@@ -8,6 +8,10 @@ const REASON = 1
 const AMOUNT = 2
 const STATUS = 3
 const HOURS_LEFT = 5
+const MIN_FIELDS = HOURS_LEFT + 1
+
+// Module scope keeps the slots array stable: useWidgetRows re-runs its effect when slots changes.
+const COLS = ['cols']
 
 type Row = Record<string, unknown>
 
@@ -71,7 +75,7 @@ function DeadlineRow({ params, fields, row }: DeadlineRowProps) {
 }
 
 export default function DeadlineListWidget(params: AgWidgetParams) {
-  const data = useWidgetRows(params, ['cols'])
+  const data = useWidgetRows(params, COLS, MIN_FIELDS)
   return (
     <div data-widget-id={params.widgetId} style={LIST}>
       {data?.rows.map((row) => (
