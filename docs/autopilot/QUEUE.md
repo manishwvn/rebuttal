@@ -24,7 +24,7 @@ Catch basic mistakes without spending model usage. Add to `.github/workflows/tes
   `backend/.env.example` or explicitly allowlisted.
 Done when CI runs the new jobs on the PR and they pass.
 
-### Q2 Architecture decision records — size S — in review (branch docs/adr)
+### Q2 Architecture decision records — size S — done #25
 `docs/adr/`: short ADRs (context, decision, consequences) for the safety design: single PayPal write path in
 `execute`, read-only client for analysis, human approval via LangGraph interrupt, facts in code + guard over the model,
 deterministic PayPal-Request-Id, Supabase over paid Postgres, held-out evals. Link them from README. (Competitor Stood
@@ -68,7 +68,7 @@ accuracy and the per-case misses in `docs/evals.md` (create it, include the main
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
-### A3 Frontend follow-ups from the PR #3 review — size M — in review (branch fix/frontend-followups)
+### A3 Frontend follow-ups from the PR #3 review — size M — done #9
 - Delete the unused Vite scaffold (`frontend/src/assets/`, `frontend/public/icons.svg`, unused CSS).
 - Register only the AG Grid modules in use instead of `AllCommunityModule` (`ag-mcp` for module names); report the
   bundle size before and after.
@@ -110,7 +110,7 @@ once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATU
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
 two do not share one day's Groq quota.
 
-### B1 AG Studio dashboard, first pass — size L — in progress: part 1 (data endpoints, Studio integration, first dashboard view) in review (PR #16); parts 2-3: custom widgets and theme in review (B1b, PR #48), Agent Framework todo — deadline Oct 23
+### B1 AG Studio dashboard, first pass — size L — in progress: part 1 (data endpoints, Studio integration, first dashboard view) in review (PR #16); part 2 custom widgets and theme done #48; part 3 Agent Framework todo — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:
 disputes by reason and by product, money kept vs refunded, response deadlines, model-vs-final agreement from the
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with
