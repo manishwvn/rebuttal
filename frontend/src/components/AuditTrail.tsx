@@ -24,6 +24,10 @@ function describe(entry: AuditEntry): string {
       return `${d.reconciled ? 'Already at PayPal from the first attempt, not sent again' : 'Sent to PayPal'}: ${text(d.summary)}`
     case 'record':
       return `Recorded as ${text(d.status)}`
+    case 'execute_failed':
+      return `PayPal call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
+    case 'execute_interrupted':
+      return `PayPal call interrupted (${typeof d.status === 'number' ? `PayPal answered ${d.status}` : 'PayPal could not be reached'}). The approval is saved; retry to continue`
     default:
       return JSON.stringify(d)
   }
