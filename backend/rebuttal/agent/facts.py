@@ -225,14 +225,17 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
 
     f["transaction_search_available"] = transactions is not None
     if transactions is not None:
-        same_buyer = [
-            t for t in transactions
-            if t.get("payer_info", {}).get("email_address") == order.buyer_email
-            # Only settled charges for this order: a denied attempt or a second order at the same price is no duplicate.
-            and t["transaction_info"].get("transaction_status") == "S"
-            and t["transaction_info"].get("invoice_id") in (None, order.invoice_id)
-            and abs(float(t["transaction_info"]["transaction_amount"]["value"]) - amount) < 0.01
-        ]
+        # VERIFY: PayPal rejects a reused invoice id by default (DUPLICATE_INVOICE_ID), so a real double checkout may
+        # carry different invoice ids. Confirm with a real sandbox double charge. Pending ('P') charges are excluded
+        # on purpose: only settled money counts as a duplicate.
+        same_buyer = []
+        for t in transactions:
+            info = t.get("transaction_info", {})
+            if (t.get("payer_info", {}).get("email_address") == order.buyer_email
+                    and info.get("transaction_status") == "S"
+                    and info.get("invoice_id") in (None, "", order.invoice_id)
+                    and abs(float(info["transaction_amount"]["value"]) - amount) < 0.01):
+                same_buyer.append(t)
         f["matching_charges_same_day"] = len(same_buyer)
         f["duplicate_charge_found"] = len(same_buyer) > 1
 
