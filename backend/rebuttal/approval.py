@@ -8,9 +8,8 @@ Two graph nodes live here, side by side so the rule is easy to audit:
 - `execute` makes the PayPal write call. The graph only routes to it after an approve or edit decision, and it
   refuses to run without one. Every call carries a deterministic idempotency key, and before sending it reads the
   dispute to see whether this very action already landed (a retry after a crash). `already_applied` recognises
-  messages, offers, and an escalate whose dispute has moved from INQUIRY to CHARGEBACK. Appeal is not recognised:
-  escalate and appeal otherwise fall back to `not_allowed_now`, which fails closed once the dispute's stage or links
-  have moved on.
+  messages and offers only. Escalate and appeal are not recognised: they fall back to `not_allowed_now`, which fails
+  closed once the dispute's stage or links have moved on.
 
 Two rules for node code, both learned from review:
 
@@ -95,13 +94,11 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     said or offered (`facts.seller_activity`): the action has landed if the dispute now holds more of the same message
     or offer type than it did then. Best effort, for a retry after a crash between the PayPal call and the checkpoint:
     PayPal documents `PayPal-Request-Id` for Orders and Payments but not for the Disputes API, so the key alone
-    cannot be relied on here. Messages and offers are recognised; evidence and accept-claim are not (they fall back
-    to `not_allowed_now`, the key, and PayPal's own refusal of a repeated action).
-    Escalate counts as landed only when the case was at INQUIRY and the dispute is now a CHARGEBACK with no escalate
-    link. VERIFY: that stage move is the expected result of an escalate; confirm it on the sandbox. A buyer-side
-    escalation makes the same move without this action, so the record can then say reconciled for a send that did
-    not happen. Appeal is not recognised: `not_allowed_now` fails it closed once the links have moved on.
-    VERIFY: retry safety for escalate and appeal also depends on PayPal removing the link after a successful send."""
+    cannot be relied on here. Messages and offers are recognised. Escalate and appeal are not: a stage move from
+    INQUIRY to CHARGEBACK also happens when the buyer escalates, so it cannot prove this action landed. They fall back
+    to `not_allowed_now`, which refuses once the dispute's stage or links have moved on, so a retry after a send that
+    landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim fall back the same way.
+    VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send."""
     now = seller_activity(dispute)
     baseline = case.get("seller_activity", {})
     kind, params = action["kind"], action["params"]
@@ -109,10 +106,6 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
         return now["messages"].count(params["message"]) > baseline.get("messages", []).count(params["message"])
     if kind == "make_offer":
         return now["offers"].count(params["offer_type"]) > baseline.get("offers", []).count(params["offer_type"])
-    if kind == "escalate":
-        escalate_offered = any(link.get("rel") == "escalate" for link in dispute.get("links") or [])
-        return (case.get("stage") == "INQUIRY" and dispute.get("dispute_life_cycle_stage") == "CHARGEBACK"
-                and not escalate_offered)
     return False
 
 

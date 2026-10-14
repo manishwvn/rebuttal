@@ -201,12 +201,13 @@ def test_not_allowed_now_still_checks_offers_and_claims_against_allowed_response
 
 
 # ------------------------------------------------------------------------------------------ already_applied
-def test_already_applied_counts_an_escalate_only_for_the_inquiry_to_chargeback_move():
+def test_already_applied_does_not_recognise_escalate_or_appeal_even_after_the_stage_moved():
+    # An INQUIRY to CHARGEBACK move also happens when the buyer escalates, so it cannot prove this action landed.
     moved = {"dispute_life_cycle_stage": "CHARGEBACK", "links": [link("self")]}
-    assert already_applied(moved, ESCALATE, {"stage": "INQUIRY"}) is True
-    assert already_applied(moved, ESCALATE, {"stage": "CHARGEBACK"}) is False  # it was not at INQUIRY
+    assert already_applied(moved, ESCALATE, {"stage": "INQUIRY"}) is False
+    assert already_applied(moved, ESCALATE, {"stage": "CHARGEBACK"}) is False
     assert already_applied(with_links("INQUIRY", "escalate"), ESCALATE, {"stage": "INQUIRY"}) is False
-    assert already_applied(moved, APPEAL, {"stage": "INQUIRY"}) is False  # appeal is not recognised
+    assert already_applied(moved, APPEAL, {"stage": "INQUIRY"}) is False
 
 
 # ------------------------------------------------------------------------------------------ execute node
@@ -233,13 +234,16 @@ def test_execute_fails_without_sending_when_the_dispute_has_no_escalate_link(ana
     assert client.calls_to("escalate") == []
 
 
-def test_execute_reconciles_an_escalate_that_already_moved_the_dispute_to_chargeback(analyzed_rt):
+def test_execute_does_not_reconcile_an_escalate_whose_dispute_moved_to_chargeback(analyzed_rt):
+    """A dispute that moved from INQUIRY to CHARGEBACK may be a buyer's own escalation, so the node must not claim
+    this send landed. It refuses instead, and sends nothing."""
     client = StubClient({"dispute_life_cycle_stage": "CHARGEBACK", "links": [link("self")]})
     state = approved(analyzed_rt, ESCALATE, stage="INQUIRY")
     out = make_execute_node(client, AuditLog())(state)
-    assert out["status"] == "EXECUTED"
-    assert out["result"] == [{"action": "escalate", "ok": True, "reconciled": True,
-                              "idempotency_key": idempotency_key(state["proposal_id"], 0, "escalate")}]
+    result = out["result"][0]
+    assert out["status"] == "FAILED"
+    assert result["ok"] is False and result["sent"] is False and "reconciled" not in result
+    assert "may already have been sent" in result["error"]
     assert client.calls_to("escalate") == []
 
 
