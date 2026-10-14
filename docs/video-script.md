@@ -216,10 +216,9 @@ await page.getByTestId('case-status').filter({ hasText: 'Executed' }).waitFor()
 | Static cards C and D | Shot 15 | Close cards from segment 9. | To author in B4. |
 | AG Studio view | Shot 14 | See segment 8. | **[PLANNED]** tasks B1, B2. |
 | Live-proof insert | Segment 9, optional | Dashboard on the Render service with the live dispute pending. | **[PLANNED]** task A5. |
-| Audio | all | Rough cut: macOS `say` from section 7. Final: Manish's own voice, same text. | B4 / USER item. |
+| Audio | all | Rough cut: macOS `say` from section 7. Final: Manish's own voice, same text. Rough cut built by scripts/make_video.sh (section 8). | B4 / USER item. |
 
-Video capture: Playwright's `recordVideo` needs its own ffmpeg build (`npx playwright install ffmpeg`, a download:
-ask Manish first). Joining audio and cards needs `brew install ffmpeg`. Neither is installed on this machine today.
+Playwright caches its own ffmpeg build locally, the system `ffmpeg` is installed with `brew install ffmpeg`, see section 8.
 
 ### 4.4 Quirks found in the dry run (do not rediscover them)
 
@@ -274,7 +273,7 @@ For Manish or the lead:
 3. Segment 8 depends on B1 and B2; the freeze is Nov 3.
 4. Fix or document quirk Q3 (dev-mode confirm dialog). Regenerate `docs/screenshots/hero-case.png` from the seeded
    PP-D-2000 (its spec uses the Simulator) so it does not show the false duplicate-charge mark (quirk Q1).
-5. Approve the ffmpeg downloads for B4 (4.3).
+5. ffmpeg installed (B4 part 1); see section 8.
 6. Optional: one real approve on a live sandbox dispute, then add one sentence to segment 9.
 
 ## 7. Narration only (for text to speech)
@@ -325,3 +324,42 @@ Rebuttal is for the shop with no dispute team: the agent digs, the merchant deci
 ...
 This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.
 ```
+
+## 8. Rebuild the video (automated rough cut)
+
+Run this one command from the repo root:
+
+```bash
+scripts/make_video.sh
+```
+
+Output: `media/rebuttal-demo.mp4`, plus `media/rebuttal-demo.srt` and intermediate files in `media/work/`. The `media/`
+folder is git-ignored. Never commit it.
+
+Requirements, all free tooling: macOS (for `say`), `brew install ffmpeg`, Node and `uv`, Google Chrome.
+
+Pipeline:
+
+1. Narration: each shot's text from `frontend/video/shots.json` is spoken with `say`, voice `Samantha`. Set
+   `VIDEO_VOICE` to use another voice; list the voices with `say -v ?`.
+2. Terminal card: the real pytest output is captured, not faked.
+3. Backend: a fresh mock backend starts with the mock PayPal sandbox, the rules reasoner, no database and no tracing.
+   All secret variables are blanked, so `backend/.env` is never read. The dashboard is built and served.
+4. Recording: Playwright records `frontend/video/record.spec.ts` with its own config,
+   `frontend/video/playwright.config.ts`. The e2e suite and CI never run it.
+5. Timing: each shot is held for the longer of its time range and its narration length plus 1 s.
+6. Captions: burned in by a DOM overlay in the recorded page, because this machine's ffmpeg has no subtitles or
+   drawtext filter. The SRT is also embedded as a soft track.
+7. Join: ffmpeg joins the video and the audio.
+8. Length limit: the build fails if the result is 3:00 or longer. The current design runs about 2:31 without the
+   AG Studio segment.
+
+Single source of truth: `frontend/video/shots.json`. `backend/tests/test_video_shots.py` checks it against section 7,
+so edit both together.
+
+What part 1 does not include:
+
+- The AG Studio segment (planned, not built).
+- A Groq take. The rough cut uses the rules reasoner, which is why segment 4 says "baseline reasoner", as section 4.1
+  allows.
+- Manish's own voice for the final.
