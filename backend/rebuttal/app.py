@@ -27,6 +27,7 @@ from .demo_api import make_demo_router
 from .paypal.client import PayPalError
 from .runtime import Runtime
 from .scenarios import load_cases, seed_case
+from .studio_ai import make_studio_ai_router
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,9 @@ def require_token(authorization: str | None = Header(default=None)) -> None:
 
 
 protected = [Depends(require_token)]
+# AG Studio's AI chat proxy to Groq. Behind the API token like every dashboard route; it never receives `rt` or `rt.client`,
+# only the Groq key and model name, so it cannot reach PayPal. Demo mode has no Analytics tab and no AI.
+app.include_router(make_studio_ai_router(rt.settings.groq_api_key, rt.settings.groq_model), dependencies=protected)
 # The demo router is deliberately NOT behind the token: it can only reach its own DemoManager, an isolated mock
 # runtime per session, and never `rt`. Nothing here may pass `rt`, `rt.client` or `rt.settings` to the demo.
 # tests/test_demo_isolation.py enforces that and checks that every other /api route keeps the token.
