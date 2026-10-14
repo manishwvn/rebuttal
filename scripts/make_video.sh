@@ -46,11 +46,14 @@ stop_tree() {
 }
 
 cleanup() {
-  trap - EXIT INT TERM
+  trap - EXIT
   stop_tree "$VITE_PID"
   stop_tree "$BACKEND_PID"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+# Ctrl-C or a TERM stops the take: exiting runs cleanup once through the EXIT trap, so both servers stop.
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 for tool in ffmpeg ffprobe say node npm npx uv curl lsof; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -84,9 +87,12 @@ fi
 
 [ -d "$ROOT/frontend/node_modules" ] || (cd "$ROOT/frontend" && npm ci)
 (cd "$ROOT/frontend" && VITE_API_BASE="http://localhost:$BACKEND_PORT" VITE_API_TOKEN= npm run build)
+# The preflight check ran minutes ago, so check again right before each server starts.
+check_port_free "$APP_PORT"
 (cd "$ROOT/frontend" && exec npx vite preview --port "$APP_PORT" --strictPort) > "$WORK/vite.log" 2>&1 &
 VITE_PID=$!
 
+check_port_free "$BACKEND_PORT"
 # A fresh backend per take is required: the mock is in memory, so a reused server would keep the last take's disputes.
 # Every secret is forced empty so that no key from backend/.env reaches this process.
 (
@@ -111,12 +117,16 @@ VITE_PID=$!
     LANGFUSE_SECRET_KEY= \
     LANGFUSE_HOST= \
     SUPABASE_ACCESS_TOKEN= \
+    PAYPAL_BUYER_CLIENT_ID= \
+    PAYPAL_BUYER_CLIENT_SECRET= \
     uv run uvicorn rebuttal.app:app --port "$BACKEND_PORT"
 ) > "$WORK/backend.log" 2>&1 &
 BACKEND_PID=$!
 
 deadline=$((SECONDS + 60))
 until curl -fs "http://localhost:$BACKEND_PORT/api/health" >/dev/null 2>&1 && curl -fs "http://localhost:$APP_PORT/" >/dev/null 2>&1; do
+  kill -0 "$VITE_PID" 2>/dev/null || die "vite exited early; see $WORK/vite.log"
+  kill -0 "$BACKEND_PID" 2>/dev/null || die "backend exited early; see $WORK/backend.log"
   [ "$SECONDS" -lt "$deadline" ] || die "backend and frontend did not both answer within 60 s; see $WORK/backend.log and $WORK/vite.log"
   sleep 1
 done
