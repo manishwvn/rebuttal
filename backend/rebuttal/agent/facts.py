@@ -228,6 +228,9 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
         same_buyer = [
             t for t in transactions
             if t.get("payer_info", {}).get("email_address") == order.buyer_email
+            # Only settled charges for this order: a denied attempt or a second order at the same price is no duplicate.
+            and t["transaction_info"].get("transaction_status") == "S"
+            and t["transaction_info"].get("invoice_id") in (None, order.invoice_id)
             and abs(float(t["transaction_info"]["transaction_amount"]["value"]) - amount) < 0.01
         ]
         f["matching_charges_same_day"] = len(same_buyer)

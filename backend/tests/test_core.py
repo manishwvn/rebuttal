@@ -300,3 +300,25 @@ def test_guard_turns_accept_claim_on_a_high_value_damaged_item_into_return_for_r
     assert guard(Decision("ACCEPT_CLAIM", 0.95, [], "", "m", "", source="groq"), low).resolution == "ACCEPT_CLAIM"
     assert not mind.facts["buyer_reports_damage"]
     assert guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="groq"), mind).guard_notes == []
+
+
+def _duplicate_flag(rt, mutate):
+    """gather() on a duplicate_true case after mutate(duplicate_txn_info) edited the second charge."""
+    dup = next(t for t in rt.mock.transactions.values() if t["transaction_info"]["transaction_id"].endswith("D"))
+    mutate(dup["transaction_info"])
+    return gather("PP-D-2000", rt.client, rt.store, DEMO_NOW).facts["duplicate_charge_found"]
+
+
+def test_duplicate_charge_two_successful_same_invoice():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: None) is True
+
+
+def test_duplicate_charge_ignores_different_invoice():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: info.update(invoice_id="RB-other-9")) is False
+
+
+def test_duplicate_charge_ignores_denied_transaction():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: info.update(transaction_status="D")) is False
