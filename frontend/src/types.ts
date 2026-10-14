@@ -1,7 +1,7 @@
 // Shapes of the backend API (backend/rebuttal/app.py, Proposal.to_dict() in agent/pipeline.py, Decision in
 // agent/reasoner.py). Field names are the backend's; nothing here is invented.
 
-export type ActionKind = 'send_message' | 'make_offer' | 'provide_evidence' | 'accept_claim'
+export type ActionKind = 'send_message' | 'make_offer' | 'provide_evidence' | 'accept_claim' | 'escalate' | 'appeal'
 
 export interface Money {
   currency_code: string

@@ -10,8 +10,8 @@ Outcome of a dispute (`build_rows`):
     ACCEPT_CLAIM, OFFER_RETURN_FOR_REFUND                       -> refunded (the full amount is agreed)
     OFFER_PARTIAL_REFUND                                        -> partially_refunded (the offered amount, 0 if unreadable)
     SHARE_TRACKING, OFFER_REPLACEMENT, SUBMIT_EVIDENCE,
-    SUBMIT_REFUND_PROOF                                         -> kept (we agreed no refund; for evidence PayPal
-                                                                   still decides)
+    SUBMIT_REFUND_PROOF, ESCALATE, APPEAL                       -> kept (we agreed no refund; for evidence, escalation
+                                                                   and appeal PayPal still decides)
 - anything else (PENDING, APPROVED, INTERRUPTED)                -> awaiting_merchant
 
 Money, in cents, so that refunded + kept + open == amount on every row. Only an EXECUTED proposal moves money: its

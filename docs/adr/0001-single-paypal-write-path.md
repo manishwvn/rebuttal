@@ -4,9 +4,9 @@ Status: Accepted
 
 ## Context
 
-Rebuttal changes real disputes (messages, offers, evidence, accept-claim). A merchant must be able to trust that
-nothing reaches PayPal unless they approved it. With many modules and scripts holding a PayPal client, that is easy
-to break by accident.
+Rebuttal changes real disputes (messages, offers, evidence, accept-claim, escalate, appeal). A merchant must be able
+to trust that nothing reaches PayPal unless they approved it. With many modules and scripts holding a PayPal client,
+that is easy to break by accident.
 
 ## Decision
 

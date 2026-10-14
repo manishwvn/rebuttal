@@ -146,7 +146,7 @@ Rebuttal moves money-adjacent state at a payment company, so the safety rules ar
 decisions are written up as short records in [docs/adr/](docs/adr/README.md).
 
 1. **One write path.** Only the graph's `execute` node in `rebuttal/approval.py` may call PayPal write endpoints
-   (message, offer, evidence, accept). A test scans the package so nothing else can. [ADR 0001](docs/adr/0001-single-paypal-write-path.md).
+   (message, offer, evidence, accept, escalate, appeal). A test scans the package so nothing else can. [ADR 0001](docs/adr/0001-single-paypal-write-path.md).
 2. **Read-only analysis.** Analysis steps hold `client.read_only()`, a clone whose HTTP transport refuses anything but
    GET. The full client raises on any write outside `permit_writes()`. [ADR 0002](docs/adr/0002-read-only-client-for-analysis.md).
 3. **Facts in code, guard over the model.** Facts (delivered? inside the return window? duplicate charge?) are computed
@@ -250,8 +250,8 @@ second found the SDK has no Disputes controller, so it could not confirm the dis
 what Rebuttal calls.
 
 **PayPal APIs used** (all sandbox; see [`client.py`](backend/rebuttal/paypal/client.py)):
-- Disputes: list and show a dispute, send message, make offer, provide evidence, accept claim, escalate
-  (`/v1/customer/disputes/...`). Sandbox-only helpers for the simulator and manual scripts: create dispute (as a second
+- Disputes: list and show a dispute, send message, make offer, provide evidence, accept claim, escalate,
+  appeal (`/v1/customer/disputes/...`). Sandbox-only helpers for the simulator and manual scripts: create dispute (as a second
   sandbox business account acting as buyer), require-evidence, adjudicate.
 - Orders v2 and payments: show order, capture lookup, create and capture order, add shipment tracking
   (`/v2/checkout/orders/...`, `/v2/payments/captures/...`).

@@ -1,6 +1,6 @@
 """Typed wrapper over the PayPal REST endpoints Rebuttal uses.
 
-Every call that changes a dispute (message, offer, evidence, accept) is only
+Every call that changes a dispute (message, offer, evidence, accept, escalate, appeal) is only
 ever invoked by the approval executor, never directly by the agent. Two runtime
 guards back that rule up:
 
@@ -94,6 +94,16 @@ class PayPalError(RuntimeError):
         self.body = body
         self.debug_id = debug_id
         super().__init__(f"PayPal API error {status} (debug_id={debug_id}): {body}")
+
+
+def _evidence_parts(evidences: list[dict], files: list[tuple[str, bytes, str]]) -> list[tuple[str, tuple]]:
+    """The multipart form shared by provide-evidence and appeal: an `input` JSON part plus optional document files."""
+    parts: list[tuple[str, tuple]] = [
+        ("input", (None, json.dumps({"evidences": evidences}), "application/json"))
+    ]
+    for i, (name, content, mime) in enumerate(files):
+        parts.append((f"file{i + 1}", (name, content, mime)))
+    return parts
 
 
 class PayPalClient:
@@ -206,13 +216,21 @@ class PayPalClient:
         *, request_id: str | None = None,
     ) -> dict:
         """Multipart: an `input` JSON part plus optional document files."""
-        parts: list[tuple[str, tuple]] = [
-            ("input", (None, json.dumps({"evidences": evidences}), "application/json"))
-        ]
-        for i, (name, content, mime) in enumerate(files):
-            parts.append((f"file{i + 1}", (name, content, mime)))
         return self._request(
-            "POST", f"/v1/customer/disputes/{dispute_id}/provide-evidence", files=parts, request_id=request_id
+            "POST", f"/v1/customer/disputes/{dispute_id}/provide-evidence",
+            files=_evidence_parts(evidences, files), request_id=request_id,
+        )
+
+    def appeal(
+        self, dispute_id: str, evidences: list[dict], files: list[tuple[str, bytes, str]] = (),
+        *, request_id: str | None = None,
+    ) -> dict:
+        """Appeal is only possible when the dispute shows an `appeal` HATEOAS link.
+        VERIFY: body shape (multipart with an 'input' JSON part, same as provide-evidence) is from the OpenAPI spec
+        only, not yet confirmed on the live sandbox."""
+        return self._request(
+            "POST", f"/v1/customer/disputes/{dispute_id}/appeal",
+            files=_evidence_parts(evidences, files), request_id=request_id,
         )
 
     def accept_claim(self, dispute_id: str, *, note: str, refund_amount: dict | None = None,
@@ -224,6 +242,10 @@ class PayPalClient:
                              request_id=request_id)
 
     def escalate(self, dispute_id: str, note: str, *, request_id: str | None = None) -> dict:
+        """Valid only at stage INQUIRY (PayPal Disputes v1); body {note}. buyer_escalation_reason is omitted.
+        VERIFY: whether buyer_escalation_reason is optional on the sandbox.
+        VERIFY: the real sandbox refused escalate on an INQUIRY in UNDER_REVIEW
+        (ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE); allowed case not yet confirmed."""
         return self._request(
             "POST", f"/v1/customer/disputes/{dispute_id}/escalate", json={"note": note}, request_id=request_id
         )

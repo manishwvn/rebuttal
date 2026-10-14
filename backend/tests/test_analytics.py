@@ -92,7 +92,7 @@ def test_open_and_closed_proposals_map_to_their_outcome(status, outcome):
 @pytest.mark.parametrize("resolution,outcome", [
     ("ACCEPT_CLAIM", "refunded"), ("OFFER_RETURN_FOR_REFUND", "refunded"),
     ("SHARE_TRACKING", "kept"), ("OFFER_REPLACEMENT", "kept"), ("SUBMIT_EVIDENCE", "kept"),
-    ("SUBMIT_REFUND_PROOF", "kept")])
+    ("SUBMIT_REFUND_PROOF", "kept"), ("ESCALATE", "kept"), ("APPEAL", "kept")])
 def test_an_executed_proposal_is_labelled_by_its_final_resolution(resolution, outcome):
     row = row_of(make_dispute(amount="48.00"), make_proposal(status="EXECUTED", resolution=resolution))
     assert row["outcome"] == outcome

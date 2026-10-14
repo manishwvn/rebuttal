@@ -103,6 +103,18 @@ def seller_activity(dispute: dict) -> dict:
     }
 
 
+def dispute_actions(dispute: dict) -> dict[str, bool]:
+    """Whether the seller may escalate or appeal this dispute now, read from PayPal's HATEOAS links. Fails closed:
+    no links, or no matching link, means False.
+    VERIFY: rel names 'escalate'/'appeal' are from the Disputes v1 docs, not yet seen on the real sandbox; if they
+    differ these facts stay False and the agent simply never proposes the action."""
+    rels = {link.get("rel") for link in dispute.get("links") or []}
+    return {
+        "can_escalate": "escalate" in rels and dispute.get("dispute_life_cycle_stage") == "INQUIRY",
+        "can_appeal": "appeal" in rels,
+    }
+
+
 def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: datetime) -> CaseFile:
     calls: list[str] = []
     toolkit = ReadOnlyToolkit(client)  # every PayPal read below goes through its four read tools
@@ -157,6 +169,10 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
     buyer_messages = buyer_statements(dispute)
 
     facts = _compute_facts(order, trackers, transactions, amount, now, buyer_messages)
+    activity = seller_activity(dispute)
+    # From the dispute itself, so set even when no merchant order was found.
+    facts.update(dispute_actions(dispute),
+                 seller_already_responded=bool(activity["messages"] or activity["offers"]))
     query = " ".join([dispute["reason"].replace("_", " "), *buyer_messages,
                       "assistant" if facts.get("is_agent_purchase") else ""])
     return CaseFile(
@@ -176,7 +192,7 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
         facts=facts,
         tool_calls=calls,
         allowed_response_options=dispute.get("allowed_response_options"),
-        seller_activity=seller_activity(dispute),
+        seller_activity=activity,
     )
 
 
@@ -225,6 +241,9 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
     if order.refunds:
         f["refund_ids"] = [r["refund_id"] for r in order.refunds]
     f["return_received"] = bool(order.return_shipment and order.return_shipment.status == "DELIVERED")
+    if order.return_shipment:
+        f["return_carrier"] = order.return_shipment.carrier
+        f["return_tracking_number"] = order.return_shipment.number
 
     f["transaction_search_available"] = transactions is not None
     if transactions is not None:
