@@ -5,15 +5,16 @@ review), `STATUS.md` and the dashboard as it exists today (`frontend/`, PR #3). 
 dry-run on Oct 9 against the real dashboard build and the mock backend with the rules reasoner, and the selectors,
 assertions and on-screen text below come from that run. The Groq variant of the same shots is not rehearsed yet.
 
-Target runtime **2:45** with the AG Studio segment, **2:31** without it. Hard limit 3:00.
+Target runtime **2:50**: 170 s of minimum hold time, the sum of the shot minimums in `frontend/video/shots.json`.
+Hard limit 3:00.
 
 ## 1. At a glance
 
 One hero case (`agent_wrong_size`, dispute PP-D-2000 in the seeded mock): a buyer's AI shopping assistant was told
 "medium", the order was for a large, the buyer disputes. Rebuttal compares the two in code, the model's first pick is
 a free replacement, the guard turns it into a refund after the return because PayPal does not allow a replacement
-offer on this dispute, the merchant edits one line and approves, one PayPal call goes out. Two cutaways: the safety
-design and the eval numbers. The earlier script (pitches.md, A) also had an escalated claim with an evidence PDF and a
+offer on this dispute, the merchant edits one line and approves, one PayPal call goes out. Then the AG Studio view, two
+cutaways (the safety design and the eval numbers), a live-proof card and the close. The earlier script (pitches.md, A) also had an escalated claim with an evidence PDF and a
 Bryntum board; both are cut because the judge review said the script was overloaded.
 
 | # | Time | Length | Segment | Words | Words/s | Main criteria |
@@ -23,19 +24,20 @@ Bryntum board; both are cut because the judge review said the script was overloa
 | 3 | 0:22-0:46 | 24 s | AI-assistant mismatch and the facts | 44 | 1.8 | Innovation, Tech (Agentic Commerce) |
 | 4 | 0:46-1:10 | 24 s | The decision and the guard | 46 | 1.9 | Tech, Innovation (PayPal + AI) |
 | 5 | 1:10-1:34 | 24 s | Edit, approve, one PayPal call | 41 | 1.7 | Design, Tech (PayPal) |
-| 6 | 1:34-1:52 | 18 s | Cutaway A: the safety design | 39 | 2.2 | Tech, Impact |
-| 7 | 1:52-2:10 | 18 s | Cutaway B: the eval numbers | 40 | 2.2 | Tech (PayPal + AI), Presentation |
-| 8 | 2:10-2:24 | 14 s | [PLANNED] AG Studio dashboard | 19 | 1.4 | Design, Impact (AG Grid prize) |
-| 9 | 2:24-2:45 | 21 s | Close: impact, what is real and what is demo | 47 | 2.2 | Impact, Presentation |
-| | | **165 s** | | **327** | **2.0 avg** | |
+| 6 | 1:34-1:46 | 12 s | AG Studio dashboard (the Analytics tab) | 24 | 2.0 | Design, Impact (AG Grid prize) |
+| 7 | 1:46-2:04 | 18 s | Cutaway A: the safety design | 39 | 2.2 | Tech, Impact |
+| 8 | 2:04-2:22 | 18 s | Cutaway B: the eval numbers | 39 | 2.2 | Tech (PayPal + AI), Presentation |
+| 8b | 2:22-2:34 | 12 s | Live proof: the sandbox dispute and the approval gate | 31 | 2.6 | Tech, Impact |
+| 9 | 2:34-2:50 | 16 s | Close: impact, what is real and what is demo | 28 | 1.8 | Impact, Presentation |
+| | | **170 s** | | **343** | **2.0 avg** | |
 
-Pace check: 327 words in 165 s is 119 words per minute on average; the fastest single row is 2.46 words per second
-(148 wpm, the 2:32-2:45 row). Counts are computed from the narration cells, not estimated.
-The slack is on purpose: the viewer needs silent moments to read the screen. Without segment 8: 308 words in 151 s.
+Pace check: 343 words in 170 s is 121 words per minute on average; the fastest single row is 2.58 words per second
+(155 wpm, the 2:22-2:34 row). Counts are computed from the narration cells, not estimated.
+The slack is on purpose: the viewer needs silent moments to read the screen.
 
 Burned-in captions (added in editing, not in the app):
 
-- Bottom right for segments 1-5: "Mock PayPal sandbox. Demo data."
+- Bottom right for segments 1-6: "Mock PayPal sandbox. Demo data."
 - Segment 1, small lower-left tag: "Inbox: AG Grid".
 
 ## 2. Rules for this script
@@ -89,38 +91,38 @@ AG Grid, APIMatic.
 | 1:18-1:28 | Click "Approve with my edits". Modal "Send this to PayPal with your edits?": "Approving makes exactly this one call to the PayPal sandbox:" Call `POST /v1/customer/disputes/PP-D-2000/make-offer`; Action "Offer full refund of $48.00 after return"; Offer type `REFUND_WITH_RETURN`; Amount "$48.00"; Message with the pill "Your edited version". | “Before anything leaves, it shows the exact PayPal call: make offer, refund with return, forty-eight dollars, with my wording.” | Design, Tech (approval gate) |
 | 1:28-1:34 | Click "Approve and send". Modal closes, pill "Pending" becomes green "Executed", green bar "Sent to PayPal. Offer full refund of $48.00 after return." The message box is read-only. Scroll the audit trail into view: gather, decide, guard, propose, then approve ("Merchant approved with an edited message"), execute ("Sent to PayPal: Offer full refund of $48.00 after return"), record ("Recorded as EXECUTED"). Inbox row reads Executed. | “One click. The audit trail records my approval and the single write.” | Tech (audit log), Presentation |
 
-### Segment 6: Cutaway A, the safety design (1:34-1:52)
+### Segment 6: AG Studio dashboard (1:34-1:46)
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 1:34-1:44 | [Static card, not the app; see 4.3.] The graph as one left-to-right row: "gather (read-only GET)" > "decide (the only model call)" > "guard" > "plan one action" > "human approves, edits or rejects" > "execute (the only PayPal writes)". Source: README mermaid diagram and `backend/rebuttal/agent/graph.py`. | “Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.” | Tech, Impact |
-| 1:44-1:52 | Terminal. Command `cd backend && uv run pytest tests/test_write_boundary.py "tests/test_core.py::test_analyze_never_writes_to_paypal" -v`. The viewer sees test names scroll (`test_execute_refuses_to_run_without_an_approval`, `test_only_approve_and_edit_route_to_execute`, `test_analyze_never_writes_to_paypal`) and the last line "24 passed". [VERIFY the count on the release commit; it was 24 on Oct 9.] | “Analysis runs on a read-only client, and tests scan the code for any other route to a write.” | Tech |
+| 1:34-1:46 | After the approval, click the Analytics tab of the same local dashboard (mock backend, open API on localhost, no token; see section 8). The Studio dashboard shows the Disputes, Disputed $, Refunded $ and Kept $ KPIs, disputes by reason and by product, kept versus refunded, response deadlines, and the model-versus-final agreement (0 of 1 decision kept as the model chose, 1 changed by the guard). The Studio AI assistant is NOT shown and is not mentioned in the narration. Shot 11 in 4.2 waits for `analytics-status` to read "6 disputes · 1 analyzed · 1 executed". | “In AG Studio, the merchant sees what disputes cost, what was kept and what was refunded, and whether the guard changed the model's pick.” | Design, Impact (AG Grid prize) |
 
-### Segment 7: Cutaway B, the eval numbers (1:52-2:10)
-
-| Time | On screen | Narration | Criterion |
-|---|---|---|---|
-| 1:52-2:00 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "10 unseen disputes, never used for tuning: model alone 8 of 10, model + guard 10 of 10". Footer, small: "PayPal writes before approval: 0". | “On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.” | Tech (PayPal + AI) |
-| 2:00-2:10 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 95% (19 of 20), hard cases 4 of 4." Footer chips: "85-95% across three Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
-
-### Segment 8: [PLANNED] AG Studio dashboard (2:10-2:24)
+### Segment 7: Cutaway A, the safety design (1:46-2:04)
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 2:10-2:24 | **[PLANNED] Do not record until tasks B1 and B2 in `docs/autopilot/QUEUE.md` are merged.** Intended shot: AG Studio dashboard in the Rebuttal theme (tokens from `preview/template.html`). Custom widgets: disputes by reason and by product, money kept versus refunded, response deadlines, model-versus-final agreement from the audit log. Then the Studio agent box with a plain-English question, for example "Which products cause the most disputes?" and its read-only answer. Replace this row with what actually shipped. | “[PLANNED, rewrite to match what shipped] In AG Studio, the merchant sees what disputes cost and what was kept, and asks questions in plain English.” | Design, Impact (AG Grid prize) |
+| 1:46-1:56 | [Static card, not the app; see 4.3.] The graph as one left-to-right row: "gather (read-only GET)" > "decide (the only model call)" > "guard" > "plan one action" > "human approves, edits or rejects" > "execute (the only PayPal writes)". Source: README mermaid diagram and `backend/rebuttal/agent/graph.py`. | “Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.” | Tech, Impact |
+| 1:56-2:04 | Terminal. Command `cd backend && uv run pytest tests/test_write_boundary.py "tests/test_core.py::test_analyze_never_writes_to_paypal" -v`. The viewer sees test names scroll (`test_execute_refuses_to_run_without_an_approval`, `test_only_approve_and_edit_route_to_execute`, `test_analyze_never_writes_to_paypal`) and the last line "24 passed". [VERIFY the count on the release commit; it was 24 on Oct 9.] | “Analysis runs on a read-only client, and tests scan the code for any other route to a write.” | Tech |
 
-If Studio is not ready by the freeze (Nov 3): drop this row, keep the "Inbox: AG Grid" tag from segment 1, and the video
-runs 2:31. Do not describe AG Studio in the voice-over unless the shot exists.
-
-### Segment 9: Close (2:24-2:45)
+### Segment 8: Cutaway B, the eval numbers (2:04-2:22)
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 2:24-2:32 | [Static card.] Large text: "The agent does the digging. The merchant makes the call." Under it, the hero in one line: "$48 order, AI assistant ordered L, told M: refund after return, the right item promised, approved after one confirm." | “Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.” | Impact, Presentation (Most Impactful) |
-| 2:32-2:45 | [Static card, two columns.] Real: "PayPal sandbox API, signed webhooks, Render, held-out eval." Demo: "Mock sandbox, seeded orders. Sandbox only: no live money." End line: "github.com/manishwvn/rebuttal, MIT licence". Small credits line: "PayPal APIs · LangGraph · AG Grid · Render · Supabase · Langfuse". [CONDITIONAL, add "APIMatic Context Plugin for PayPal" to the credits only when `docs/apimatic-log.md` has real entries; its table is empty on Oct 9.] | “This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.” | Tech, Impact, Presentation (honesty) |
+| 2:04-2:12 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "10 unseen disputes, never used for tuning: model alone 8 of 10, model + guard 10 of 10". Footer, small: "PayPal writes before approval: 0". | “On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.” | Tech (PayPal + AI) |
+| 2:12-2:22 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 95% (19 of 20), hard cases 4 of 4." Footer chips: "85-95% across three Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
 
-[PLANNED, optional 3-4 s insert for 2:38 onward once task A5 ships: the dashboard served from the Render service
-showing the live sandbox dispute at "Pending". Mask the API token; never show it.]
+### Segment 8b: Live proof (2:22-2:34)
+
+| Time | On screen | Narration | Criterion |
+|---|---|---|---|
+| 2:22-2:34 | [Static card, not the app; see 4.3.] Title "Live proof". Facts only, from STATUS.md ("Webhook proven live" and "Hero case correct live"): a buyer filed a sandbox dispute on Oct 7 (no dispute ID on the card until the webhook-to-dispute link is confirmed); a signed webhook (CUSTOMER.DISPUTE.CREATED) arrived about 3.5-4 minutes later, signature verified; the agent ran gather > decide > guard > propose and paused at the approval interrupt. Footer: "No PayPal write." No PayPal call is made to draw the card. | “This part is real. A buyer filed a dispute in the PayPal sandbox, a signed webhook reached Render, and the agent stopped at the approval gate. Nothing was written to PayPal.” | Tech, Impact, Presentation (honesty) |
+
+### Segment 9: Close (2:34-2:50)
+
+| Time | On screen | Narration | Criterion |
+|---|---|---|---|
+| 2:34-2:42 | [Static card.] Large text: "The agent does the digging. The merchant makes the call." Under it, the hero in one line: "$48 order, AI assistant ordered L, told M: refund after return, the right item promised, approved after one confirm." | “Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.” | Impact, Presentation (Most Impactful) |
+| 2:42-2:50 | [Static card, two columns.] Real: "PayPal sandbox API, signed webhooks, Render, held-out eval." Demo: "Mock sandbox, seeded orders. Sandbox only: no live money." End line: "github.com/manishwvn/rebuttal, MIT licence". Small credits line: "PayPal APIs · LangGraph · AG Grid · Render · Supabase · Langfuse". [CONDITIONAL, add "APIMatic Context Plugin for PayPal" to the credits only when `docs/apimatic-log.md` has real entries; its table is empty on Oct 9.] | “This recording used a mock of PayPal's sandbox. Sandbox only: no live money.” | Tech, Impact, Presentation (honesty) |
 
 ## 4. Shot list for the automated recorder
 
@@ -147,7 +149,7 @@ curl -s localhost:8000/api/health        # expect "mode":"mock / groq"
 
 Variant R (deterministic fallback): add `REBUTTAL_REASONER=rules`. The badge reads `mock / rules` and the Why panel
 reads "Reasoner (rules)". Say "The baseline reasoner's first instinct" in segment 4 instead of "The model's", and the
-AI evidence in the video rests on segments 7 and 9. The shots behave identically, so use this to test the recorder
+AI evidence in the video rests on segments 8 and 9. The shots behave identically, so use this to test the recorder
 without spending Groq tokens (the 200k daily quota is shared with the live service).
 
 Model non-determinism: if the Reasoner line does not read "Offer a free replacement" (the model picked the refund
@@ -183,11 +185,12 @@ the replacement and the guard converted it.
 | 8 | 1:10-1:18 | Focus the message box, `el.setSelectionRange(len, len)`, `pressSequentially(' Thank you for your patience.', {delay: 40})`. | Button "Approve with my edits" visible. |
 | 9 | 1:18-1:28 | Click "Approve with my edits". | `getByRole('dialog')` visible. `send-summary` contains `POST /v1/customer/disputes/PP-D-2000/make-offer`, `REFUND_WITH_RETURN`, `$48.00`. `send-message` ends with "Thank you for your patience." |
 | 10 | 1:28-1:34 | Click "Approve and send" in the dialog. Wait for the dialog to hide, then smooth-scroll `audit-trail` to the end of the viewport. | `case-status` reads "Executed"; row status cell reads "Executed"; audit `data-step` values equal gather, decide, guard, propose, approve, execute, record; audit text contains "Merchant approved with an edited message". |
-| 11 | 1:34-1:44 | Cutaway card A (static page, 4.3). | n/a |
-| 12 | 1:44-1:52 | Terminal clip T1 (4.3). | Last line contains "24 passed" [VERIFY]. |
-| 13 | 1:52-2:10 | Cutaway card B (static page, 4.3), two states (the held-out result, then the main set added). | Numbers equal the verified table in 4.3. |
-| 14 | 2:10-2:24 | **[PLANNED]** AG Studio view. Not scriptable yet. | n/a |
-| 15 | 2:24-2:45 | Close cards C and D (static pages, 4.3). | n/a |
+| 11 | 1:34-1:46 | Segment 6, AG Studio: click `getByTestId('tab-analytics')` on the same dashboard (open API on localhost, no token; section 8). Hold the Analytics view for the narration. | Wait for `analytics-status` to read "6 disputes · 1 analyzed · 1 executed". Hold to 1:46. |
+| 12 | 1:46-1:56 | Cutaway card A (static page, 4.3). | n/a |
+| 13 | 1:56-2:04 | Terminal clip T1 (4.3). | Last line contains "24 passed" [VERIFY]. |
+| 14 | 2:04-2:22 | Cutaway card B (static page, 4.3), two states (the held-out result, then the main set added). | Numbers equal the verified table in 4.3. |
+| 15 | 2:22-2:34 | Segment 8b, live-proof card (static page, 4.3). | n/a |
+| 16 | 2:34-2:50 | Close cards C and D (static pages, 4.3). | n/a |
 
 Reference snippet for shots 0-10 (dry-run verified on the mock with the rules reasoner; not committed as code):
 
@@ -210,12 +213,12 @@ await page.getByTestId('case-status').filter({ hasText: 'Executed' }).waitFor()
 
 | Need | Used in | What it is | Status |
 |---|---|---|---|
-| Terminal clip T1 | Shot 12 | The real stdout of the pytest command in segment 6. Either screen-record Terminal.app, or run the command with `tee` and render the captured text in a monospace HTML card and screenshot it. Do not fake the output. | Command works today (24 passed in about 2 s). |
-| Static card A | Shot 11 | The pipeline row from segment 6, drawn in the dashboard's design tokens (`preview/template.html`: ink `#14202e`, accent `#0e6b63`, background `#f2f5f8`; Bricolage Grotesque, Public Sans, JetBrains Mono). | To author in B4. |
-| Static card B | Shot 13 | Eval numbers. Verified Oct 14: Groq `qwen/qwen3.8-27b` run `groq-qwen3.8-27b-20261014-001228`: 95% overall (19 of 20), standard 94%, hard 100% of 4, gate violations 0. Earlier Oct 7 run `groq-qwen3.8-27b-20261007-112629`: 90% (18 of 20). Rules baseline (`uv run python -m evals.run --rules`, run on this commit Oct 9): 85% overall, 100% standard, 25% hard (1 of 4), gate violations 0. Re-run `--rules` on the release commit (it only prints; add `--save` to write `evals/RESULTS.md` and a file under `evals/results/`). | Numbers verified; card to author. Held-out chip verified Oct 9: run `groq-qwen3.8-27b-holdout-20261009-054233`, model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0. |
-| Static cards C and D | Shot 15 | Close cards from segment 9. | To author in B4. |
-| AG Studio view | Shot 14 | See segment 8. | **[PLANNED]** tasks B1, B2. |
-| Live-proof insert | Segment 9, optional | Dashboard on the Render service with the live dispute pending. | **[PLANNED]** task A5. |
+| Terminal clip T1 | Shot 13 | The real stdout of the pytest command in segment 7. Either screen-record Terminal.app, or run the command with `tee` and render the captured text in a monospace HTML card and screenshot it. Do not fake the output. | Command works today (24 passed in about 2 s). |
+| Static card A | Shot 12 | The pipeline row from segment 7, drawn in the dashboard's design tokens (`preview/template.html`: ink `#14202e`, accent `#0e6b63`, background `#f2f5f8`; Bricolage Grotesque, Public Sans, JetBrains Mono). | To author in B4. |
+| Static card B | Shot 14 | Eval numbers. Verified Oct 14: Groq `qwen/qwen3.8-27b` run `groq-qwen3.8-27b-20261014-001228`: 95% overall (19 of 20), standard 94%, hard 100% of 4, gate violations 0. Earlier Oct 7 run `groq-qwen3.8-27b-20261007-112629`: 90% (18 of 20). Rules baseline (`uv run python -m evals.run --rules`, run on this commit Oct 9): 85% overall, 100% standard, 25% hard (1 of 4), gate violations 0. Re-run `--rules` on the release commit (it only prints; add `--save` to write `evals/RESULTS.md` and a file under `evals/results/`). | Numbers verified; card to author. Held-out chip verified Oct 9: run `groq-qwen3.8-27b-holdout-20261009-054233`, model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0. |
+| Static cards C and D | Shot 16 | Close cards from segment 9. | To author in B4. |
+| AG Studio view | Shot 11 | Segment 6: the Analytics tab of the local dashboard (section 3). Shows the Disputes, Disputed $, Refunded $ and Kept $ KPIs, disputes by reason and product, kept versus refunded, response deadlines and model-versus-final agreement. The Studio AI assistant is not shown. | Shipped (B4 part 2): shot and narration in `shots.json`; the view is in `frontend/src/components/analytics` (`docs/ag-studio.md`). |
+| Live-proof card | Shot 15 | Segment 8b: static card from the facts in STATUS.md. No PayPal call is made for it. | Shot and narration shipped (B4 part 2). The card HTML is still to author in the recorder. |
 | Audio | all | Rough cut: macOS `say` from section 7. Final: Manish's own voice, same text. Rough cut built by scripts/make_video.sh (section 8). | B4 / USER item. |
 
 Playwright caches its own ffmpeg build locally, the system `ffmpeg` is installed with `brew install ffmpeg`, see section 8.
@@ -256,9 +259,10 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | 95% (19 of 20), hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, run `groq-qwen3.8-27b-20261014-001228` | Verified; latest run on current code. 85-95% across three Groq runs in `evals/RESULTS.md` (shown on the card), the set was used for tuning (the voice-over says "we tuned on"). |
 | Rules-only baseline solves 1 of 4 hard cases | `evals.run --rules` on this commit, Oct 9: 85% overall, 25% hard | Verified |
 | Held-out result | `evals/holdout.json`, run Oct 9 (`groq-qwen3.8-27b-holdout-20261009-054233`) | Verified: model alone 80%, final 100%, 0 gate violations. The voice-over leads with this. If holdout2 (task B3) comes out worse, report both held-out sets, not just this one. |
-| Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live", dispute `PP-R-SVN-10190455` | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
+| Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live" (no dispute ID: the link to the hero dispute is unconfirmed) | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
 | Inbox is built with AG Grid | `frontend/src/components/Inbox.tsx` (AG Grid Community) | Verified |
-| AG Studio dashboard, Studio agent | none yet | **[PLANNED]** B1, B2 |
+| AG Studio dashboard in the video: disputes, money kept and refunded, reasons, products, deadlines, model-versus-final agreement | frontend/src/components/analytics, docs/ag-studio.md | Verified. The Studio assistant is not claimed and not shown |
+| A buyer-filed sandbox dispute arrived by signed webhook and the agent stopped at the approval gate with no PayPal write | STATUS.md 'Webhook proven live' and 'Hero case correct live', Oct 7 (no dispute ID shown) | Verified Oct 7. No live calls made for the video |
 | APIMatic Context Plugin shaped the PayPal code | Plugin installed Oct 6; `docs/apimatic-log.md` table is empty | **[CONDITIONAL]** do not claim until entries exist |
 | 8d 21h left to respond | Mock assumes a 10-day inquiry window (`scenarios.py`, marked VERIFY: the real sandbox omitted the due date on an inquiry under review) | Demo number; the narration does not say it |
 | "Costs a small seller time and money"; "a new kind of dispute" | Opinion, no source | Unsourced framing; fine for a hook, no figure attached |
@@ -270,7 +274,8 @@ For Manish or the lead:
 1. Decide Groq (needs a key in `backend/.env` and a take that shows the guard beat) versus the rules variant for the
    final recording of segment 4. The Groq run is the stronger "PayPal + AI" evidence.
 2. APIMatic: log real uses in `docs/apimatic-log.md` (candidate uses are listed there) before saying anything about it.
-3. Segment 8 depends on B1 and B2; the freeze is Nov 3.
+3. Done (B4 part 2): the AG Studio segment (segment 6) is in the shot list and the narration. It reads from B1 and B2, so
+   re-check it if either changes before the Nov 3 freeze.
 4. Fix or document quirk Q3 (dev-mode confirm dialog). Regenerate `docs/screenshots/hero-case.png` from the seeded
    PP-D-2000 (its spec uses the Simulator) so it does not show the false duplicate-charge mark (quirk Q1).
 5. ffmpeg installed (B4 part 1); see section 8.
@@ -307,22 +312,25 @@ Before anything leaves, it shows the exact PayPal call: make offer, refund with 
 One click. The audit trail records my approval and the single write.
 ...
 [6, 1:34]
+In AG Studio, the merchant sees what disputes cost, what was kept and what was refunded, and whether the guard changed the model's pick.
+...
+[7, 1:46]
 Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.
 ...
 Analysis runs on a read-only client, and tests scan the code for any other route to a write.
 ...
-[7, 1:52]
+[8, 2:04]
 On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.
 ...
 On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.
 ...
-[8, 2:10, PLANNED, record only if the AG Studio shot exists]
-In AG Studio, the merchant sees what disputes cost and what was kept, and asks questions in plain English.
+[8b, 2:22, live proof]
+This part is real. A buyer filed a dispute in the PayPal sandbox, a signed webhook reached Render, and the agent stopped at the approval gate. Nothing was written to PayPal.
 ...
-[9, 2:24]
+[9, 2:34]
 Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.
 ...
-This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.
+This recording used a mock of PayPal's sandbox. Sandbox only: no live money.
 ```
 
 ## 8. Rebuild the video (automated rough cut)
@@ -345,22 +353,25 @@ Pipeline:
    `VIDEO_VOICE` to use another voice; list the voices with `say -v ?`.
 2. Terminal card: the real pytest output is captured, not faked.
 3. Backend: a fresh mock backend starts with the mock PayPal sandbox, the rules reasoner, no database and no tracing.
-   All secret variables are blanked, so `backend/.env` is never read. The dashboard is built and served.
+   All secret variables are blanked, so `backend/.env` is never read. The dashboard is built and served. The open API on
+   localhost is allowed for this run (`REBUTTAL_ALLOW_OPEN_API=1`, no token), so the Analytics tab of the same dashboard
+   loads for segment 6.
 4. Recording: Playwright records `frontend/video/record.spec.ts` with its own config,
    `frontend/video/playwright.config.ts`. The e2e suite and CI never run it.
 5. Timing: each shot is held for the longer of its time range and its narration length plus 1 s.
 6. Captions: burned in by a DOM overlay in the recorded page, because this machine's ffmpeg has no subtitles or
    drawtext filter. The SRT is also embedded as a soft track.
 7. Join: ffmpeg joins the video and the audio.
-8. Length limit: the build fails if the result is 3:00 or longer. The current design runs about 2:31 without the
-   AG Studio segment.
+8. Length limit: the build fails if the result is 3:00 or longer. The current design runs about 2:50 at most
+   (170 s of minimum hold time).
 
 Single source of truth: `frontend/video/shots.json`. `backend/tests/test_video_shots.py` checks it against section 7,
 so edit both together.
 
-What part 1 does not include:
+What is still not included after part 2:
 
-- The AG Studio segment (planned, not built).
 - A Groq take. The rough cut uses the rules reasoner, which is why segment 4 says "baseline reasoner", as section 4.1
   allows.
 - Manish's own voice for the final.
+- Live calls to PayPal for the live-proof card. It is built from facts already in the repo (STATUS.md); the video makes
+  no PayPal call.
