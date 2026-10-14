@@ -168,7 +168,7 @@ def test_studio_ai_chat_with_the_token_but_no_groq_key_is_503_never_500(monkeypa
     client = BoundedClient(TestClient(app))
     body = {"messages": [{"role": "user", "content": "hi"}]}
     response = client.post("/api/studio/ai", json=body, headers={"Authorization": "Bearer s3cret"})
-    assert response.status_code in (200, 503), response.status_code
+    assert response.status_code == 503, response.status_code
 
 
 def test_demo_routes_answer_without_a_token_and_ignore_a_wrong_one(guarded):
