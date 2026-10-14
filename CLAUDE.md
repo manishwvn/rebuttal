@@ -106,10 +106,9 @@ Next, in order:
 
 ## Tooling
 
-**Skills.** At the start of any new kind of work (a new framework, deploy, testing, design, docs), run the
-`find-skills` skill first and recommend matches before installing anything (global rule: ask first). Project skills
-already installed in `.claude/skills/`: frontend-design, vercel-react-best-practices, playwright-cli, webapp-testing,
-render-deploy, uv, langgraph-fundamentals, langgraph-persistence, ag-dev, ag-update.
+**Skills.** Interactive sessions follow the global "Research first" rule: search, install only from `anthropics`,
+`vercel-labs` or `paypal` (anything else: one-line verdict and ask), never create skills. The autopilot follows
+`docs/autopilot/SKILLS.md`. Project skills and their registry: `.claude/skills/` and `docs/autopilot/SKILLS.md`.
 
 **MCP servers and plugins: prefer these over memory for API details.** Look the answer up, then write the code.
 - `paypal` plugin (PayPal AI Toolkit, project scope) and its `paypal-sandbox` MCP server: PayPal API behavior and

@@ -37,8 +37,14 @@ asking. This file is the policy and the record of every install.
    workflow already covers that job (it doubles cost).
 
 Search with the pinned CLI `npx -y skills@1.7.2 find` and clone candidates into a `mktemp -d` folder outside the repo.
-Install by copying the vetted folder at a pinned commit into `.claude/skills/<name>/` on the task branch (never a
-symlink, never `-g`), then add a row below. Never run a skill's scripts during install. The panel's safety reviewer vets
+
+**Publisher limit (Oct 14, Manish's global `~/.claude/CLAUDE.md`, wins over the Oct 9 approval above):** install only
+skills whose repo owner is exactly `anthropics`, `vercel-labs` or `paypal` (lookalike names do not match). A candidate
+from any other publisher that passes the checklist goes to the "Candidates" table below with a one-line verdict; it is
+not installed until Manish adds it himself. Skills already in the registry stay.
+
+Install a passing skill from an allowed publisher by copying the vetted folder at a pinned commit into
+`.claude/skills/<name>/` on the task branch (never a symlink, never `-g`), then add a row below. Never run a skill's scripts during install. The panel's safety reviewer vets
 every added skill folder in the PR before it reaches `main`, and skills installed in a cycle are only used from the next
 cycle on (after that review). Two tasks in one cycle may both add registry rows: keep both rows when resolving. At most 3 new skills per task. A skill that did not help in two tasks
 gets removed with `git rm -r`.
@@ -67,12 +73,17 @@ webapp-testing.
 - **ponytail / ponytail-review:** never remove tests, guard rules, the read-only client or the approval boundary.
 - **Any skill:** use `uv add` / `uv run`, never `pip`; never skip or xfail tests; never edit CI or send data anywhere.
 
+## Candidates (other publishers, for Manish)
+
+| Skill | Source | Verdict |
+|---|---|---|
+
 ## Rejected
 
 | Skill | Why |
 |---|---|
 | mattpocock/skills@code-review | spawns its own parallel subagents; our 3-reviewer panel already does this (double cost) |
-| vercel-labs/agent-skills@web-design-guidelines | fetches its rules from a URL at run time (unpinned remote instructions) |
+| vercel-labs/agent-skills@web-design-guidelines | fetches its rules from a URL at run time (unpinned remote instructions). Oct 14: now installed at user scope on Manish's Mac by his own setup; autopilot agents do not invoke it |
 | antibrow/anti-detect-browser-skills | bot-detection evasion; against our rules even with 117k installs |
 | wshobson/agents@python-testing-patterns | teaches `pip install`, skip/xfail and a CI job uploading coverage to codecov |
 
