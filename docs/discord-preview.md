@@ -8,9 +8,9 @@ For Manish to post (A in the AG Grid channel, B in the general channel). Claude 
 
 Hi AG Grid team, I'm building Rebuttal for the PayPal AI Hackathon: an agent that resolves PayPal disputes for small shops. The merchant inbox is an AG Grid Community grid. The Analytics tab is an AG Studio 3.0.0 dashboard with four custom widgets, a Studio theme (light and dark) and the Studio assistant.
 
-Is the AG Studio use clear and well done? Are the custom widgets and theming convincing? Does the assistant panel make sense?
+Is the AG Studio use clear and well done? Are the custom widgets and theming convincing? Does the assistant panel make sense? (Screenshots or video clip attached; the Analytics tab sits in the signed-in dashboard.)
 
-Demo, no sign-in or PayPal account needed: https://rebuttal-oq3g.onrender.com/#demo (then open the Analytics tab). It runs on an in-memory PayPal sandbox mock.
+Demo of the inbox, approval and audit log, no sign-in or PayPal account needed: https://rebuttal-oq3g.onrender.com/#demo. It runs on an in-memory PayPal sandbox mock.
 (Free hosting, so the first load can take about 50 seconds.)
 
 Code: https://github.com/manishwvn/rebuttal
