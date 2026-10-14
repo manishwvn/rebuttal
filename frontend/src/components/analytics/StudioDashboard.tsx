@@ -3,6 +3,7 @@ import { enableStudioDevValidations } from 'ag-studio'
 import { AgStudio } from 'ag-studio-react'
 import type { AnalyticsRow, AnalyticsSummary, DeadlineRow } from '../../types'
 import { DASHBOARD_STATE, DASHBOARD_THEME, dashboardData } from './studioConfig'
+import { RB_WIDGETS, type RebuttalRegistry } from './widgets'
 
 // Development-only checks that log Studio configuration mistakes to the console. Production builds leave them out.
 if (import.meta.env.DEV) enableStudioDevValidations()
@@ -21,7 +22,14 @@ export function StudioDashboard({ rows, deadlines, summary }: Props) {
   const data = useMemo(() => dashboardData(rows, deadlines, summary), [rows, deadlines, summary])
   return (
     <div className="analytics-frame">
-      <AgStudio style={STUDIO_STYLE} data={data} initialState={DASHBOARD_STATE} theme={DASHBOARD_THEME} mode="view" />
+      <AgStudio<RebuttalRegistry>
+        style={STUDIO_STYLE}
+        data={data}
+        initialState={DASHBOARD_STATE}
+        theme={DASHBOARD_THEME}
+        widgets={RB_WIDGETS}
+        mode="view"
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import type { AgAggregationFunction, AgDataSourcesDefinition, AgFieldDefinition,
 import { studioTheme } from 'ag-studio'
 import { reasonLabel } from '../../labels'
 import type { AnalyticsOutcome, AnalyticsRow, AnalyticsSummary, DeadlineRow } from '../../types'
+import { WIDGET_TYPE, type RebuttalRegistry } from './widgets'
 
 // Labels the dashboard shows in place of the backend's codes.
 const OUTCOME_LABEL: Record<AnalyticsOutcome, string> = {
@@ -71,6 +72,8 @@ const KPI_FIELDS: AgFieldDefinition[] = [
   moneyField('kept', 'Kept'),
   moneyField('open', 'Open'),
   percentField('agreement_pct', 'Model vs final agreement'),
+  wholeField('compared', 'Decisions compared'),
+  wholeField('agreed', 'Decisions agreed'),
   wholeField('guard_changes', 'Guard changes'),
 ]
 
@@ -88,12 +91,14 @@ function kpiRow(summary: AnalyticsSummary) {
     open: money.open,
     // The rate is 0..1. Show percentage points to one decimal, and 0 when nothing has been compared yet.
     agreement_pct: agreement.rate === null ? 0 : Math.round(agreement.rate * 1000) / 10,
+    compared: agreement.compared,
+    agreed: agreement.agreed,
     guard_changes: agreement.guard_changes,
   }
 }
 
 // The three sources. Studio ignores structural changes after init, so callers remount the dashboard to show new data.
-export function dashboardData(rows: AnalyticsRow[], deadlines: DeadlineRow[], summary: AnalyticsSummary): AgDataSourcesDefinition {
+export function dashboardData(rows: AnalyticsRow[], deadlines: DeadlineRow[], summary: AnalyticsSummary): AgDataSourcesDefinition<RebuttalRegistry> {
   return {
     sources: [
       { id: 'disputes', name: 'Disputes', fields: DISPUTE_FIELDS, data: rows.map(disputeRow) },
@@ -110,8 +115,8 @@ const kpi = (caption: string, id: string, aggregation: AgAggregationFunction) =>
 })
 
 // One page in view mode with the filters panel collapsed. The track grid has 24 columns; rows are 16px tall.
-// Row 1 is five KPIs, row 2 three charts, row 3 the deadlines table (most urgent first).
-export const DASHBOARD_STATE: AgReportState = {
+// Row 1 is four KPIs and the agreement widget, row 2 three charts, row 3 the deadlines table (most urgent first).
+export const DASHBOARD_STATE: AgReportState<RebuttalRegistry> = {
   pages: [
     {
       id: 'overview',
@@ -120,41 +125,37 @@ export const DASHBOARD_STATE: AgReportState = {
         'kpi-disputed': kpi('Disputed $', 'kpis.disputed', 'sum'),
         'kpi-refunded': kpi('Refunded $', 'kpis.refunded', 'sum'),
         'kpi-kept': kpi('Kept $', 'kpis.kept', 'sum'),
-        'kpi-agreement': kpi('Model vs final agreement', 'kpis.agreement_pct', 'avg'),
-        'bar-reason': {
-          type: 'bar-chart-grouped',
+        agreement: {
+          type: WIDGET_TYPE.agreement,
           dataMapping: {
-            categoryKey: [{ id: 'disputes.reason' }],
-            valueKey: [{ id: 'disputes.count', aggregation: 'sum' }],
+            metrics: [{ id: 'kpis.agreement_pct' }, { id: 'kpis.compared' }, { id: 'kpis.agreed' }, { id: 'kpis.guard_changes' }],
+          },
+        },
+        'bar-reason': {
+          type: WIDGET_TYPE.rankedBars,
+          dataMapping: {
+            category: [{ id: 'disputes.reason' }],
+            value: [{ id: 'disputes.count', aggregation: 'sum' }],
           },
           format: { title: { enabled: true, text: 'Disputes by reason' } },
         },
-        'donut-outcome': {
-          type: 'donut-chart',
+        'money-split': {
+          type: WIDGET_TYPE.moneySplit,
           dataMapping: {
-            categoryKey: [{ id: 'disputes.outcome' }],
-            valueKey: [{ id: 'disputes.amount', aggregation: 'sum' }],
+            parts: [{ id: 'kpis.kept' }, { id: 'kpis.refunded' }, { id: 'kpis.open' }],
           },
-          format: { title: { enabled: true, text: 'Money by outcome' } },
+          format: { title: { enabled: true, text: 'Kept vs refunded' } },
         },
-        'stacked-product': {
-          type: 'bar-chart-stacked',
+        'bar-product': {
+          type: WIDGET_TYPE.rankedBars,
           dataMapping: {
-            categoryKey: [{ id: 'disputes.product' }],
-            valueKey: [
-              { id: 'disputes.refunded', aggregation: 'sum' },
-              { id: 'disputes.kept', aggregation: 'sum' },
-              { id: 'disputes.open', aggregation: 'sum' },
-            ],
+            category: [{ id: 'disputes.product' }],
+            value: [{ id: 'disputes.count', aggregation: 'sum' }],
           },
-          // Three series, so the legend is what tells refunded, kept and open apart.
-          format: {
-            title: { enabled: true, text: 'Kept vs refunded by product' },
-            style: { theme: { common: { legend: { enabled: true, position: 'bottom' } } } },
-          },
+          format: { title: { enabled: true, text: 'Disputes by product' } },
         },
         deadlines: {
-          type: 'grid',
+          type: WIDGET_TYPE.deadlines,
           // Plain columns are grouped by, and dispute_id is unique, so each deadline is one row.
           dataMapping: {
             cols: [
@@ -171,14 +172,14 @@ export const DASHBOARD_STATE: AgReportState = {
         },
       },
       widgetLayout: {
-        'kpi-disputes': { xTrack: 0, yTrack: 0, xSpan: 4, ySpan: 8 },
-        'kpi-disputed': { xTrack: 4, yTrack: 0, xSpan: 5, ySpan: 8 },
-        'kpi-refunded': { xTrack: 9, yTrack: 0, xSpan: 5, ySpan: 8 },
-        'kpi-kept': { xTrack: 14, yTrack: 0, xSpan: 5, ySpan: 8 },
-        'kpi-agreement': { xTrack: 19, yTrack: 0, xSpan: 5, ySpan: 8 },
-        'bar-reason': { xTrack: 0, yTrack: 8, xSpan: 8, ySpan: 20 },
-        'donut-outcome': { xTrack: 8, yTrack: 8, xSpan: 8, ySpan: 20 },
-        'stacked-product': { xTrack: 16, yTrack: 8, xSpan: 8, ySpan: 20 },
+        'kpi-disputes': { xTrack: 0, yTrack: 0, xSpan: 4, ySpan: 11 },
+        'kpi-disputed': { xTrack: 4, yTrack: 0, xSpan: 5, ySpan: 11 },
+        'kpi-refunded': { xTrack: 9, yTrack: 0, xSpan: 5, ySpan: 11 },
+        'kpi-kept': { xTrack: 14, yTrack: 0, xSpan: 5, ySpan: 11 },
+        agreement: { xTrack: 19, yTrack: 0, xSpan: 5, ySpan: 11 },
+        'bar-reason': { xTrack: 0, yTrack: 11, xSpan: 8, ySpan: 17 },
+        'money-split': { xTrack: 8, yTrack: 11, xSpan: 8, ySpan: 17 },
+        'bar-product': { xTrack: 16, yTrack: 11, xSpan: 8, ySpan: 17 },
         deadlines: { xTrack: 0, yTrack: 28, xSpan: 24, ySpan: 14 },
       },
     },
@@ -187,9 +188,18 @@ export const DASHBOARD_STATE: AgReportState = {
   panels: { filters: { collapsed: true } },
 }
 
-// Base colours are the Inbox grid theme's light and dark palettes. Chart series use the accent teal, then the good,
-// warn and bad tones from index.css, then two neutrals. Strokes match the fills, since Studio's default stroke is blue.
-// The Studio theme names the grid header colour gridHeaderBackgroundColor.
+// Colours and fonts come from the design tokens in index.css: the light values match :root, the dark values match the
+// prefers-color-scheme block. Studio's param names map to those tokens as follows:
+//   --bg (canvas)        studioCanvasBackgroundColor
+//   --surface (cards)    studioWidgetBackgroundColor
+//   --line (card border) studioWidgetBorder, width 1
+//   --r (10px radius)    studioWidgetBorderRadius
+//   --ink (text)         foregroundColor
+//   --accent             accentColor
+//   --raised (headers)   gridHeaderBackgroundColor
+//   --display (titles)   studioWidgetTitleFontFamily
+// Chart series use --accent, --good, --warn, --bad and --muted, then two extra tints that are not tokens.
+// Strokes match the fills, since Studio's default stroke is blue.
 export const DASHBOARD_THEME: AgStudioTheme = studioTheme
   .withParams(
     {
@@ -200,6 +210,11 @@ export const DASHBOARD_THEME: AgStudioTheme = studioTheme
       gridHeaderBackgroundColor: '#f7f9fb',
       browserColorScheme: 'light',
       fontFamily: '"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif',
+      studioCanvasBackgroundColor: '#f2f5f8',
+      studioWidgetBackgroundColor: '#ffffff',
+      studioWidgetBorder: { width: 1, color: '#d8dee6' },
+      studioWidgetBorderRadius: 10,
+      studioWidgetTitleFontFamily: '"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif',
       chartPaletteFills1Color: '#0e6b63',
       chartPaletteFills2Color: '#1d7a3d',
       chartPaletteFills3Color: '#985a00',
@@ -226,6 +241,11 @@ export const DASHBOARD_THEME: AgStudioTheme = studioTheme
       gridHeaderBackgroundColor: '#1b2531',
       browserColorScheme: 'dark',
       fontFamily: '"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif',
+      studioCanvasBackgroundColor: '#0e141b',
+      studioWidgetBackgroundColor: '#161f29',
+      studioWidgetBorder: { width: 1, color: '#2a3643' },
+      studioWidgetBorderRadius: 10,
+      studioWidgetTitleFontFamily: '"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif',
       chartPaletteFills1Color: '#4cc2b4',
       chartPaletteFills2Color: '#5bc983',
       chartPaletteFills3Color: '#e6a84a',

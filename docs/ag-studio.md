@@ -77,16 +77,31 @@ import { AgStudio } from 'ag-studio-react'
 - Colour mode comes from the `data-ag-theme-mode` attribute on `<html>` or `<body>`, or on any ancestor with the `ag-theme-mode` class. The built-in modes are `light`, `dark` and `dark-blue`. Define your own mode by passing its name as the second argument, for example `studioTheme.withParams({...}, 'light')`.
 - Widget params go through the same theme: `gridCellTextColor` for grid widgets and `chartAxisLineColor` for chart widgets. The [theme builder](https://www.ag-grid.com/studio/archive/3.0.0/react/theme-builder/) can export theme code.
 - Do not theme Studio with AG Grid's standalone `themeQuartz` or with CSS theme files (project skill).
-- Palette: `preview/template.html` uses accent `#0e6b63` in light mode and `#4cc2b4` in dark mode. The Inbox already uses `themeQuartz` with that palette and the same `data-ag-theme-mode` attribute (`frontend/src/components/Inbox.tsx`), so one attribute switches both. The Studio theme params are the part still to build.
+- Palette: `preview/template.html` uses accent `#0e6b63` in light mode and `#4cc2b4` in dark mode. The Inbox already uses `themeQuartz` with that palette and the same `data-ag-theme-mode` attribute (`frontend/src/components/Inbox.tsx`), so one attribute switches both.
+- Our theme (`DASHBOARD_THEME` in `frontend/src/components/analytics/studioConfig.ts`) sets, for both modes: `accentColor`, `foregroundColor`, `fontFamily`, `gridHeaderBackgroundColor`, the chart palette, and the card look from the preview tokens: `studioCanvasBackgroundColor` (`--bg`), `studioWidgetBackgroundColor` (`--surface`), `studioWidgetBorder` (`--line`, 1px), `studioWidgetBorderRadius` (10, `--r`) and `studioWidgetTitleFontFamily` (the display font). `widgetBorderColor` is a page-layout state value and `headerFontFamily` is not a shared theme param, so neither is used. `e2e/analytics.spec.ts` checks that the card background changes with the colour scheme.
 
-## 6. Custom widgets (planned for part 2, not built in part 1)
+## 6. Custom widgets (built in B1b)
 
 - Define a widget with `AgWidgetDefinition`: `id`, `label`, `icon`, `dataMapping`, `form`, `defaultState`, `formatShape`, `extends` (pre-configures a built-in type such as `grid`) and `comp` (the React component). See [custom widgets](https://www.ag-grid.com/studio/archive/3.0.0/react/custom-widgets/).
 - Register the definitions with the `widgets` prop, built with `createWidgets` imported from `ag-studio-react`. Do not import it from `ag-studio`, so the React defaults apply.
 - `comp` receives `AgWidgetParams`: `api`, `context`, `widgetId`, `widgetType`, `format`, `dataMapping`, `sort`, `config` and `widgetApi`. Load data with `widgetApi.getData(request)`. Set the display state with `widgetApi.setDisplayState(...)`: `displayed`, `loading`, `noData` or `incompleteDataMapping`.
-- The licence limit in section 3 applies: no AG Grid or AG Charts Enterprise features inside custom widgets.
+- The licence limit in section 3 applies: no AG Grid or AG Charts Enterprise features inside custom widgets. Ours are plain React and CSS.
 
-## 7. Studio Agent Framework (planned for part 3)
+What the Analytics tab uses (`frontend/src/components/analytics/widgets/`):
+
+| Type id | Component | Data slots | Dashboard widgets |
+| --- | --- | --- | --- |
+| `rb-ranked-bars` | `RankedBarsWidget` | `category`, `value` | `bar-reason`, `bar-product` |
+| `rb-money-split` | `MoneySplitWidget` | `parts` (kept, refunded, open) | `money-split` |
+| `rb-deadlines` | `DeadlineListWidget` | `cols` | `deadlines` |
+| `rb-agreement` | `AgreementWidget` | `metrics` (rate, compared, agreed, guard changes) | `agreement` |
+
+- `index.ts` holds the four definitions and `RB_WIDGETS`, one module-level `createWidgets<RebuttalRegistry>(...)` result. `RebuttalRegistry` extends `AgRegistry` so the type ids are typed in `AgReportState<RebuttalRegistry>`. `StudioDashboard.tsx` passes `widgets={RB_WIDGETS}` to `AgStudio<RebuttalRegistry>`.
+- `useWidgetRows` is the shared hook. It sets the display state, calls `widgetApi.getData({ fields })` for the fields mapped to the named slots, and drops late answers. A failed request shows `noData`.
+- Each component renders `data-widget-id` (the dashboard widget id), and rows carry `data-testid` plus value attributes, so `frontend/e2e/analytics.spec.ts` checks the numbers against `GET /api/analytics`.
+- Custom widgets read colours and fonts from the CSS variables in `index.css` (`--accent`, `--muted`, `--line`, `--display`), which follow the colour scheme. The card around each widget is Studio's, and takes its colours from the theme (section 5).
+
+## 7. Studio Agent Framework (not built; planned for part 3)
 
 - Users explore data and build or change dashboards in natural language, using an LLM that the host app supplies. Studio ships no model, server or backend, and sends no data to an AG Grid service ([agent overview](https://www.ag-grid.com/studio/archive/3.0.0/react/ai/)). It is opt-in. The project skill says it is experimental and its behaviour varies by LLM.
 - Enable it by registering the module, `<AgStudioProvider modules={[AgStudioAiModule]}>`, then pass `ai={({ api }) => createAiHarness(api, { adapter, promptStarters, models })}` to `AgStudio` ([AI quick start](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-quickstart/)).
@@ -100,7 +115,7 @@ import { AgStudio } from 'ag-studio-react'
 - Cost: npm install only. No licence purchase. The watermark is accepted under the Discord comment (section 3).
 - Fallback if Studio fails to build or run: AG Grid Community plus AG Charts Community with the same endpoints. Both are MIT on npm (`ag-grid-community` 36.2.0, `ag-charts-community` 14.2.0).
 
-Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B1a); the Analytics tab uses it as planned.
+Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B1a); the Analytics tab uses it as planned. B1b replaced the four built-in charts and the grid with custom widgets.
 
 ## 9. NOT VERIFIED
 
@@ -108,9 +123,9 @@ Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B
   watermark shows; the unlicensed banner appears as console errors only. Checked once, in the mock-backed build.
 - Whether the Discord confirmation covers Studio specifically. It was given for AG Grid (repo `CLAUDE.md`).
 - The 45-day trial length. The trial and pricing pages we could reach do not state it, and the pricing page is sales copy.
-- Bundle size, measured in B1a: the lazy Analytics chunk is about 4.4 MB (1.2 MB gzip), and the main chunk grew about
+- Bundle size, measured in B1a and unchanged by B1b: the lazy Analytics chunk is about 4.4 MB (1.2 MB gzip), and the main chunk grew about
   41 kB. Trimming (for example dropping `AllCommunityModule` from the Inbox) is a later task.
 - Dispute coverage. The analytics read one `list_disputes` call, which is not paginated (`PayPalClient.list_disputes`),
   so the totals cover only the first page PayPal returns. Paging through `next_page` is a later task.
 - The Agent Framework with Groq. It needs the backend proxy and an adapter that we write.
-- Custom widget runtime behaviour beyond the documented API.
+- Custom widget runtime behaviour beyond the documented API. Checked in B1b by the Playwright run: `getData` rows are keyed by `field.key` (the widgets read `row[field.key]` and the spec compares the rendered numbers with the API). Studio's dev validations (`enableStudioDevValidations`) logged nothing besides the licence banner on the Analytics tab.

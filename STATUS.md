@@ -64,8 +64,16 @@ Read this at the start of a session; update it at the end of every task. Last up
   (`backend/rebuttal/analytics.py`, same API token as the other reads, PayPal read through `client.read_only()`; a
   waiting dispute's due date is read from the dispute because the list summary may omit it). Frontend: lazy-loaded
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
-  allowed on Discord; five KPIs, three charts, deadlines grid, light and dark). Notes: `docs/ag-studio.md`;
+  allowed on Discord; four Studio KPI values, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
+- **Analytics custom widgets and theme (B1 parts 2-3, branch `autopilot/b1-widgets-theme`):** four custom React widgets
+  registered with `createWidgets` (`frontend/src/components/analytics/widgets/`): ranked bars (used for reason and for
+  product), money split (kept, refunded, open), deadline list and model-vs-final agreement. They replace the Studio
+  charts and grid; all data still comes from `GET /api/analytics` (no backend change). The Studio theme takes the
+  preview tokens (canvas, card background, border, radius, title font) in light and dark. `e2e/analytics.spec.ts` now
+  checks every widget against the API and that the card colour follows the colour scheme. The Studio Agent Framework
+  is not built: it needs a backend proxy to Groq plus our own adapter, which is a separate task (and no key goes in
+  the frontend).
 - **Judge demo mode (A6, branch `feat/demo-mode`):** "Try the demo" (`/#demo`) gives each visitor a private mock-only
   Runtime (mock PayPal, rules reasoner, in-memory checkpoints and audit, no database, no tracing) behind the public
   `/api/demo/{session}/...` routes, with hard bounds (40 sessions, 30 min idle, 2 h max age, 16 disputes, 20 creates or
@@ -74,7 +82,7 @@ Read this at the start of a session; update it at the end of every task. Last up
   approve button still runs the one `execute` node, on the mock. Every other `/api` route keeps the token
   (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
   `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
-- **Tests:** 376 pass (backend), 25 Playwright tests (23 run, 2 skipped); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 398 pass (backend), 29 Playwright tests (27 run, 2 skipped); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 
@@ -91,8 +99,8 @@ Read this at the start of a session; update it at the end of every task. Last up
 ## Next, in order
 
 1. Autopilot queue: `docs/autopilot/QUEUE.md` (source of truth for what is next).
-2. B1 parts 2-3: custom Studio widgets (`createWidgets`) and the Agent Framework (browser adapter proxied through the
-   backend, read-only); trim `AllCommunityModule`. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
+2. B1 part 3: the Studio Agent Framework (browser adapter proxied through the backend, read-only); trim
+   `AllCommunityModule`. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
 3. Video script by **Oct 12**; rough cut Oct 23.
