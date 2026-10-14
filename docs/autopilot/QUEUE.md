@@ -54,7 +54,7 @@ Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK 
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
 First pass now: use it to check our Disputes calls and mock shapes against the SDK models, fix any drift, log it.
 
-### S2 More of the Disputes API — size M — in-progress (cycle 2026-10-14T20:11Z) — after Q4
+### S2 More of the Disputes API — size M — in review (PR #PRNUM) — after Q4
 Strengthens Best Use of PayPal + AI. Add the appeal and escalate paths and more evidence types (proof of
 fulfillment, refund, return tracking), each proposed by the agent and executed only by `execute` after approval,
 with deterministic `PayPal-Request-Id`, mock parity and tests. Look up shapes with the paypal plugin and APIMatic
@@ -216,6 +216,13 @@ Evidence: reasoner.py SYSTEM_PROMPT (line 223) passes buyer_messages verbatim wi
 
 ### R12 Return-needed rule at CHARGEBACK with no option list — size S — blocked on sandbox confirmation — from the PR #65 review
 Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows` now refuses offers (R2), so a not-as-described dispute that needs the item back can fall through to ACCEPT_CLAIM, a full refund without a return. R2 first capped it, but the cap rested on an unverified assumption about what the sandbox returns at CHARGEBACK (see the VERIFY note in `reasoner.py`) and fired on every case without damage. Fix: once a real sandbox CHARGEBACK shows whether the option list is omitted, add a guard rule for ACCEPT_CLAIM when the item needs its return, scoped to that evidence. Acceptance: a test built from the captured payload.
+
+### S3 Confirm the S2 Disputes shapes on the real sandbox — size M — todo — after S2 merges
+S2 shipped escalate, appeal and the richer evidence types against the mock only. Using the existing named manual
+scripts (`spike_sandbox.py`, `make_sandbox_dispute.py`; `require-evidence` stays confined to them), confirm: the link
+rel names `escalate` and `appeal` on a shown dispute; that escalate is accepted on an INQUIRY waiting for the seller;
+the appeal multipart body and the stage it moves to; that a seller can send PROOF_OF_RETURN. Fix the mock and the
+client together and remove the matching `VERIFY` notes (`client.py`, `mock.py`, `facts.py`, `approval.py`).
 
 ## USER
 

@@ -32,7 +32,7 @@ from langgraph.types import interrupt
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from .agent.facts import CaseFile, dispute_actions, seller_activity
-from .agent.pipeline import Proposal, build_evidence_pdf
+from .agent.pipeline import EVIDENCE_KINDS, Proposal, build_evidence_pdf
 from .agent.reasoner import Decision, effective_options
 from .audit import AuditLog
 from .paypal.client import PayPalClient, PayPalError, permit_writes
@@ -197,7 +197,7 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
         audit.log(dispute_id, "approve", {"proposal": proposal_id, "by": approval["by"],
                                           "edited": approval["status"] == "edited"})
         pdf = None
-        if any(a["kind"] in ("provide_evidence", "appeal") for a in actions):
+        if any(a["kind"] in EVIDENCE_KINDS for a in actions):
             pdf = build_evidence_pdf(CaseFile.from_dict(state["case"]), Decision.from_dict(decision))
         current = client.get_dispute(dispute_id)
 

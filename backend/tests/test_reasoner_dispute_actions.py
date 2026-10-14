@@ -33,7 +33,8 @@ def _delivered_case():
     case = _gather("inr_delivered")
     assert case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED" and case.stage == "INQUIRY"
     assert case.facts["shipment_status"] == "DELIVERED" and case.facts["delivered_address_matches"] is True
-    assert "can_escalate" not in case.facts and "can_appeal" not in case.facts
+    for key in ("can_escalate", "can_appeal", "seller_already_responded"):  # gather sets them; each test sets its own
+        case.facts.pop(key, None)
     return case
 
 

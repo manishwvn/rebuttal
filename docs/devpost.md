@@ -33,7 +33,7 @@ The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built wi
 
 - Backend: Python, FastAPI, a LangGraph workflow `gather_facts > decide > guard > plan_actions > approval > execute > record`, LangChain chat models (Groq live; Anthropic and NVIDIA supported), Pydantic-validated model output.
 - Safety: only the `execute` node can write to PayPal. Analysis holds a read-only client whose transport refuses anything but GET. Approval is a LangGraph `interrupt()`. Approved writes carry a deterministic `PayPal-Request-Id`. A test scans the code to keep it that way.
-- PayPal: Disputes API (read, message, offer, evidence, accept), Orders v2 and tracking, transaction search, dispute webhooks with signature verification. Sandbox only, enforced in code.
+- PayPal: Disputes API (read, message, offer, evidence, accept, escalate, appeal), Orders v2 and tracking, transaction search, dispute webhooks with signature verification. Sandbox only, enforced in code.
 - State: LangGraph checkpoints and the audit log in free Supabase Postgres, so a proposal waiting for approval survives a restart.
 - Frontend: React, Vite, TypeScript, AG Grid for the inbox, AG Studio for analytics with four custom widgets, a theme from our design tokens, and an assistant via the Studio Agent Framework (through a read-only backend proxy so the key never reaches the browser).
 - Judge demo: each visitor gets a private in-memory mock session, with no token and no PayPal account.

@@ -31,7 +31,7 @@ equally, often from the video alone.
 
 - Sandbox only. `load_settings()` raises unless `PAYPAL_ENV=sandbox`. Never add a live base URL.
 - Only the graph's `execute` node (in `rebuttal/approval.py`) may call PayPal write endpoints (message, offer,
-  evidence, accept). The graph routes to it only after a human approve or edit decision (LangGraph `interrupt()`),
+  evidence, accept, escalate, appeal). The graph routes to it only after a human approve or edit decision (LangGraph `interrupt()`),
   and it refuses to run without one. Analysis nodes hold `client.read_only()`, a clone whose transport refuses
   anything but GET; the full client raises on any write outside `permit_writes()`, which only `execute` (and the
   named manual sandbox scripts) enter. Nothing fallible may run after `interrupt()` returns or after the PayPal call

@@ -16,6 +16,8 @@ from ..store import MerchantStore
 from .facts import CaseFile
 from .reasoner import Decision
 
+EVIDENCE_KINDS = ("provide_evidence", "appeal")  # the actions that carry the evidence PDF
+
 
 @dataclass
 class PlannedAction:
@@ -41,7 +43,7 @@ class Proposal:
 
     @property
     def needs_evidence_pdf(self) -> bool:
-        return any(a.kind in ("provide_evidence", "appeal") for a in self.actions)
+        return any(a.kind in EVIDENCE_KINDS for a in self.actions)
 
     def to_dict(self) -> dict:
         d = asdict(self)
