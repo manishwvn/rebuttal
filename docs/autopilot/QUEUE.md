@@ -54,7 +54,7 @@ Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK 
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
 First pass now: use it to check our Disputes calls and mock shapes against the SDK models, fix any drift, log it.
 
-### S2 More of the Disputes API — size M — in review (PR #69) — after Q4
+### S2 More of the Disputes API — size M — done #69 — after Q4
 Strengthens Best Use of PayPal + AI. Add the appeal and escalate paths and more evidence types (proof of
 fulfillment, refund, return tracking), each proposed by the agent and executed only by `execute` after approval,
 with deterministic `PayPal-Request-Id`, mock parity and tests. Look up shapes with the paypal plugin and APIMatic
@@ -119,7 +119,7 @@ disputes by reason and by product, money kept vs refunded, response deadlines, m
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with
 tests). Split into PRs: data endpoints, Studio layout and theme, custom widgets.
 
-### B2 AG Studio depth — size L — in review (PR #70) — needs B1
+### B2 AG Studio depth — size L — done #70 (saved views, starters e2e, licence note, 10 widget screenshots, live Groq smoke pass 505 ms) — needs B1
 Studio Agent Framework: plain-English questions over the dispute data ("which products cause most disputes this
 month?"), using Groq free tier, read-only data access only (assistant + read-only proxy done #52; left: one live
 Groq smoke check of the assistant, prompt starters showing, AI module licence note). Saved views. Playwright screenshots of every widget into
@@ -130,7 +130,7 @@ Grow to about 40 cases: 10 more held-out cases written by a subagent that is **n
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
 
-### B4 Automated demo video — size L — in review (PR #68) [90%] (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
+### B4 Automated demo video — size L — in-progress [90%] (#68 merged) (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from
 the A4 script via macOS `say` (pick a natural voice, export AIFF); `ffmpeg` (`brew install ffmpeg`) joins them,
 adds captions and title cards. Output `media/rebuttal-demo.mp4` (git-ignored; keep the script and the build command
@@ -235,6 +235,8 @@ client together and remove the matching `VERIFY` notes (`client.py`, `mock.py`, 
 ## USER
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
+
+- **U3 Demo video review and upload** (ready Oct 14, from B4): follow the four USER steps under B4 above: watch `media/rebuttal-demo.mp4` (run `scripts/make_video.sh` first if missing), optionally pick a better `say` voice, upload to YouTube as Public, then tell the lead "U3 done" with the link.
 
 - **U2 APIMatic form and Discord preview**: ready on Oct 23 (after C3). Inputs are ready: `docs/apimatic-form.md` (answers for the APIMatic form) and `docs/discord-preview.md` (the posts, sections A and B).
   0. Before step 1, take 2-3 screenshots (or a short clip from `media/rebuttal-demo.mp4`) of the AG Studio Analytics tab in the signed-in dashboard; post A asks about it and the public demo does not show it.
