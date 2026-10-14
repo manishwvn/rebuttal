@@ -88,7 +88,7 @@ Render web services have an ephemeral filesystem, so a SQLite file is lost on ev
 for approval would vanish. **Decision: the free Supabase Postgres** (project `rebuttal`, us-east-1, $0/month), used
 by `langgraph-checkpoint-postgres` for paused proposals and by the audit log (`rebuttal_audit` table). Both switch on
 when `DATABASE_URL` is a `postgresql://` URL; without it the app keeps SQLite (or memory in mock mode), so judges can
-run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed (free plan for now, see `render.yaml`).
+run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed (free plan, see `render.yaml`, with the best-effort 10-minute keep-awake ping in `.github/workflows/keep-render-awake.yml`).
 
 - Connection mode: **session pooler, port 5432** (`aws-0-us-east-1.pooler.supabase.com`, user `postgres.<ref>`).
   Supabase docs: direct connections are IPv6-only on the free plan, session mode is "for persistent clients on
@@ -119,7 +119,7 @@ the dispute id and model, one session per dispute. The 20 eval cases are a Langf
 |---|---|
 | Sandbox dispute creation is fiddly (buyer consent + auth header) | Resolution Center by hand for the demo; API creation only for the simulator |
 | AG Studio watermark or trial limits before judging ends Dec 15 | AG Grid confirmed the watermark isn't penalized. The video and screenshots carry the sponsor features either way |
-| Render free tier sleeps; judges see a cold start | Use the $50 participant credits for an always-on instance through Dec 15 |
+| Render free tier sleeps; judges see a cold start | Free plan, no spend: `.github/workflows/keep-render-awake.yml` pings every 10 minutes (best effort). No paid plan unless Manish decides otherwise |
 | Another entrant ("Witness") covers AI-assistant dispute evidence | Our pitch is prevention for all disputes; the assistant case is one showcase |
 | Video overloaded | One hero case, two cutaways, eval number on screen |
 | Scope creep | Freeze Nov 3; Elastic and extra sponsor work are cut first |
