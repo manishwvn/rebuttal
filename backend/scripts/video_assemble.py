@@ -96,9 +96,21 @@ def _load_shots(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))["shots"]
 
 
+def _listed_voices(listing: str) -> set[str]:
+    """Voice names from `say -v ?` lines such as 'Samantha (English (US)) en_US    # Hello!'."""
+    names: set[str] = set()
+    for line in listing.splitlines():
+        fields = line.split("#", 1)[0].rsplit(None, 1)
+        if fields:
+            names.add(fields[0])
+    return names
+
+
 def _check_voice(voice: str) -> None:
     listing = _run(["say", "-v", "?"], SAY_MISSING, capture_output=True, text=True).stdout
-    if not any(line.startswith(voice) for line in listing.splitlines()):
+    names = _listed_voices(listing)
+    # Exact name, or the base name before " (", so 'Samantha' matches 'Samantha (English (US))'. Never a prefix.
+    if not voice or not any(voice in (name, name.split(" (", 1)[0]) for name in names):
         raise SystemExit(
             f"voice {voice!r} is not installed. List the voices with `say -v ?` and set VIDEO_VOICE to one of them."
         )
@@ -147,7 +159,7 @@ def main(argv: list[str] | None = None) -> None:
     narrate_ap = sub.add_parser("narrate", help="write narration audio and durations.json")
     narrate_ap.add_argument("--shots", type=Path, required=True)
     narrate_ap.add_argument("--work", type=Path, required=True)
-    narrate_ap.add_argument("--voice", default=os.environ.get("VIDEO_VOICE", DEFAULT_VOICE))
+    narrate_ap.add_argument("--voice", default=os.environ.get("VIDEO_VOICE") or DEFAULT_VOICE)
     assemble_ap = sub.add_parser("assemble", help="write the SRT and mux the final video")
     assemble_ap.add_argument("--shots", type=Path, required=True)
     assemble_ap.add_argument("--work", type=Path, required=True)

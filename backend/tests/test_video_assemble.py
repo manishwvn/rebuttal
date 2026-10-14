@@ -15,7 +15,12 @@ SHOTS = {
         {"id": "agent", "minSeconds": 1.0, "narration": "The agent reads the order."},
     ]
 }
-SAY_VOICES = "Samantha            en_US    # Hello! My name is Samantha.\nAlex                en_US    # Hello.\n"
+# Same shape as real `say -v ?` output: name (may hold spaces and parentheses), locale, then a sample after '#'.
+SAY_VOICES = (
+    "Samantha (English (US)) en_US    # Hello! My name is Samantha.\n"
+    "Alex                en_US    # Hello! My name is Alex.\n"
+    "Good News           en_US    # Hello!\n"
+)
 
 
 class FakeRun:
@@ -130,7 +135,9 @@ def test_narrate_writes_audio_and_durations(tmp_path, monkeypatch):
     assert (work / "audio").is_dir()
     assert ["say", "-v", "Samantha", "-o", intro, "--", "Meet the dispute."] in fake.calls
     assert ["say", "-v", "Samantha", "-o", agent, "--", "The agent reads the order."] in fake.calls
-    probe = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", intro]
+    say_calls = [call for call in fake.calls if call[0] == "say" and call != ["say", "-v", "?"]]
+    assert len(say_calls) == 2
+    probe =["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", intro]
     assert probe in fake.calls
     durations = json.loads((work / "durations.json").read_text(encoding="utf-8"))
     assert durations == {
@@ -139,15 +146,28 @@ def test_narrate_writes_audio_and_durations(tmp_path, monkeypatch):
     }
 
 
-def test_narrate_unknown_voice_exits_before_speaking(tmp_path, monkeypatch):
+@pytest.mark.parametrize("voice", ["", "Sam", "Good", "Nobody"])
+def test_narrate_unknown_voice_exits_before_speaking(tmp_path, monkeypatch, voice):
     fake = FakeRun()
     monkeypatch.setattr(va.subprocess, "run", fake)
 
     with pytest.raises(SystemExit) as exc:
-        va.narrate(write_shots(tmp_path), tmp_path / "work", "Nobody")
+        va.narrate(write_shots(tmp_path), tmp_path / "work", voice)
 
     assert "VIDEO_VOICE" in str(exc.value) and "say -v ?" in str(exc.value)
     assert fake.calls == [["say", "-v", "?"]]
+
+
+@pytest.mark.parametrize("voice", ["Samantha", "Samantha (English (US))", "Good News", "Alex"])
+def test_narrate_accepts_listed_voice_names(tmp_path, monkeypatch, voice):
+    fake = FakeRun()
+    monkeypatch.setattr(va.subprocess, "run", fake)
+    work = tmp_path / "work"
+
+    va.narrate(write_shots(tmp_path), work, voice)
+
+    assert (work / "durations.json").is_file()
+    assert ["say", "-v", voice, "-o", str(work / "audio" / "intro.aiff"), "--", "Meet the dispute."] in fake.calls
 
 
 def test_narrate_without_say_exits_clearly(tmp_path, monkeypatch):
@@ -174,7 +194,7 @@ def test_narrate_without_ffprobe_exits_with_install_hint(tmp_path, monkeypatch):
         va.narrate(write_shots(tmp_path), tmp_path / "work", "Samantha")
 
 
-@pytest.mark.parametrize(("env", "voice"), [("Alex", "Alex"), (None, "Samantha")])
+@pytest.mark.parametrize(("env", "voice"), [("Alex", "Alex"), ("", "Samantha"), (None, "Samantha")])
 def test_narrate_voice_defaults_to_env_then_samantha(tmp_path, monkeypatch, env, voice):
     fake = FakeRun()
     monkeypatch.setattr(va.subprocess, "run", fake)
@@ -189,15 +209,25 @@ def test_narrate_voice_defaults_to_env_then_samantha(tmp_path, monkeypatch, env,
     assert say_voices == {voice}
 
 
-def test_assemble_rejects_mismatched_ids(tmp_path):
+@pytest.mark.parametrize(
+    "timeline",
+    [
+        [{"id": "agent", "startMs": 0, "endMs": 1000}, {"id": "intro", "startMs": 1000, "endMs": 2000}],
+        [{"id": "intro", "startMs": 0, "endMs": 1000}, {"id": "outro", "startMs": 1000, "endMs": 2000}],
+        [{"id": "intro", "startMs": 0, "endMs": 1000}],
+    ],
+    ids=["reordered", "renamed", "missing"],
+)
+def test_assemble_rejects_mismatched_ids(tmp_path, monkeypatch, timeline):
+    fake = FakeRun()
+    monkeypatch.setattr(va.subprocess, "run", fake)
     work = tmp_path / "work"
-    write_timeline(work, [
-        {"id": "agent", "startMs": 0, "endMs": 1000},
-        {"id": "intro", "startMs": 1000, "endMs": 2000},
-    ])
+    write_timeline(work, timeline)
 
     with pytest.raises(ValueError, match="ids"):
         va.assemble(write_shots(tmp_path), work, tmp_path / "out.mp4")
+    assert fake.calls == []
+    assert not (work / "rebuttal-demo.srt").exists()
 
 
 def test_assemble_rejects_timeline_of_180_seconds_or_more(tmp_path, monkeypatch):
