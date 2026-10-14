@@ -35,6 +35,9 @@ ROOM = 10**9  # a limit no test reaches, for the tests that exercise other limit
 VALID_TURN = {"messages": [{"role": "user", "content": "hello"}]}
 TOOL = {"type": "function", "function": {"name": "lookup_order", "parameters": {"type": "object"}}}
 CALL = {"id": "call_1", "type": "function", "function": {"name": "lookup_order", "arguments": '{"order_id": "PP-1"}'}}
+# Captured at import, before the autouse fixture relaxes the shares, so the shipped-limit test can restore them.
+SHIPPED_OUTPUT_SHARE = studio_ai.STUDIO_OUTPUT_TOKENS_PER_MINUTE
+SHIPPED_TOKEN_SHARE = studio_ai.STUDIO_TOKENS_PER_MINUTE
 
 
 class FakeClock:
@@ -47,8 +50,10 @@ class FakeClock:
 
 @pytest.fixture(autouse=True)
 def roomy_output_share(monkeypatch):
-    """Most tests exercise the other limits, so the output-token share is set high here. It is tested on its own."""
+    """Most tests exercise the other limits, so the studio's output and token shares are set high here. Both are tested
+    on their own."""
     monkeypatch.setattr(studio_ai, "STUDIO_OUTPUT_TOKENS_PER_MINUTE", ROOM)
+    monkeypatch.setattr(studio_ai, "STUDIO_TOKENS_PER_MINUTE", ROOM)
 
 
 def make_client(handler, *, api_key: str | None = API_KEY, clock: FakeClock | None = None):
@@ -347,25 +352,73 @@ def test_the_output_token_share_caps_replies_a_minute(monkeypatch):
     assert post(client, "10.3.0.3").status_code == 200
 
 
+def test_the_shipped_limits_allow_two_replies_a_minute(monkeypatch):
+    monkeypatch.setattr(studio_ai, "STUDIO_OUTPUT_TOKENS_PER_MINUTE", SHIPPED_OUTPUT_SHARE)
+    monkeypatch.setattr(studio_ai, "STUDIO_TOKENS_PER_MINUTE", SHIPPED_TOKEN_SHARE)
+    handler, calls = answer()
+    client, _ = make_client(handler)
+    statuses = [post(client, "10.3.1.1").status_code for _ in range(3)]
+    assert statuses == [200, 200, 429]
+    assert len(calls) == 2  # the output share of 512 at 256 a reply: two replies, not one (the old integer division)
+
+
+def test_two_turns_that_together_exceed_the_token_share_get_a_429(monkeypatch):
+    monkeypatch.setattr(studio_ai, "STUDIO_TOKENS_PER_MINUTE", 2000)
+    handler, calls = answer()
+    client, clock = make_client(handler)
+    big_turn = {"messages": [{"role": "user", "content": "x" * 4000}]}  # about 1,012 prompt tokens plus the reply
+    assert post(client, "10.3.2.1", big_turn).status_code == 200
+    blocked = post(client, "10.3.2.2", big_turn)
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
+    assert len(calls) == 1
+    clock.now += SHORT_WINDOW + 1
+    assert post(client, "10.3.2.2", big_turn).status_code == 200
+
+
+def test_a_turn_larger_than_the_whole_token_share_is_413_and_never_reaches_upstream(monkeypatch):
+    monkeypatch.setattr(studio_ai, "STUDIO_TOKENS_PER_MINUTE", 1000)
+    handler, calls = answer()
+    client, _ = make_client(handler)
+    resp = post(client, "10.3.3.1", {"messages": [{"role": "user", "content": "x" * 4000}]})
+    assert resp.status_code == 413
+    assert resp.json() == {"detail": "Request too large."}
+    assert calls == []
+
+
+def test_a_token_refusal_waits_only_until_enough_tokens_have_expired():
+    clock = FakeClock()
+    limiter = _RateLimiter(
+        clock, client_limit=ROOM, global_limit=ROOM, daily_limit=ROOM, output_limit=ROOM, token_limit=1000
+    )
+    assert limiter.acquire("a", 300) is None  # 300 prompt plus 256 reply: 556 tokens
+    clock.now += 10
+    assert limiter.acquire("b", 100) is None  # 356 more: 912 in the window
+    clock.now += 10
+    assert limiter.acquire("c", 100) == 40  # the first turn leaves at t=60, which frees 556 tokens and so room
+
+
 def test_a_refused_client_leaves_no_entry_behind():
-    limiter = _RateLimiter(FakeClock(), client_limit=2, global_limit=1, daily_limit=10, output_limit=10)
-    assert limiter.acquire("a") is None
-    assert limiter.acquire("b") == 60
+    limiter = _RateLimiter(
+        FakeClock(), client_limit=2, global_limit=1, daily_limit=10, output_limit=ROOM, token_limit=ROOM
+    )
+    assert limiter.acquire("a", 0) is None
+    assert limiter.acquire("b", 0) == 60
     assert "b" not in limiter._clients
     assert "a" in limiter._clients
 
 
 def _roomy_limiter(clock: FakeClock) -> _RateLimiter:
-    return _RateLimiter(clock, client_limit=2, global_limit=ROOM, daily_limit=ROOM, output_limit=ROOM)
+    return _RateLimiter(clock, client_limit=2, global_limit=ROOM, daily_limit=ROOM, output_limit=ROOM, token_limit=ROOM)
 
 
 def test_clients_whose_hits_have_expired_are_dropped_on_the_next_request():
     clock = FakeClock()
     limiter = _roomy_limiter(clock)
     for name in ("a", "b", "c"):
-        assert limiter.acquire(name) is None
+        assert limiter.acquire(name, 0) is None
     clock.now += SHORT_WINDOW + 1
-    assert limiter.acquire("new") is None
+    assert limiter.acquire("new", 0) is None
     assert set(limiter._clients) == {"new"}
 
 
@@ -373,10 +426,10 @@ def test_thousands_of_allowed_clients_leave_nothing_behind_once_they_expire():
     clock = FakeClock()
     limiter = _roomy_limiter(clock)
     for i in range(500):
-        assert limiter.acquire(f"client-{i}") is None
+        assert limiter.acquire(f"client-{i}", 0) is None
     assert len(limiter._clients) == 500
     clock.now += SHORT_WINDOW + 1
-    limiter.acquire("one")
+    limiter.acquire("one", 0)
     assert set(limiter._clients) == {"one"}
 
 
@@ -385,7 +438,7 @@ def test_one_shot_clients_over_time_keep_the_table_small():
     limiter = _roomy_limiter(clock)
     for i in range(1000):
         clock.now += 1
-        assert limiter.acquire(f"client-{i}") is None
+        assert limiter.acquire(f"client-{i}", 0) is None
         assert len(limiter._clients) <= SHORT_WINDOW
 
 

@@ -20,20 +20,23 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 log = logging.getLogger(__name__)
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"  # Groq's OpenAI-compatible chat endpoint
-MAX_OUTPUT_TOKENS = 512  # one reply; Groq counts this against the key's 1,000 output tokens a minute up front
+MAX_OUTPUT_TOKENS = 256  # one reply; Groq counts max_tokens against the key's output tokens a minute up front
 MAX_BODY_BYTES = 131_072  # 128 KiB: the body is read in chunks and refused past this, so memory stays bounded
 MAX_MESSAGES = 200  # longest chat history forwarded in one turn
 MAX_TOOLS = 64  # most tool definitions forwarded in one turn
 MAX_TEXT_CHARS = 100_000  # longest content of one message
 UPSTREAM_TIMEOUT = 30.0  # seconds; a slow model fails fast for the browser
-SHORT_WINDOW = 60.0  # seconds, the window of the per-client, global and output-token limits
+SHORT_WINDOW = 60.0  # seconds, the window of the per-client, global, output-token and token limits
 DAY_WINDOW = 86_400.0  # seconds, the window of the daily limit
 CLIENT_LIMIT = 6  # requests per SHORT_WINDOW for one client, so one client cannot drain the shared quota
 GLOBAL_LIMIT = 12  # requests per SHORT_WINDOW for the whole service, under Groq's 30 requests a minute
 DAILY_LIMIT = 150  # requests per DAY_WINDOW, well under the 1K a day that the dispute agent also uses
-# The studio's share of Groq's 1,000 output tokens a minute. agent/llm.py budgets the dispute agent on its own, so the
-# two are not yet pooled: a lead decision is needed (one shared budget, or a second key for the studio).
-STUDIO_OUTPUT_TOKENS_PER_MINUTE = 512
+# The studio's share of the Groq key's free-tier limits (1,000 output tokens and 8,000 tokens a minute). Not yet pooled
+# with agent/llm.py's TokenBudget, which reserves 500 output tokens per dispute call: until one budget is shared, a
+# studio reply can still push a dispute call over Groq's limit. Lead decision before merge.
+STUDIO_OUTPUT_TOKENS_PER_MINUTE = 512  # two replies of MAX_OUTPUT_TOKENS a minute
+STUDIO_TOKENS_PER_MINUTE = 4_000  # prompt estimate plus reply: half of Groq's 8,000 tokens a minute
+BYTES_PER_TOKEN = 4  # a rough English estimate; the prompt estimate bounds the prompt, it is not a count
 RETRY_AFTER_DEFAULT = 5  # seconds, when Groq's 429 has no usable Retry-After
 RETRY_AFTER_MAX = 60  # seconds, the longest Retry-After passed on to the browser
 
@@ -93,8 +96,9 @@ class StudioAiRequest(BaseModel):
 
 
 class _RateLimiter:
-    """Sliding windows for one client, the whole service, the day and the output-token share. A request counts only
-    when every window has room. Each accepted request reserves one output-token slot, as Groq does."""
+    """Sliding windows for one client, the whole service, the day, the studio's output tokens and its total tokens. A
+    request counts only when every window has room; then it charges each window: one request, its reply's
+    MAX_OUTPUT_TOKENS, and its estimated prompt plus reply tokens."""
 
     def __init__(
         self,
@@ -104,37 +108,44 @@ class _RateLimiter:
         global_limit: int,
         daily_limit: int,
         output_limit: int,
+        token_limit: int,
     ) -> None:
         self._clock = clock
         self._client_limit = client_limit
         self._global_limit = global_limit
         self._daily_limit = daily_limit
         self._output_limit = output_limit
+        self._token_limit = token_limit
         self._lock = threading.Lock()
-        self._clients: dict[str, deque[float]] = {}
-        self._global: deque[float] = deque()
-        self._daily: deque[float] = deque()
-        self._output: deque[float] = deque()
+        self._clients: dict[str, deque[tuple[float, int]]] = {}
+        self._global: deque[tuple[float, int]] = deque()
+        self._daily: deque[tuple[float, int]] = deque()
+        self._output: deque[tuple[float, int]] = deque()
+        self._tokens: deque[tuple[float, int]] = deque()
 
-    def acquire(self, client: str) -> int | None:
+    def acquire(self, client: str, prompt_tokens: int) -> int | None:
         """Count one request and return None, or return the whole seconds to wait (at least 1) when a window is full."""
         now = self._clock()
+        reply_and_prompt = prompt_tokens + MAX_OUTPUT_TOKENS
         with self._lock:
             self._sweep(now)
             hits = self._clients.setdefault(client, deque())
-            waits = [
-                _wait(hits, self._client_limit, SHORT_WINDOW, now),
-                _wait(self._global, self._global_limit, SHORT_WINDOW, now),
-                _wait(self._daily, self._daily_limit, DAY_WINDOW, now),
-                _wait(self._output, self._output_limit, SHORT_WINDOW, now),
+            # Each entry is (window, cost of this request in that window, the window's limit, the window's span).
+            windows = [
+                (hits, 1, self._client_limit, SHORT_WINDOW),
+                (self._global, 1, self._global_limit, SHORT_WINDOW),
+                (self._daily, 1, self._daily_limit, DAY_WINDOW),
+                (self._output, MAX_OUTPUT_TOKENS, self._output_limit, SHORT_WINDOW),
+                (self._tokens, reply_and_prompt, self._token_limit, SHORT_WINDOW),
             ]
+            waits = [_wait(window, cost, limit, span, now) for window, cost, limit, span in windows]
             blocking = [wait for wait in waits if wait is not None]
             if blocking:
                 if not hits:
                     del self._clients[client]
                 return max(1, math.ceil(max(blocking)))
-            for window in (hits, self._global, self._daily, self._output):
-                window.append(now)
+            for window, cost, _, _ in windows:
+                window.append((now, cost))
             return None
 
     def _sweep(self, now: float) -> None:
@@ -146,17 +157,23 @@ class _RateLimiter:
                 del self._clients[client]
 
 
-def _prune(hits: deque[float], window: float, now: float) -> None:
-    while hits and now - hits[0] >= window:
-        hits.popleft()
+def _prune(window: deque[tuple[float, int]], span: float, now: float) -> None:
+    while window and now - window[0][0] >= span:
+        window.popleft()
 
 
-def _wait(hits: deque[float], limit: int, window: float, now: float) -> float | None:
-    """Drop hits older than the window. None when a slot is free, else the seconds until the oldest hit expires."""
-    _prune(hits, window, now)
-    if len(hits) < limit:
+def _wait(window: deque[tuple[float, int]], cost: int, limit: int, span: float, now: float) -> float | None:
+    """Drop entries older than the span. None when the cost fits under the limit, else the seconds until enough of the
+    oldest entries have expired for it to fit. A cost over the limit by itself never fits, so it waits one whole span."""
+    _prune(window, span, now)
+    used = sum(size for _, size in window)
+    if used + cost <= limit:
         return None
-    return hits[0] + window - now
+    for when, size in window:
+        used -= size
+        if used + cost <= limit:
+            return when + span - now
+    return span
 
 
 def _client_key(request: Request) -> str:
@@ -271,7 +288,8 @@ def make_studio_ai_router(
         client_limit=CLIENT_LIMIT,
         global_limit=GLOBAL_LIMIT,
         daily_limit=DAILY_LIMIT,
-        output_limit=STUDIO_OUTPUT_TOKENS_PER_MINUTE // MAX_OUTPUT_TOKENS,
+        output_limit=STUDIO_OUTPUT_TOKENS_PER_MINUTE,
+        token_limit=STUDIO_TOKENS_PER_MINUTE,
     )
     router = APIRouter(prefix="/api/studio/ai", tags=["studio-ai"])
 
@@ -286,7 +304,10 @@ def make_studio_ai_router(
         if _declared_length(request) > MAX_BODY_BYTES:
             raise HTTPException(413, "Request too large.")
         body = await _read_body(request)
-        retry = limiter.acquire(_client_key(request))
+        prompt_tokens = len(body) // BYTES_PER_TOKEN
+        if prompt_tokens + MAX_OUTPUT_TOKENS > STUDIO_TOKENS_PER_MINUTE:
+            raise HTTPException(413, "Request too large.")  # larger than the whole token share: waiting would not help
+        retry = limiter.acquire(_client_key(request), prompt_tokens)
         if retry is not None:
             raise HTTPException(429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(retry)})
         try:
