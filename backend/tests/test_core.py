@@ -341,3 +341,31 @@ def test_duplicate_charge_ignores_denied_transaction():
 def test_duplicate_charge_without_invoice_id_still_counts():
     rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
     assert _duplicate_flag(rt, lambda info: info.pop("invoice_id")) is True
+
+
+def test_refund_proof_sends_refund_ids_as_plain_strings():
+    """PayPal Disputes v1 schema (refund_ids_list): evidence_info.refund_ids is an array of strings, not objects."""
+    from rebuttal.agent.pipeline import plan_actions
+
+    rt = Runtime(seed_cases=["cnp_refunded"], force_rules=True)
+    did = rt.client.list_disputes()[0]["dispute_id"]
+    case = gather(did, rt.client, rt.store, DEMO_NOW)
+    assert case.facts["refund_ids"]
+    d = Decision("SUBMIT_REFUND_PROOF", 0.9, [], "", "m", "Refund issued.", source="rules")
+    (action,) = plan_actions(d, case)
+    ids = action.params["evidences"][0]["evidence_info"]["refund_ids"]
+    assert ids == case.facts["refund_ids"] and all(isinstance(i, str) for i in ids)
+
+
+@pytest.mark.parametrize("bad", [[{"refund_id": "RF1"}], [], [""], "RF1", ["RF"] * 101])
+def test_mock_rejects_malformed_refund_ids(bad):
+    from rebuttal.paypal.client import PayPalError
+
+    rt = Runtime(seed_cases=["cnp_refunded"], force_rules=True)
+    did = rt.client.list_disputes()[0]["dispute_id"]
+    ev = [{"evidence_type": "PROOF_OF_REFUND", "evidence_info": {"refund_ids": bad}, "notes": "n"}]
+    with permit_writes(), pytest.raises(PayPalError) as e:
+        rt.client.provide_evidence(did, ev)
+    assert e.value.status == 400 and e.value.body["name"] == "INVALID_REQUEST"
+    with permit_writes():
+        rt.client.provide_evidence(did, [{**ev[0], "evidence_info": {"refund_ids": ["RF1"]}}])
