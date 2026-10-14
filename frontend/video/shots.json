@@ -63,6 +63,12 @@
       "badge": true
     },
     {
+      "id": "analytics",
+      "minSeconds": 12,
+      "narration": "In AG Studio, the merchant sees what disputes cost, what was kept and what was refunded, and whether the guard changed the model's pick.",
+      "badge": true
+    },
+    {
       "id": "safety-graph",
       "minSeconds": 10,
       "narration": "Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.",
@@ -87,6 +93,12 @@
       "badge": false
     },
     {
+      "id": "live-proof",
+      "minSeconds": 12,
+      "narration": "This part is real. A buyer filed a dispute in the PayPal sandbox, a signed webhook reached Render, and the agent stopped at the approval gate. Nothing was written to PayPal.",
+      "badge": false
+    },
+    {
       "id": "close-pitch",
       "minSeconds": 8,
       "narration": "Rebuttal is for the shop with no dispute team: the agent digs, the merchant decides.",
@@ -94,8 +106,8 @@
     },
     {
       "id": "close-real",
-      "minSeconds": 13,
-      "narration": "This recording used a mock of PayPal's sandbox. The same code runs on Render against the real sandbox: a dispute filed there arrived by signed webhook and stopped at the approval gate.",
+      "minSeconds": 8,
+      "narration": "This recording used a mock of PayPal's sandbox. Sandbox only: no live money.",
       "badge": false
     }
   ]
