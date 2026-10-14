@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api'
 import type { AnalyticsReport } from '../../types'
+import { DashboardErrorBoundary } from './DashboardErrorBoundary'
 import { StudioDashboard } from './StudioDashboard'
 import { useAgThemeMode } from './useAgThemeMode'
 
@@ -63,7 +64,9 @@ export function AnalyticsView() {
         </p>
       )}
       {report ? (
-        <StudioDashboard key={loadedAt} rows={report.rows} deadlines={report.deadlines} summary={report.summary} />
+        <DashboardErrorBoundary key={loadedAt}>
+          <StudioDashboard rows={report.rows} deadlines={report.deadlines} summary={report.summary} />
+        </DashboardErrorBoundary>
       ) : (
         !error && <p className="note">Loading analytics…</p>
       )}
