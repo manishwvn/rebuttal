@@ -45,7 +45,7 @@ SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
 | `VITE_API_BASE` | `http://localhost:8000` in `npm run dev`, empty (same origin) in a build | Backend base URL |
 | `VITE_API_TOKEN` | unset | Bearer token, sent when the backend has `REBUTTAL_API_TOKEN` set. **For `npm run dev` only: `npm run build` fails while it is set** (see below). |
 
-Copy [.env.example](.env.example) to .env.local to set them for npm run dev.
+Copy [`.env.example`](.env.example) to `.env.local` to set them for `npm run dev`.
 
 ### The build refuses `VITE_API_TOKEN`
 

@@ -65,7 +65,7 @@ export function AnalyticsView() {
       )}
       {report ? (
         <DashboardErrorBoundary key={loadedAt}>
-          <StudioDashboard key={loadedAt} rows={report.rows} deadlines={report.deadlines} summary={report.summary} />
+          <StudioDashboard rows={report.rows} deadlines={report.deadlines} summary={report.summary} />
         </DashboardErrorBoundary>
       ) : (
         !error && <p className="note">Loading analytics…</p>
