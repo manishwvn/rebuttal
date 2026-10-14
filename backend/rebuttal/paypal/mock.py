@@ -3,7 +3,8 @@
 The real PayPalClient talks to it unchanged, so everything built against the
 mock runs against the sandbox once keys are added. Behaviour mirrors the
 sandbox docs (developer.paypal.com/disputes/test-go-live); anything not yet
-confirmed live is marked VERIFY.
+confirmed live is marked VERIFY. The dispute links, escalate and appeal come from the Disputes v1 OpenAPI spec
+only and are VERIFY: not yet confirmed on the live sandbox.
 """
 
 from __future__ import annotations
@@ -21,7 +22,11 @@ _ORDER_PATH = re.compile(r"^/v2/checkout/orders/([^/]+)$")
 _CAPTURE_PATH = re.compile(r"^/v2/payments/captures/([^/]+)$")
 # Seller actions the real sandbox rejected with ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE
 # on an INQUIRY dispute in UNDER_REVIEW.
-_SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "escalate"}
+_SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "escalate", "appeal"}
+# Where a successful appeal sends a lost chargeback. VERIFY: the appeal stage transition is from the OpenAPI spec only.
+_APPEAL_NEXT_STAGE = {"CHARGEBACK": "PRE_ARBITRATION", "PRE_ARBITRATION": "ARBITRATION"}
+# Evidence types whose evidence_info the Disputes v1 schema expects. VERIFY: from the spec only, not yet seen live.
+_EVIDENCE_INFO_REQUIRED = {"PROOF_OF_FULFILLMENT", "PROOF_OF_REFUND", "PROOF_OF_RETURN"}
 
 SUMMARY_FIELDS = (
     "dispute_id", "create_time", "update_time", "reason", "status",
@@ -55,6 +60,57 @@ def _json(status: int, body: dict) -> httpx.Response:
 
 def _error(status: int, name: str, message: str) -> httpx.Response:
     return _json(status, {"name": name, "message": message, "debug_id": "mock-debug"})
+
+
+def _not_allowed_now() -> httpx.Response:
+    return _json(422, {"name": "UNPROCESSABLE_ENTITY", "debug_id": "mock-debug",
+                       "message": "The requested action could not be performed, semantically incorrect, "
+                                  "or failed business validation.",
+                       "details": [{"issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"}]})
+
+
+def _invalid_request(details: list[dict]) -> httpx.Response:
+    return _json(400, {"name": "INVALID_REQUEST", "debug_id": "mock-debug",
+                       "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
+                       "details": details})
+
+
+def dispute_links(dispute: dict) -> list[dict]:
+    """HATEOAS links that show-dispute returns. Rel names, the escalate and appeal conditions, and the appeal body are
+    from the Disputes v1 OpenAPI spec only; VERIFY: not yet confirmed on the live sandbox.
+    escalate: only while the INQUIRY waits for the seller. appeal: only after a buyer-favour loss at CHARGEBACK or
+    PRE_ARBITRATION."""
+    base = f"/v1/customer/disputes/{dispute['dispute_id']}"
+    links = [{"href": base, "rel": "self", "method": "GET"}]
+    stage = dispute["dispute_life_cycle_stage"]
+    if stage == "INQUIRY" and dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
+        links.append({"href": f"{base}/escalate", "rel": "escalate", "method": "POST"})
+    lost = (dispute.get("dispute_outcome") or {}).get("outcome_code") == "RESOLVED_BUYER_FAVOUR"
+    if dispute["status"] == "RESOLVED" and lost and stage in _APPEAL_NEXT_STAGE:
+        links.append({"href": f"{base}/appeal", "rel": "appeal", "method": "POST"})
+    return links
+
+
+def _offers(dispute: dict, rel: str) -> bool:
+    return any(link["rel"] == rel for link in dispute_links(dispute))
+
+
+def _bad_evidence_info(body: dict) -> dict | None:
+    """evidence_info that the Disputes v1 schema requires: a non-empty block for PROOF_OF_FULFILLMENT, PROOF_OF_REFUND
+    and PROOF_OF_RETURN, and each tracking_info entry needs carrier_name and tracking_number (carrier_name_other when
+    carrier_name is OTHER). Returns the error detail for the first violation.
+    VERIFY: from the spec only; the live sandbox has not yet been checked against these rules."""
+    for n, ev in enumerate(body.get("evidences", [])):
+        info = ev.get("evidence_info") or {}
+        if ev.get("evidence_type") in _EVIDENCE_INFO_REQUIRED and not info:
+            return {"field": f"/evidences/{n}/evidence_info", "location": "body",
+                    "issue": "MISSING_REQUIRED_PARAMETER"}
+        for tracking in info.get("tracking_info") or []:
+            if (not tracking.get("carrier_name") or not tracking.get("tracking_number")
+                    or (tracking["carrier_name"] == "OTHER" and not tracking.get("carrier_name_other"))):
+                return {"field": f"/evidences/{n}/evidence_info/tracking_info", "location": "body",
+                        "issue": "MISSING_REQUIRED_PARAMETER"}
+    return None
 
 
 def _bad_refund_ids(body: dict) -> tuple[int, str] | None:
@@ -229,21 +285,27 @@ class MockPayPal:
         if dispute is None:
             return _error(404, "RESOURCE_NOT_FOUND", f"No dispute {dispute_id}")
         if action is None and method == "GET":
-            return _json(200, dispute)
+            return _json(200, {**dispute, "links": dispute_links(dispute)})
         if method != "POST" or action is None:
             return _error(405, "METHOD_NOT_SUPPORTED", "Unsupported")
-        if dispute["status"] == "RESOLVED":
+        # Appeal is the one action that follows a RESOLVED dispute: it contests a buyer-favour loss.
+        if dispute["status"] == "RESOLVED" and action != "appeal":
             return _error(422, "UNPROCESSABLE_ENTITY", "Dispute is already resolved")
         if dispute["status"] == "UNDER_REVIEW" and action in _SELLER_ACTIONS:
-            return _json(422, {"name": "UNPROCESSABLE_ENTITY", "debug_id": "mock-debug",
-                               "message": "The requested action could not be performed, semantically incorrect, "
-                                          "or failed business validation.",
-                               "details": [{"issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"}]})
+            return _not_allowed_now()
+        # The link rel names match the action names, so escalate and appeal are refused unless PayPal would offer them.
+        if action in ("escalate", "appeal") and not _offers(dispute, action):
+            return _not_allowed_now()
 
-        if action == "provide-evidence":
+        if action in ("provide-evidence", "appeal"):
             body = self._parse_evidence(request)
         else:
             body = json.loads(request.content or b"{}")
+
+        if action == "escalate":
+            note = body.get("note")
+            if not isinstance(note, str) or not 1 <= len(note) <= 2000:
+                return _invalid_request([{"field": "/note", "location": "body", "issue": "INVALID_STRING_LENGTH"}])
 
         options = dispute.get("allowed_response_options", {})
         if action == "make-offer" and body.get("offer_type") not in options.get("make_offer", {}).get("offer_types", []):
@@ -251,7 +313,10 @@ class MockPayPal:
                                "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
                                "details": [{"issue": "INVALID_OFFER_TYPE"}]})
 
-        if action == "provide-evidence":
+        if action in ("provide-evidence", "appeal"):
+            evidences = body.get("evidences")
+            if action == "appeal" and (not isinstance(evidences, list) or not evidences):
+                return _invalid_request([{"field": "/evidences", "location": "body", "issue": "INVALID_ARRAY_SIZE"}])
             bad = _bad_refund_ids(body)
             if bad:
                 index, issue = bad
@@ -259,6 +324,9 @@ class MockPayPal:
                                    "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
                                    "details": [{"field": f"/evidences/{index}/evidence_info/refund_ids",
                                               "location": "body", "issue": issue}]})
+            bad_info = _bad_evidence_info(body)
+            if bad_info:
+                return _invalid_request([bad_info])
 
         dispute["update_time"] = _now()
         if action == "send-message":
@@ -287,6 +355,13 @@ class MockPayPal:
         elif action == "escalate":
             dispute["dispute_life_cycle_stage"] = "CHARGEBACK"
             dispute["status"] = "UNDER_REVIEW"
+        elif action == "appeal":
+            # VERIFY: the appeal body (same evidences payload as provide-evidence) and the stage transition are from the
+            # OpenAPI spec only; not yet confirmed on the live sandbox.
+            dispute.setdefault("evidences", []).extend(body.get("evidences", []))
+            dispute["dispute_life_cycle_stage"] = _APPEAL_NEXT_STAGE[dispute["dispute_life_cycle_stage"]]
+            dispute["status"] = "UNDER_REVIEW"
+            dispute.pop("dispute_outcome", None)
         elif action == "require-evidence":  # sandbox only
             party = body.get("action", "SELLER_EVIDENCE")
             dispute["status"] = (
