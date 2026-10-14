@@ -10,6 +10,7 @@ the per-dispute advisory lock. Cleans up its own rows (thread ids starting with 
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ sys.path.insert(0, str(BACKEND))
 
 CHILD = """
 import os, sys
-os.environ["REBUTTAL_TRACING"] = "0"; os.environ["REBUTTAL_MOCK"] = "1"; os.environ["REBUTTAL_REASONER"] = "rules"
+os.environ["REBUTTAL_TRACING"] = "0"; os.environ["REBUTTAL_MOCK"] = "1"; os.environ["REBUTTAL_MOCK_USE_DATABASE"] = "1"; os.environ["REBUTTAL_REASONER"] = "rules"
 from rebuttal.runtime import Runtime
 rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True)
 assert rt.settings.database_url, "DATABASE_URL is not set"
@@ -37,6 +38,7 @@ def main() -> int:
     from rebuttal.audit import open_pool
     from rebuttal.config import load_settings
 
+    os.environ["REBUTTAL_MOCK_USE_DATABASE"] = "1"  # mock mode ignores DATABASE_URL unless told otherwise
     url = load_settings().database_url
     if not url:
         print("DATABASE_URL (postgres) is not set in backend/.env")

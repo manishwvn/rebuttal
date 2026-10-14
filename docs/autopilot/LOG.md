@@ -1,5 +1,17 @@
 # Autopilot log
 
+# Daily summary 2026-10-14
+progress 48% (17/36 tasks done, 27 days to Nov 10 submit)
+The daily system audit (Sonnet per component, fresh clone, Opus principal) found the system healthy: 469 tests pass, write boundary intact, no secrets.
+It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is honest, not a regression.
+Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
+Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
+
+## 2026-10-14 08:11 CDT | W 28→34 % | F 26→70 % | audit, R1 | merged (this PR)
+Daily system-audit: 41 raw findings, 11 verified tasks, 5 rejected, not critical. The audit alone used about 37% of the 5-hour window.
+R1 built by a Sonnet agent: mock mode ignores DATABASE_URL unless REBUTTAL_MOCK_USE_DATABASE=1 (live_postgres.py opts in); explicit REBUTTAL_CHECKPOINT_URL still wins; 4 new tests.
+Left undone on purpose: deleting the stray PP-D-2000 rows from the shared live database (no live effect).
+
 ## 2026-10-14 07:35 CDT | W 27→? % | F 19→? % | C2 | merged #53
 Took C2 (docs) instead of S2: S2 needs a strict team-cycle run that will not fit the rest of this cycle. Sonnet wrote the README rework, docs/devpost.md, docs/discord-preview.md and docs/apimatic-form.md. The Sonnet reviewer caught the judge steps promising a model first choice and a guard change that the offline demo does not show, plus stale coverage (now 93%, 469 tests). All fixed.
 

@@ -33,7 +33,7 @@ I could not verify how the credit is issued, so check the source rather than tru
    |---|---|
    | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | your PayPal **sandbox** app keys |
    | `GROQ_API_KEY` | your Groq key (the live model) |
-   | `DATABASE_URL` | the Supabase **session pooler** URL, port 5432 (the one already in `.env`) |
+   | `DATABASE_URL` | the Supabase **session pooler** URL, port 5432 (the one already in `.env`). Mock mode (`REBUTTAL_MOCK=1`, the default) never uses it unless `REBUTTAL_MOCK_USE_DATABASE=1`, so local runs cannot write to this database |
    | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | your Langfuse keys (leave empty to run without tracing) |
    | `PAYPAL_WEBHOOK_ID` | leave empty for now; you get it in step 3 |
 

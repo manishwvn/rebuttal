@@ -4,6 +4,8 @@
 - a file path or sqlite:///file.db    -> SqliteSaver (local development, one process)
 - postgres:// or postgresql:// URL    -> PostgresSaver (Supabase or any Postgres; needs the `postgres` extra: uv sync --extra postgres)
 
+Mock mode never uses DATABASE_URL (only an explicit REBUTTAL_CHECKPOINT_URL), unless REBUTTAL_MOCK_USE_DATABASE=1.
+
 A checkpoint holds the paused proposal, so with a durable saver an approval can arrive after a restart or redeploy.
 """
 
