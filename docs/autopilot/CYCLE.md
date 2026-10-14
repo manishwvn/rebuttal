@@ -73,6 +73,15 @@ marked `size: S` this cycle.
 - Check usage again before each new subagent step. If `W >= 82` (or `W >= C` under an override) mid-task, stop at a safe point: commit and push the
   work-in-progress branch, mark the task `in-progress` in `QUEUE.md` with a note, release the lock.
 
+## 2a. Goal: 100% of the project and the hackathon
+
+The goal of every cycle is to move `progress.py` toward 100% by Nov 10 (D5, Manish submits). 100% must mean a
+complete, winning submission, so the queue must hold every remaining requirement: when a cycle finds a hackathon
+requirement (Devpost rules, judging criteria, sponsor prize terms in `docs/prize-fit.md`) or a gap no task covers,
+add a task for it; the percent may drop, which is honest. Pick runnable work in queue order, but put a task whose
+deadline is within 7 days first. Never mark a task done, or raise a `[NN%]`, without the merged PR or check that
+proves it.
+
 ## 2b. Fill the 5-hour window
 
 The task wakes when `next_run.py` says (section 2). Each cycle keeps working: after a task (or a team workflow) finishes,
@@ -160,7 +169,9 @@ Things only Manish can do (passwords, uploads, public posts, submissions). Add t
 ## 7. Record
 
 Every cycle appends one line to `~/.rebuttal-autopilot/runs.log` (local, not in git):
-`<local date time> | W% | F% | <task id or SKIP/PAUSE/PACE> | <result>`. Skipped cycles stop there.
+`<local date time> | W% | F% | <task id or SKIP/PAUSE/PACE> | <result> | <progress>`, where `<progress>` is the
+output of `python3 docs/autopilot/progress.py` on `main` after any merge (Manish, Oct 14: report completion after
+every run). Skipped cycles stop there.
 Cycles that did work also update the repo:
 
 - `QUEUE.md`: update the task's status (`todo` / `in-progress` / `waiting: <why>` / `done <PR link>`).
@@ -171,7 +182,8 @@ Cycles that did work also update the repo:
   (`scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/system-audit.js"`, `args: {sha: <main HEAD>,
   scratch: <a new empty folder under ~/.rebuttal-autopilot/audit-<date>>}`). Add every returned task to `QUEUE.md`
   (priority `now` goes to the top of `## Tasks`), log the summary and the rejected count, and alert if `critical`.
-  Then put a 5-line plain-English progress summary at the top of `LOG.md` under `# Daily summary <date>`, and refresh
+  Then put a 5-line plain-English progress summary at the top of `LOG.md` under `# Daily summary <date>` (first
+  line: the `progress.py` output), and refresh
   `STATUS.md`.
 - Commit `QUEUE.md`, `LOG.md` and `STATUS.md` updates on the task's PR. If the task ended without a PR
   (waiting, blocked), commit them on a branch `autopilot/log-<date>`, PR, and merge once CI is green (docs only).

@@ -1,7 +1,9 @@
 # Autopilot task queue
 
 Ordered. The lead takes the first runnable task each cycle (see `CYCLE.md`). Status: `todo`, `in-progress`,
-`waiting: <why>`, `done <PR>`. Sizes: S (under an hour of agent work), M, L (split into several PRs).
+`waiting: <why>`, `done <PR>`. Sizes: S (under an hour of agent work), M, L (split into several PRs). A large task
+may carry an explicit share done as `[NN%]` in its status. `docs/autopilot/progress.py` turns this file into the
+project completion percent (CYCLE.md section 7).
 Deadlines: video script Oct 12, AG Studio first pass and demo-video rough cut Oct 23, **feature freeze Nov 3**,
 final check Nov 8, Manish submits Nov 10 (hard deadline Nov 12, 12:00 PM PT).
 
@@ -170,6 +172,10 @@ send one alert with the final USER checklist (upload video, submit Devpost, APIM
 Manish wants to learn at the end. Update the local `LEARNING.md` (never commit it): one section per merged PR since
 PR #3 (what, why, how, Mermaid where useful, ELI5), a glossary, and the 10 interview questions a PayPal engineer
 would ask with model answers.
+
+### D5 Submitted on Devpost — size M — waiting: Manish submits Nov 10
+Done when Manish confirms the Devpost submission (video uploaded, repo link, testing credentials, APIMatic form). The
+lead marks it done only on his word in chat or a LOG.md note from him; this is the last step to 100%.
 
 ### D4 Post-hackathon reminder — Dec 22
 Alert: delete the Render service (judging ends Dec 15). Do not delete it yourself.
