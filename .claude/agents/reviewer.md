@@ -13,7 +13,7 @@ Review the diff you are pointed at (`git status`, `git diff`, `git diff main...H
 
 1. **PayPal writes outside the approval step.** Rule (see CLAUDE.md): only the `execute` node in
    `backend/rebuttal/approval.py` may call PayPal write endpoints (send_message, make_offer, provide_evidence,
-   accept_claim, escalate, adjudicate, or any POST/PATCH/PUT/DELETE except the OAuth token and
+   accept_claim, escalate, appeal, adjudicate, or any POST/PATCH/PUT/DELETE except the OAuth token and
    verify-webhook-signature POSTs), only after a human approve/edit via `interrupt()`, inside `permit_writes()`.
    Analysis nodes hold `client.read_only()`. Nothing fallible may run after `interrupt()` returns or after the PayPal
    call inside `execute`. Check new code paths, routes in `app.py`, scripts, and anything that weakens

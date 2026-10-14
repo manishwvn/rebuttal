@@ -340,9 +340,10 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         return fallback("Proposed refund proof, but no refund exists.")
     if decision.resolution == "ESCALATE" and not (_escalation_offered(case)
                                                   and f.get("shipment_status") == "DELIVERED"
-                                                  and f.get("delivered_address_matches") is True):
-        return fallback("Proposed escalating, but PayPal does not offer escalation here or delivery to the order "
-                        "address is not proven.")
+                                                  and f.get("delivered_address_matches") is True
+                                                  and f.get("seller_already_responded")):
+        return fallback("Proposed escalating, but PayPal does not offer escalation here, delivery to the order "
+                        "address is not proven, or we have not answered the buyer yet.")
     if decision.resolution == "ESCALATE":
         # The note goes to PayPal, not the buyer, so a model's friendly buyer message is replaced by the factual note.
         note = draft_escalation_note(case)

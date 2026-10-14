@@ -223,7 +223,8 @@ scripts (`spike_sandbox.py`, `make_sandbox_dispute.py`; `require-evidence` stays
 rel names `escalate` and `appeal` on a shown dispute; that escalate is accepted on an INQUIRY waiting for the seller;
 the appeal multipart body and the stage it moves to; that a seller can send PROOF_OF_RETURN; escalate after a seller
 reply (the status send-message leaves, and whether a buyer reply returns the INQUIRY to WAITING_FOR_SELLER_RESPONSE,
-which the ESCALATE rule and the mock's `require-evidence` stand-in assume). Fix the mock and the
+which the ESCALATE rule and the mock's `require-evidence` stand-in assume); whether escalate needs
+`buyer_escalation_reason`, which the client omits. Fix the mock and the
 client together and remove the matching `VERIFY` notes (`client.py`, `mock.py`, `facts.py`, `approval.py`).
 
 ## USER

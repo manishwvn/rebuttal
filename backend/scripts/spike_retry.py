@@ -24,7 +24,7 @@ from scripts.spike_sandbox import SELLER_STEPS, dry_run, seller_action_steps
 SELLER_STATUS = "WAITING_FOR_SELLER_RESPONSE"
 # The API names link rels with underscores (send_message); endpoints use hyphens.
 ACTION_RELS = {"send_message", "make_offer", "provide_evidence", "accept_claim", "escalate",
-               "require_evidence", "adjudicate", "accept_offer"}
+               "appeal", "require_evidence", "adjudicate", "accept_offer"}
 
 
 def dispute_summary(dispute: dict) -> dict:

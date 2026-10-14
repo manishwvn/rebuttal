@@ -242,7 +242,8 @@ class PayPalClient:
                              request_id=request_id)
 
     def escalate(self, dispute_id: str, note: str, *, request_id: str | None = None) -> dict:
-        """Valid only at stage INQUIRY (PayPal Disputes v1); body {note}.
+        """Valid only at stage INQUIRY (PayPal Disputes v1); body {note}. buyer_escalation_reason is omitted.
+        VERIFY: whether buyer_escalation_reason is optional on the sandbox.
         VERIFY: the real sandbox refused escalate on an INQUIRY in UNDER_REVIEW
         (ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE); allowed case not yet confirmed."""
         return self._request(

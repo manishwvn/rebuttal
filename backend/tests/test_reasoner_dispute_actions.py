@@ -167,8 +167,8 @@ def test_guard_turns_an_unsupported_ESCALATE_into_the_rules_pick():
     case.facts["seller_already_responded"] = True  # can_escalate is missing
     d = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "SHARE_TRACKING" and d.source == "claude+guard"
-    assert any(n.startswith("Proposed escalating, but PayPal does not offer escalation here or delivery to the order "
-                            "address is not proven.") for n in d.guard_notes)
+    assert any(n.startswith("Proposed escalating, but PayPal does not offer escalation here, delivery to the order "
+                            "address is not proven, or we have not answered the buyer yet.") for n in d.guard_notes)
     assert any("Fell back to rules: SHARE_TRACKING." in n for n in d.guard_notes)
 
 
@@ -186,6 +186,14 @@ def test_guard_turns_ESCALATE_into_the_rules_pick_when_delivery_is_not_proven(ch
     d = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == rules
     assert any("Proposed escalating" in n for n in d.guard_notes)
+
+
+def test_guard_turns_ESCALATE_into_the_rules_pick_when_we_have_not_answered_the_buyer():
+    case = _delivered_case()
+    case.facts.update({"can_escalate": True, "seller_already_responded": False})
+    d = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SHARE_TRACKING"
+    assert any("we have not answered the buyer yet" in n for n in d.guard_notes)
 
 
 def test_guard_turns_an_unsupported_APPEAL_into_the_rules_pick():
