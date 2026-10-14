@@ -91,6 +91,13 @@ before the reset is free, so never leave it idle while there is runnable work.
 
 ## 3. Pick work and run the team
 
+- Never end your turn while a Workflow or background agent runs (Oct 14: the 04:10 run ended its turn "waiting for
+  completion notification"; the session went idle with the lock held for 3 hours and two cycles skipped). After
+  launching one, block on it: use `Monitor` on its output file or poll its status in a foreground loop, then finish
+  the cycle (merge, log, wake file, lock) in the same turn.
+- Clean worktrees only with `git worktree remove`; never `git checkout -- <file>` or `git restore` (the delete guard
+  asks about discarding edits, and an unattended run cannot answer).
+
 1. `cd /Users/manish/Documents/rebuttal && git checkout main && git pull`. Read `STATUS.md`, `docs/autopilot/QUEUE.md`
    and the last 40 lines of `docs/autopilot/LOG.md`.
 2. If `main` CI is red, the task is "make main green" (smallest fix, or revert the PR that broke it).
