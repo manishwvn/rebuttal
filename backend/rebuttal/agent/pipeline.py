@@ -86,7 +86,7 @@ def approved_text(actions: list[dict], approval: dict | None) -> str | None:
 def case_summary(case: CaseFile, now: datetime | None = None) -> dict:
     """`hours_left` is recomputed from `now` (the runtime clock) when given; the checkpoint only holds the value
     frozen at analysis time. Negative means overdue."""
-    hours_left = round((case.due - now).total_seconds() / 3600, 1) if now and case.due else case.hours_left
+    hours_left = round((case.due - now).total_seconds() / 3600, 1) if now is not None and case.due else case.hours_left
     return {
         "reason": case.reason, "stage": case.stage, "amount": case.amount,
         "due": case.due.isoformat() if case.due else None, "hours_left": hours_left,

@@ -1,6 +1,7 @@
 """The dashboard API on top of the graph: analyze, list, approve, edit, reject, retry."""
 
 import logging
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -9,6 +10,7 @@ from fastapi.testclient import TestClient
 from rebuttal import app as app_module
 from rebuttal.paypal.client import PayPalError
 from rebuttal.runtime import Runtime
+from rebuttal.scenarios import DEMO_NOW
 
 
 @pytest.fixture
@@ -346,3 +348,23 @@ def test_the_sandbox_simulator_says_it_is_mock_only(client, monkeypatch):
     monkeypatch.setattr(app_module.rt, "mock", None)
     refused = client.post("/api/simulator/dispute/agent_wrong_size")
     assert refused.status_code == 501 and refused.json()["detail"] == "The simulator only runs against the mock sandbox."
+
+
+def test_hours_left_is_live_on_the_routes_and_negative_once_overdue(client):
+    rt = app_module.rt
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    first = proposal["case_summary"]["hours_left"]
+    assert first > 0
+    rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=first + 3)
+    listed = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}
+    assert listed["PP-D-2000"]["proposal"]["case_summary"]["hours_left"] == pytest.approx(-3, abs=0.11)
+    pending = client.get("/api/proposals/pending").json()
+    assert pending[0]["case_summary"]["hours_left"] == pytest.approx(-3, abs=0.11)
+
+
+def test_a_dispute_without_a_due_date_keeps_hours_left_none(client):
+    del app_module.rt.mock.disputes["PP-D-2000"]["seller_response_due_date"]
+    assert client.post("/api/disputes/PP-D-2000/analyze").json()["case_summary"]["hours_left"] is None
+    app_module.rt.agent._clock = lambda: DEMO_NOW + timedelta(days=30)
+    listed = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}
+    assert listed["PP-D-2000"]["proposal"]["case_summary"]["hours_left"] is None

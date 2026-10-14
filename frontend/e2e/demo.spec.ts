@@ -153,15 +153,17 @@ test('The case view counts down to the due date, and shows Overdue once it has p
   const pill = page.getByTestId('deadline-pill')
   await expect(pill).toContainText('left to respond')
   expect(await pill.innerText()).not.toMatch(/overdue|^-/i)
+})
 
-  // The server sends a negative number when the due date has passed; fake that for the hero case.
+test('A negative hours_left from the server shows Overdue', async ({ page }) => {
+  // Registered before the demo opens, so the very first disputes response is already rewritten.
   await page.route('**/api/demo/*/disputes', async (route) => {
     const response = await route.fetch()
     const rows = await response.json()
     for (const row of rows) if (row.proposal) row.proposal.case_summary.hours_left = -5.5
     await route.fulfill({ response, json: rows })
   })
-  await page.getByTestId('reset-demo').click()
+  await enterDemo(page)
   await page.locator(`[row-id="${HERO}"]`).click()
   await expect(page.getByTestId('deadline-pill')).toHaveText('Overdue')
 })
