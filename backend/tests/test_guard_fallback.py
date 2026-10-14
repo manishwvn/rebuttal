@@ -158,6 +158,7 @@ def test_inquiry_without_a_paypal_list_and_the_proven_fallback_are_unchanged():
         ("snad_damaged_high_value", "OFFER_REPLACEMENT"),
         ("snad_changed_mind", "OFFER_RETURN_FOR_REFUND"),
         ("snad_changed_mind", "OFFER_REPLACEMENT"),
+        ("snad_changed_mind", "ACCEPT_CLAIM"),
     ],
 )
 def test_chargeback_without_a_list_never_refunds_a_return_claim_in_full(case_id, resolution):
@@ -203,19 +204,61 @@ def test_missing_order_caps_partial_and_return_offers_too():
         assert any("No merchant order record" in n for n in d.guard_notes)
 
 
-@pytest.mark.xfail(strict=True, reason="facts.py DAMAGE_WORDS is a substring match ('dent' in 'student'); "
-                   "needs a whole-word fix outside queue R2 p1 scope")
-def test_student_is_not_read_as_damage():
+@pytest.mark.parametrize("message", [
+    "I am a student and I changed my mind, refund me.",
+    "I'm confident it is fine, I just changed my mind, refund me.",
+    "It is not evident as described, I just changed my mind.",
+])
+@pytest.mark.xfail(strict=True, reason="facts.py DAMAGE_WORDS is a substring match ('dent' in 'student', 'confident', "
+                   "'evident'); needs a word-start fix in facts.py, outside queue R2 p1 scope")
+def test_common_words_are_not_read_as_damage(message):
     order = _gather("inr_no_tracking").order
-    facts = _compute_facts(order, None, None, 10.0, DEMO_NOW, ["I am a student and I changed my mind, refund me."])
+    facts = _compute_facts(order, None, None, 10.0, DEMO_NOW, [message])
     assert facts["buyer_reports_damage"] is False
 
 
-@pytest.mark.xfail(strict=True, reason="facts.py refund_without_return_eligible uses items[0] only, not the disputed "
-                   "amount or the damaged line; needs a fix outside queue R2 p1 scope")
+@pytest.mark.xfail(strict=True, reason="facts.py refund_without_return_eligible uses items[0] only, not the damaged "
+                   "line; guard() now caps it by the disputed amount, but the fact needs a facts.py fix outside queue "
+                   "R2 p1 scope")
 def test_two_line_order_with_a_cheap_first_line_is_not_refund_without_return():
     order = _gather("inr_no_tracking").order
     order.items = [{"name": "Vase", "variant": "Blue", "price": 15.0},
                    {"name": "Lamp", "variant": "Brass", "price": 200.0}]
     facts = _compute_facts(order, None, None, 215.0, DEMO_NOW, ["The lamp arrived broken."])
     assert facts["refund_without_return_eligible"] is False
+
+
+def test_damaged_big_claim_on_a_cheap_first_line_is_not_refunded_without_return():
+    """items[0] makes the fact look small; the disputed amount is what the claim is for."""
+    case = _gather("inr_no_tracking")
+    case.order.items = [{"name": "Vase", "variant": "Blue", "price": 15.0},
+                        {"name": "Lamp", "variant": "Brass", "price": 200.0}]
+    case.reason = "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+    case.stage = "INQUIRY"
+    case.amount = 215.0
+    case.buyer_messages = ["The lamp arrived broken."]
+    case.facts = _compute_facts(case.order, None, None, 215.0, DEMO_NOW, case.buyer_messages)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "OFFER_RETURN_FOR_REFUND"
+    assert any("refund-without-return threshold" in n for n in d.guard_notes)
+
+
+def test_damaged_small_claim_is_still_refunded_without_return():
+    case = _gather("inr_no_tracking")
+    case.order.items = [{"name": "Vase", "variant": "Blue", "price": 15.0}]
+    case.reason = "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+    case.stage = "INQUIRY"
+    case.amount = 15.0
+    case.buyer_messages = ["The vase arrived broken."]
+    case.facts = _compute_facts(case.order, None, None, 15.0, DEMO_NOW, case.buyer_messages)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and d.confidence == 0.9
+
+
+def test_chargeback_full_refund_without_a_list_and_no_return_is_capped():
+    case = _gather("snad_changed_mind")
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and d.confidence <= 0.3
+    assert any("no option list" in n and "Resolution Center" in n for n in d.guard_notes)
