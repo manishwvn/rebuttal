@@ -333,8 +333,8 @@ Run this one command from the repo root:
 scripts/make_video.sh
 ```
 
-Output: `media/rebuttal-demo.mp4`, plus `media/rebuttal-demo.srt` and intermediate files in `media/work/`. The `media/`
-folder is git-ignored. Never commit it.
+Output: `media/rebuttal-demo.mp4`, plus `media/rebuttal-demo.srt` and intermediate files in `media/work/`. Never commit
+`media/`. It is not git-ignored yet: the make_video piece adds `media/` to `.gitignore`. Until then, never `git add` it.
 
 Requirements, all free tooling: macOS (for `say`), `brew install ffmpeg`, Node and `uv`, Google Chrome.
 
