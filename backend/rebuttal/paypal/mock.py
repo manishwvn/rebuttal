@@ -57,18 +57,21 @@ def _error(status: int, name: str, message: str) -> httpx.Response:
     return _json(status, {"name": name, "message": message, "debug_id": "mock-debug"})
 
 
-def _bad_refund_ids(body: dict) -> str | None:
+def _bad_refund_ids(body: dict) -> tuple[int, str] | None:
     """Mirror the Disputes v1 schema for evidence_info.refund_ids: an array of 1-100 strings (not objects like
     tracking_info). Source: developer.paypal.com/docs/api/customer-disputes/v1/schema.json (refund_ids_list).
+    Returns (evidence index, issue) for the first violation.
     VERIFY: the string form is from the spec only; the live sandbox has not yet accepted a PROOF_OF_REFUND."""
-    for ev in body.get("evidences", []):
+    for n, ev in enumerate(body.get("evidences", [])):
         ids = (ev.get("evidence_info") or {}).get("refund_ids")
         if ids is None:
             continue
-        if not isinstance(ids, list) or not 1 <= len(ids) <= 100:
-            return "INVALID_ARRAY_SIZE"
+        if not isinstance(ids, list):
+            return n, "INVALID_PARAMETER_SYNTAX"
+        if not 1 <= len(ids) <= 100:
+            return n, "INVALID_ARRAY_SIZE"
         if not all(isinstance(i, str) and 1 <= len(i) <= 255 for i in ids):
-            return "INVALID_STRING_LENGTH"
+            return n, "INVALID_STRING_LENGTH"
     return None
 
 
@@ -251,9 +254,11 @@ class MockPayPal:
         if action == "provide-evidence":
             bad = _bad_refund_ids(body)
             if bad:
+                index, issue = bad
                 return _json(400, {"name": "INVALID_REQUEST", "debug_id": "mock-debug",
                                    "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
-                                   "details": [{"field": "/evidences/evidence_info/refund_ids", "issue": bad}]})
+                                   "details": [{"field": f"/evidences/{index}/evidence_info/refund_ids",
+                                              "location": "body", "issue": issue}]})
 
         dispute["update_time"] = _now()
         if action == "send-message":

@@ -357,7 +357,7 @@ def test_refund_proof_sends_refund_ids_as_plain_strings():
     assert ids == case.facts["refund_ids"] and all(isinstance(i, str) for i in ids)
 
 
-@pytest.mark.parametrize("bad", [[{"refund_id": "RF1"}], [], [""], "RF1"])
+@pytest.mark.parametrize("bad", [[{"refund_id": "RF1"}], [], [""], "RF1", ["RF"] * 101])
 def test_mock_rejects_malformed_refund_ids(bad):
     from rebuttal.paypal.client import PayPalError
 

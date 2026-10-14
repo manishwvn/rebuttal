@@ -135,7 +135,7 @@ def _plan_actions(decision: Decision, case: CaseFile) -> list[PlannedAction]:
         # evidence_info.refund_ids -> refund_ids_list = array of plain strings (1-100, each 1-255 chars). Unlike
         # tracking_info, these are NOT objects. Not yet confirmed against the live sandbox (VERIFY).
         evidences = [{"evidence_type": "PROOF_OF_REFUND",
-                      "evidence_info": {"refund_ids": f.get("refund_ids", [])},
+                      "evidence_info": {"refund_ids": f["refund_ids"]},
                       "notes": decision.evidence_summary[:2000]}]
     else:  # SUBMIT_EVIDENCE
         if f.get("shipment_status") == "DELIVERED":
