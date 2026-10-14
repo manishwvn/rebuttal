@@ -194,17 +194,30 @@ def test_escalate_and_appeal_send_one_post_each_with_the_caller_or_a_generated_r
     assert generated[0] != generated[1]
 
 
-def test_appeal_is_multipart_with_an_input_json_part():
+@pytest.mark.parametrize("send,path", [
+    pytest.param(lambda c, files: c.provide_evidence("D1", APPEAL_EVIDENCES, files),
+                 "/v1/customer/disputes/D1/provide-evidence", id="provide_evidence"),
+    pytest.param(lambda c, files: c.appeal("D1", APPEAL_EVIDENCES, files),
+                 "/v1/customer/disputes/D1/appeal", id="appeal"),
+])
+def test_evidence_and_appeal_are_multipart_with_an_input_json_part_and_a_document(send, path):
     client, seen = _recording_client()
+    document = b"%PDF-1.4\n\x00\xff binary"
     with permit_writes():
-        client.appeal("D1", APPEAL_EVIDENCES)
+        send(client, [("evidence.pdf", document, "application/pdf")])
     (request,) = seen
+    assert (request.method, request.url.path) == ("POST", path)
     content_type = request.headers["content-type"]
     assert content_type.startswith("multipart/form-data; boundary=")
     message = BytesParser().parsebytes(f"Content-Type: {content_type}\r\n\r\n".encode() + request.content)
     assert message.is_multipart()
     parts = {part.get_param("name", header="content-disposition"): part for part in message.get_payload()}
+    assert set(parts) == {"input", "file1"}
     assert json.loads(parts["input"].get_payload(decode=True)) == {"evidences": APPEAL_EVIDENCES}
+    file1 = parts["file1"]
+    assert file1.get_filename() == "evidence.pdf"
+    assert file1.get_content_type() == "application/pdf"
+    assert file1.get_payload(decode=True) == document
 
 
 EVASIONS = {
