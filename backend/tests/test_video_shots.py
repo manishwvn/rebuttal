@@ -94,3 +94,10 @@ def test_only_the_analytics_shot_mentions_ag_studio():
 def test_live_proof_narration_claims_no_paypal_write():
     live = next(shot for shot in _shots() if shot["id"] == "live-proof")
     assert "Nothing was written to PayPal" in live["narration"]
+
+
+def test_live_proof_card_and_script_omit_the_unconfirmed_dispute_id():
+    # STATUS.md ties PP-R-SVN-10190455 to the hero case, not to the Oct 7 webhook; restore it once that link is confirmed.
+    cards = (ROOT / "frontend" / "video" / "cards.ts").read_text()
+    assert "PP-R-SVN-10190455" not in cards
+    assert "PP-R-SVN-10190455" not in SCRIPT_PATH.read_text()

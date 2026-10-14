@@ -117,7 +117,7 @@ export function liveProofCard(): string {
 <section class="content">
 <h1>${escapeHtml("Proof on the real PayPal sandbox")}</h1>
 <p class="sub">${escapeHtml(
-    "Rebuttal on Render, October 7, 2026. Dispute PP-R-SVN-10190455, filed by a buyer account.",
+    "Rebuttal on Render, October 7, 2026. A dispute filed by a buyer account.",
   )}</p>
 <div class="flow">
 ${flow}

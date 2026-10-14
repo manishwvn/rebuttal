@@ -115,7 +115,7 @@ AG Grid, APIMatic.
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 2:22-2:34 | [Static card, not the app; see 4.3.] Title "Live proof". Facts only, from STATUS.md ("Webhook proven live" and "Hero case correct live"): a buyer filed sandbox dispute PP-R-SVN-10190455 on Oct 7; a signed webhook (CUSTOMER.DISPUTE.CREATED) arrived about 3.5-4 minutes later, signature verified; the agent ran gather > decide > guard > propose and paused at the approval interrupt. Footer: "No PayPal write." No PayPal call is made to draw the card. | “This part is real. A buyer filed a dispute in the PayPal sandbox, a signed webhook reached Render, and the agent stopped at the approval gate. Nothing was written to PayPal.” | Tech, Impact, Presentation (honesty) |
+| 2:22-2:34 | [Static card, not the app; see 4.3.] Title "Live proof". Facts only, from STATUS.md ("Webhook proven live" and "Hero case correct live"): a buyer filed a sandbox dispute on Oct 7 (no dispute ID on the card until the webhook-to-dispute link is confirmed); a signed webhook (CUSTOMER.DISPUTE.CREATED) arrived about 3.5-4 minutes later, signature verified; the agent ran gather > decide > guard > propose and paused at the approval interrupt. Footer: "No PayPal write." No PayPal call is made to draw the card. | “This part is real. A buyer filed a dispute in the PayPal sandbox, a signed webhook reached Render, and the agent stopped at the approval gate. Nothing was written to PayPal.” | Tech, Impact, Presentation (honesty) |
 
 ### Segment 9: Close (2:34-2:50)
 
@@ -259,10 +259,10 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | 95% (19 of 20), hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, run `groq-qwen3.8-27b-20261014-001228` | Verified; latest run on current code. 85-95% across three Groq runs in `evals/RESULTS.md` (shown on the card), the set was used for tuning (the voice-over says "we tuned on"). |
 | Rules-only baseline solves 1 of 4 hard cases | `evals.run --rules` on this commit, Oct 9: 85% overall, 25% hard | Verified |
 | Held-out result | `evals/holdout.json`, run Oct 9 (`groq-qwen3.8-27b-holdout-20261009-054233`) | Verified: model alone 80%, final 100%, 0 gate violations. The voice-over leads with this. If holdout2 (task B3) comes out worse, report both held-out sets, not just this one. |
-| Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live", dispute `PP-R-SVN-10190455` | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
+| Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live" (no dispute ID: the link to the hero dispute is unconfirmed) | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
 | Inbox is built with AG Grid | `frontend/src/components/Inbox.tsx` (AG Grid Community) | Verified |
 | AG Studio dashboard in the video: disputes, money kept and refunded, reasons, products, deadlines, model-versus-final agreement | frontend/src/components/analytics, docs/ag-studio.md | Verified. The Studio assistant is not claimed and not shown |
-| A buyer-filed sandbox dispute arrived by signed webhook and the agent stopped at the approval gate with no PayPal write | STATUS.md 'Webhook proven live' and 'Hero case correct live', dispute PP-R-SVN-10190455, Oct 7 | Verified Oct 7. No live calls made for the video |
+| A buyer-filed sandbox dispute arrived by signed webhook and the agent stopped at the approval gate with no PayPal write | STATUS.md 'Webhook proven live' and 'Hero case correct live', Oct 7 (no dispute ID shown) | Verified Oct 7. No live calls made for the video |
 | APIMatic Context Plugin shaped the PayPal code | Plugin installed Oct 6; `docs/apimatic-log.md` table is empty | **[CONDITIONAL]** do not claim until entries exist |
 | 8d 21h left to respond | Mock assumes a 10-day inquiry window (`scenarios.py`, marked VERIFY: the real sandbox omitted the due date on an inquiry under review) | Demo number; the narration does not say it |
 | "Costs a small seller time and money"; "a new kind of dispute" | Opinion, no source | Unsourced framing; fine for a hook, no figure attached |
