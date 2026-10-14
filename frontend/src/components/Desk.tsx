@@ -40,10 +40,29 @@ export function Desk({ simulator }: { simulator: boolean }) {
     [api, loadAudit],
   )
 
+  // The first load and the Retry button share this. A failed load leaves disputes null with the error set, which the
+  // inbox shows as a failed state with Retry.
+  const loadDisputes = useCallback(
+    () =>
+      api.disputes().then(
+        (list) => {
+          setDisputes(list)
+          setError(null)
+        },
+        (e: unknown) => setError(message(e)),
+      ),
+    [api],
+  )
+
   useEffect(() => {
-    api.disputes().then(setDisputes, (e: unknown) => setError(message(e)))
+    void loadDisputes()
     // Load once on mount.
-  }, [api])
+  }, [loadDisputes])
+
+  const retry = () => {
+    setError(null)
+    loadDisputes()
+  }
 
   const select = (disputeId: string) => {
     openId.current = disputeId
@@ -91,8 +110,21 @@ export function Desk({ simulator }: { simulator: boolean }) {
 
       {selected ? (
         <CaseView dispute={selected} audit={audit} onChanged={changed} />
+      ) : disputes === null ? (
+        <p className="note empty">
+          {error === null ? (
+            'Loading disputes…'
+          ) : (
+            <>
+              Could not load disputes.{' '}
+              <button type="button" className="ghost" data-testid="inbox-retry" onClick={retry}>
+                Retry
+              </button>
+            </>
+          )}
+        </p>
       ) : (
-        <p className="note empty">{disputes === null ? 'Loading disputes…' : 'Pick a dispute in the inbox to see what the agent proposes.'}</p>
+        <p className="note empty">Pick a dispute in the inbox to see what the agent proposes.</p>
       )}
     </>
   )
