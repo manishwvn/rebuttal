@@ -68,10 +68,11 @@ const readBars = (page: Page, id: string): Promise<Bar[]> =>
 
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 
-// The agreement widget's box is the Studio widget around it, which is what carries the colour scheme.
+// The agreement widget's card is Studio's .ag-studio-layout-widget-container (the plain .ag-studio-layout-widget is
+// transparent); its background is the theme's widget background, so it changes with the colour scheme.
 const widgetBackground = (page: Page) =>
   widget(page, 'agreement').evaluate((el) => {
-    const box = el.closest('.ag-studio-layout-widget')
+    const box = el.closest('.ag-studio-layout-widget-container')
     if (!box) throw new Error('the agreement widget is not inside a Studio widget')
     return getComputedStyle(box).backgroundColor
   })

@@ -79,3 +79,4 @@ webapp-testing.
 ## Usage notes
 
 One line per task: which skills helped, which did not.
+- B1b (custom widgets and theme): ag-dev helped (createWidgets, registry typing, theme param names checked against the type files). ponytail applied: no backend change, no new dependency, no new CSS (widgets use inline styles and the index.css variables). No new skills installed.
