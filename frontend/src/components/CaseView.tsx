@@ -5,7 +5,7 @@ import {
   actionText,
   displayStatus,
   endpointFor,
-  hoursLabel,
+  deadlineLabel,
   money,
   reasonLabel,
   resolutionLabel,
@@ -164,7 +164,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           </span>
         </div>
         <div className="pills">
-          {summary.hours_left != null && <span className={`pill ${urgency(summary.hours_left)}`}>{hoursLabel(summary.hours_left)} left to respond</span>}
+          {summary.hours_left != null && <span className={`pill ${urgency(summary.hours_left)}`} data-testid="deadline-pill">{deadlineLabel(summary.hours_left)}</span>}
           <span className={`pill ${STATUS_TONE[status]}`} data-testid="case-status">
             {STATUS_LABEL[status]}
           </span>

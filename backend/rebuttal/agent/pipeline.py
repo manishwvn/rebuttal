@@ -50,14 +50,15 @@ class Proposal:
         return d
 
     @classmethod
-    def from_state(cls, values: dict, *, status: str | None = None, with_pdf: bool = False) -> Proposal:
+    def from_state(cls, values: dict, *, status: str | None = None, with_pdf: bool = False,
+                   now: datetime | None = None) -> Proposal:
         """Rebuild a proposal from graph state (the case, decision and actions are all JSON in the checkpoint)."""
         case = CaseFile.from_dict(values["case"])
         decision = Decision.from_dict(values["decision"])
         proposal = cls(
             id=values["proposal_id"], dispute_id=values["dispute_id"], created=values["created"],
             decision=decision, actions=[PlannedAction(**a) for a in values["actions"]],
-            case_summary=case_summary(case), status=status or values.get("status") or "PENDING",
+            case_summary=case_summary(case, now), status=status or values.get("status") or "PENDING",
             result=list(values.get("result") or []),
             approved_message=approved_text(values["actions"], values.get("approval")),
         )
@@ -82,10 +83,13 @@ def approved_text(actions: list[dict], approval: dict | None) -> str | None:
     return approval["edited_message"] if status == "edited" else drafted
 
 
-def case_summary(case: CaseFile) -> dict:
+def case_summary(case: CaseFile, now: datetime | None = None) -> dict:
+    """`hours_left` is recomputed from `now` (the runtime clock) when given; the checkpoint only holds the value
+    frozen at analysis time. Negative means overdue."""
+    hours_left = round((case.due - now).total_seconds() / 3600, 1) if now is not None and case.due else case.hours_left
     return {
         "reason": case.reason, "stage": case.stage, "amount": case.amount,
-        "due": case.due.isoformat() if case.due else None, "hours_left": case.hours_left,
+        "due": case.due.isoformat() if case.due else None, "hours_left": hours_left,
         "buyer": case.order.buyer_name if case.order else None,
         "buyer_messages": case.buyer_messages, "facts": case.facts,
         "policies": [t for t, _ in case.policies], "tool_calls": case.tool_calls,

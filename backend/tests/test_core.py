@@ -1,4 +1,6 @@
 
+from datetime import timedelta
+
 import pytest
 
 from rebuttal.agent.facts import gather
@@ -300,3 +302,42 @@ def test_guard_turns_accept_claim_on_a_high_value_damaged_item_into_return_for_r
     assert guard(Decision("ACCEPT_CLAIM", 0.95, [], "", "m", "", source="groq"), low).resolution == "ACCEPT_CLAIM"
     assert not mind.facts["buyer_reports_damage"]
     assert guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="groq"), mind).guard_notes == []
+
+
+def test_hours_left_follows_the_runtime_clock_after_analysis(rt):
+    first = rt.analyze("PP-D-2000").case_summary["hours_left"]
+    due = rt.agent.proposal("PP-D-2000").case_summary["due"]
+    assert first > 0 and due
+    rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=10)
+    later = rt.agent.proposal("PP-D-2000").case_summary["hours_left"]
+    assert later == pytest.approx(first - 10, abs=0.11)
+    rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=first + 5)
+    assert rt.agent.proposal("PP-D-2000").case_summary["hours_left"] == pytest.approx(-5, abs=0.11)
+
+
+def _duplicate_flag(rt, mutate):
+    """gather() on a duplicate_true case after mutate(duplicate_txn_info) edited the second charge."""
+    base = min(rt.mock.transactions, key=len)  # the seeded capture id; the scenario adds its duplicate as base + "D"
+    dup = rt.mock.transactions[base + "D"]
+    mutate(dup["transaction_info"])
+    return gather("PP-D-2000", rt.client, rt.store, DEMO_NOW).facts["duplicate_charge_found"]
+
+
+def test_duplicate_charge_two_successful_same_invoice():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: None) is True
+
+
+def test_duplicate_charge_ignores_different_invoice():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: info.update(invoice_id="RB-other-9")) is False
+
+
+def test_duplicate_charge_ignores_denied_transaction():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: info.update(transaction_status="D")) is False
+
+
+def test_duplicate_charge_without_invoice_id_still_counts():
+    rt = Runtime(seed_cases=["duplicate_true"], force_rules=True)
+    assert _duplicate_flag(rt, lambda info: info.pop("invoice_id")) is True

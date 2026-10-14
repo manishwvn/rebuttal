@@ -170,6 +170,7 @@ class DisputeAgent:
                  retry_policy: RetryPolicy = DEFAULT_RETRY, locks: DisputeLocks | None = None):
         self.reasoner, self.audit, self.checkpointer = reasoner, audit, checkpointer
         self._tracing = tracing
+        self._clock = clock
         self._locks = locks or make_locks(checkpointer)
         self.graph = build_graph(client=client, store=store, reasoner=reasoner, audit=audit, clock=clock,
                                  checkpointer=checkpointer, retry_policy=retry_policy)
@@ -208,7 +209,7 @@ class DisputeAgent:
             status = "INTERRUPTED"  # a newer analysis stopped part-way; the values are the previous proposal's
         else:
             status = values.get("status")
-        return Proposal.from_state(values, status=status, with_pdf=with_pdf)
+        return Proposal.from_state(values, status=status, with_pdf=with_pdf, now=self._clock())
 
     def pending_proposals(self) -> list[Proposal]:
         # Collect the thread ids first: SqliteSaver.list() holds its lock while it iterates, and reading a
