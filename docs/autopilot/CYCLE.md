@@ -42,6 +42,11 @@ Decide yourself, write the decision down in `docs/autopilot/LOG.md`, and keep go
 append `<now> SKIP: previous cycle still running` to `~/.rebuttal-autopilot/runs.log` and end. Otherwise write the
 current time to it. Release it at the very end of the cycle, also after a failure, by emptying it (`: > lock`); never
 delete it (section 0, delete guard). A run cut off by the usage limit leaves it set; the 170-minute rule clears that.
+Heartbeat (Oct 14: a 4.7-hour workflow looked stale at 170 minutes, a second cycle redid its task and the first
+cycle's work was discarded): while a cycle runs, rewrite the lock with the current time at least every 30 minutes
+(each `Monitor` wake-up while waiting on a workflow counts) so only a dead cycle looks stale. Claim a task before
+starting it: mark it `in-progress (cycle <start time>)` in `QUEUE.md` on `main` (docs-only commit, push). A cycle
+never starts a task another cycle has claimed unless that cycle's lock is stale.
 
 ## 2. Usage guard (before any work)
 
