@@ -152,7 +152,7 @@ USER item) before choosing it. Channel3 has a free MCP tier (product catalog sea
 `frontend-design` skill pass over inbox, case view and Studio: typography, spacing, empty and loading states,
 keyboard access, accessible contrast; Playwright screenshots before/after in the PR.
 
-### C2 README and submission docs — size M — todo — after B1
+### C2 README and submission docs — size M — done (this PR)
 README: what it is, 60-second judge quickstart (demo mode link + local run), architecture diagram (Mermaid), safety
 design (single write path, guard, approval), eval table, how each sponsor tool is used (AG Grid/Studio, APIMatic with
 `docs/apimatic-log.md`, PayPal APIs), license. Draft `docs/devpost.md` (every Devpost field) and
@@ -184,6 +184,9 @@ Alert: delete the Render service (judging ends Dec 15). Do not delete it yoursel
 ## USER
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
+
+- **U2 APIMatic form and Discord preview**: ready on Oct 23 (after C3). Steps: TODO (the lead writes them in C3).
+  Inputs are ready: `docs/apimatic-form.md` (answers for the APIMatic form) and `docs/discord-preview.md` (the post).
 
 - ~~**U1 Second sandbox business account**~~ done Oct 9. Original steps kept for reference: developer.paypal.com > log in > Testing Tools >
   Sandbox Accounts > Create account > Business, United States > Create. Then Apps & Credentials (Sandbox) > Create App
