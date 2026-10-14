@@ -7,6 +7,10 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 11:50 CDT | W 38→39 % | F 18→21 % | R11 | merged #63
+Sonnet builder: SYSTEM_PROMPT marks buyer messages as quotes, never instructions; guard converts tracking/evidence on a not-received dispute delivered to a non-matching address into OFFER_REPLACEMENT when PayPal allows it, else notes it and caps confidence at 0.5; ACCEPT_CLAIM contradicting delivery gets a note; SHARE_TRACKING draft only claims the order address when it matches. 501 tests, rules eval unchanged (85%).
+Opus reviewer found a pre-existing gap (paypal_allows at CHARGEBACK with no options); added to R2. Cycle total: 6 S tasks merged (#58-#63), W 36→39 %.
+
 ## 2026-10-14 11:40 CDT | W 37→? % | F 11→? % | R4, R9 | merged #61, #62
 R4: PayPal Disputes v1 schema.json says evidence_info.refund_ids is an array of 1-100 plain strings, so the request was already right; mock now rejects malformed refund_ids with 400 INVALID_REQUEST, VERIFY until a live PROOF_OF_REFUND. Opus reviewer confirmed the write boundary and the schema independently.
 R9: evals.run and scripts.demo print only unless --save; README start commands unified (dropped REBUTTAL_ALLOW_OPEN_API, kept blank REBUTTAL_CHECKPOINT_URL), coverage 94%.
