@@ -111,7 +111,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 2. Trim `AllCommunityModule`; run one live Groq smoke check of the Studio assistant by hand. Then frontend slice 2: Studio polish, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
-3. Video script by **Oct 12**; rough cut Oct 23.
+3. Video script done (`docs/video-script.md`, A4); rough cut Oct 23.
 4. Render stays on the free plan, no spend (no paid plan unless Manish decides otherwise); the best-effort 10-minute
    keep-awake ping is `.github/workflows/keep-render-awake.yml` (A1). Feature freeze Nov 3. **Submit Nov 10** (deadline Nov 12).
    Delete the Render service Dec 22.

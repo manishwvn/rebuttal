@@ -112,8 +112,8 @@ same origin (`REBUTTAL_FRONTEND_DIR` overrides the folder). `/` shows a sign-in 
 The sign-in screen has a **Try the demo** link (`#demo`) that needs no token. Never set `VITE_API_TOKEN` on Render: the
 frontend build fails on purpose when it is set. `frontend/dist` is not committed.
 
-Verified on the live service (checked Oct 14): the Python runtime has Node and npm, and `/` serves the Vite build, so no
-extra step is needed. If a future build log says `npm: not found`,
+Verified: the live root `/` serves the dashboard (checked Oct 14), so no extra step is needed on the live service. If a
+future build log says `npm: not found`,
 add `pip install nodeenv && nodeenv --node=22.12.0 ../.node && . ../.node/bin/activate` before the `npm ci` step in
 `buildCommand`, or set the `NODE_VERSION` environment variable. Without a built frontend the API still starts and
 serves only `/api`.
@@ -121,7 +121,7 @@ serves only `/api`.
 ## Notes and open items
 
 - **Free plan trade-offs:** the service sleeps after 15 idle minutes and wakes on the next request, which takes about
-  a minute. A PayPal webhook that arrives while it sleeps may time out; PayPal retries deliveries, and the analysis is
+  50 s. A PayPal webhook that arrives while it sleeps may time out; PayPal retries deliveries, and the analysis is
   safe to repeat (a second analysis of the same dispute does nothing). Judges opening the app cold should expect that
   wait. `.github/workflows/keep-render-awake.yml` pings `APP_HEALTH_URL` (the variable from section 4) every 10 minutes, so the
   service rarely sleeps. It is best effort: GitHub may delay scheduled runs, so a cold start can still happen. It costs
