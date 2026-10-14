@@ -1,13 +1,13 @@
 """Run the agent end to end on the demo disputes (mock sandbox) and export what happened.
 
-    cd backend && python -m scripts.demo
-
-Prints each decision and writes preview_data.json, which the product preview page renders.
+    cd backend && python -m scripts.demo          # print each decision only
+    cd backend && python -m scripts.demo --save   # also write preview_data.json (tracked), which scripts.build_preview renders
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
 
@@ -52,8 +52,11 @@ def main() -> None:
         })
     data = {"mode": rt.mode, "now": rt.clock().isoformat(), "store": rt.store.name, "cases": cases,
             "evals": json.loads(EVALS.read_text()) if EVALS.exists() else None}
-    OUT.write_text(json.dumps(data, indent=2, default=str))
-    print(f"\nWrote {OUT.name} ({len(cases)} disputes, mode {rt.mode})")
+    if "--save" in sys.argv[1:]:
+        OUT.write_text(json.dumps(data, indent=2, default=str))
+        print(f"\nWrote {OUT.name} ({len(cases)} disputes, mode {rt.mode})")
+    else:
+        print(f"\n{len(cases)} disputes, mode {rt.mode}; nothing written (--save writes {OUT.name})")
 
 
 if __name__ == "__main__":

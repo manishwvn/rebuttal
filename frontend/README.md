@@ -58,6 +58,9 @@ end-to-end run. `e2e/build-guard.spec.ts` checks the refusal.
 The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` on the backend (comma separated, no
 wildcard). Playwright sets it for `http://localhost:4173`.
 
+Playwright starts its own backend, preview build and dev server (`reuseExistingServer` is false), so ports 8000, 4173 and
+5174 must be free: stop `uvicorn` and `npm run dev`/`vite preview` before `npm run e2e`, or it fails to start.
+
 ## Demo mode
 
 The judge demo is at the `#demo` route (for example `http://localhost:5173/#demo`). It needs no `VITE_API_TOKEN`: the

@@ -36,7 +36,7 @@ def fake_langfuse(monkeypatch, tmp_path):
 
 
 def test_langfuse_run_uploads_the_dataset_and_runs_every_case_traced(fake_langfuse, tmp_path):
-    summary = evals_run.run(force_rules=True, langfuse=True)
+    summary = evals_run.run(force_rules=True, langfuse=True, save=True)
     assert fake_langfuse["uploaded"] == [c["id"] for c in load_cases()]
     assert fake_langfuse["experiment"]["name"].startswith("rules-rules-baseline-")
     assert len(summary["rows"]) == len(fake_langfuse["outputs"]) == 20 and fake_langfuse["flushed"]
@@ -161,3 +161,12 @@ def test_save_run_names_the_held_out_set_separately(tmp_path, monkeypatch):
     base = {"provider": "groq", "model": "qwen/qwen3.8-27b", "date": "2026-10-07"}
     assert ev.save_run({**base, "set": "main"}).name == "groq-qwen3.8-27b-20261007.json"
     assert ev.save_run({**base, "set": "holdout"}).name == "groq-qwen3.8-27b-holdout-20261007.json"
+
+
+def test_a_run_saves_nothing_unless_save_is_given(fake_langfuse, tmp_path):
+    evals_run.run(force_rules=True)
+    assert not (tmp_path / "results").exists() and not (tmp_path / "RESULTS.md").exists()
+    evals_run.run(force_rules=True, only={"agent_wrong_size"}, save=True)  # a partial run is never saved
+    assert not (tmp_path / "results").exists()
+    evals_run.run(force_rules=True, save=True)
+    assert len(list((tmp_path / "results").glob("*.json"))) == 1 and (tmp_path / "RESULTS.md").exists()

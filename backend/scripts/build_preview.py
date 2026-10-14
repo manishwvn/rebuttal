@@ -1,6 +1,6 @@
 """Inject preview_data.json into preview/template.html -> preview/rebuttal-preview.html.
 
-    cd backend && python -m evals.run && python -m scripts.demo && python -m scripts.build_preview
+    cd backend && python -m evals.run --save && python -m scripts.demo --save && python -m scripts.build_preview
 """
 
 from pathlib import Path

@@ -66,7 +66,7 @@ GitHub Actions workflow `keep-render-awake.yml`: `curl` `https://rebuttal-oq3g.o
 month). This replaces the planned paid Render plan. Done when the workflow is merged and its first run is green.
 
 ### A2 Held-out eval — size S — done (this PR): model alone 80%, final 100%, results in `backend/evals/RESULTS.md`
-`cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse`. Report model-alone vs final
+`cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse --save`. Report model-alone vs final
 accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
@@ -108,7 +108,7 @@ StrictMode double-effect in `frontend/src/components/ConfirmDialog.tsx`); the pr
 a Playwright test against the dev server, fix the effect, keep StrictMode on.
 
 ### A8 Re-run the main eval on current code — size S — done Oct 14 (final 95%, model alone 75%, run groq-qwen3.8-27b-20261014-001228) — after Oct 11 (Oct 10 Groq run used by B3)
-The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse`
+The 90% main-set number predates guard rule `f4cb66d`. Run `uv run python -m evals.run --provider groq --langfuse --save`
 once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATUS.md` and the eval card in
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
 two do not share one day's Groq quota.
