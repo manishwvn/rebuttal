@@ -130,7 +130,7 @@ Grow to about 40 cases: 10 more held-out cases written by a subagent that is **n
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
 
-### B4 Automated demo video — size L — in review (PR #__PR__) [90%] (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
+### B4 Automated demo video — size L — in review (PR #68) [90%] (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from
 the A4 script via macOS `say` (pick a natural voice, export AIFF); `ffmpeg` (`brew install ffmpeg`) joins them,
 adds captions and title cards. Output `media/rebuttal-demo.mp4` (git-ignored; keep the script and the build command
