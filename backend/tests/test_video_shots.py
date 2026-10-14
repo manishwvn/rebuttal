@@ -19,10 +19,12 @@ IDS = [
     "edit",
     "confirm",
     "approved",
+    "analytics",
     "safety-graph",
     "safety-tests",
     "eval-held-out",
     "eval-main",
+    "live-proof",
     "close-pitch",
     "close-real",
 ]
@@ -44,7 +46,7 @@ def _script_section_7():
     return _collapse(text[start:] if end == -1 else text[start:end])
 
 
-def test_ids_are_the_sixteen_shots_in_order():
+def test_ids_are_the_eighteen_shots_in_order():
     ids = [shot["id"] for shot in _shots()]
     assert ids == IDS
     assert len(set(ids)) == len(ids)
@@ -56,15 +58,15 @@ def test_every_shot_has_narration_and_a_positive_minimum():
         assert shot["minSeconds"] > 0, shot["id"]
 
 
-def test_total_minimum_time_is_151_seconds_under_three_minutes():
+def test_total_minimum_time_is_170_seconds_under_three_minutes():
     total = sum(shot["minSeconds"] for shot in _shots())
-    assert total == 151
+    assert total == 170
     assert total < 180
 
 
-def test_badge_is_on_exactly_the_first_ten_shots():
+def test_badge_is_on_exactly_the_first_eleven_shots():
     badges = [shot["badge"] for shot in _shots()]
-    assert badges == [True] * 10 + [False] * 6
+    assert badges == [True] * 11 + [False] * 7
 
 
 def test_only_the_hook_shot_has_a_tag():
@@ -84,6 +86,11 @@ def test_only_the_decision_shot_has_script_text():
     assert with_script_text == ["decision"]
 
 
-def test_no_narration_mentions_ag_studio():
-    for shot in _shots():
-        assert "AG Studio" not in shot["narration"], shot["id"]
+def test_only_the_analytics_shot_mentions_ag_studio():
+    mentions = [shot["id"] for shot in _shots() if "AG Studio" in shot["narration"]]
+    assert mentions == ["analytics"]
+
+
+def test_live_proof_narration_claims_no_paypal_write():
+    live = next(shot for shot in _shots() if shot["id"] == "live-proof")
+    assert "Nothing was written to PayPal" in live["narration"]
