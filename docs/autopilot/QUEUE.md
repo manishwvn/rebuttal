@@ -54,7 +54,7 @@ Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK 
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
 First pass now: use it to check our Disputes calls and mock shapes against the SDK models, fix any drift, log it.
 
-### S2 More of the Disputes API — size M — in review (PR #PRNUM) — after Q4
+### S2 More of the Disputes API — size M — in review (PR #69) — after Q4
 Strengthens Best Use of PayPal + AI. Add the appeal and escalate paths and more evidence types (proof of
 fulfillment, refund, return tracking), each proposed by the agent and executed only by `execute` after approval,
 with deterministic `PayPal-Request-Id`, mock parity and tests. Look up shapes with the paypal plugin and APIMatic
