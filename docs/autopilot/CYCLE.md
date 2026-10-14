@@ -48,11 +48,12 @@ marked `size: S` this cycle.
 - `W >= 80`: do no work. If `LOG.md` has no `ALERT weekly-80 <resetsAt>` line yet, send the alert (section 5) with
   the numbers and the reset time, log that line, and stop. There is no slower pacing below 80%: the weekly budget is
   the same whether it is spent early or late, and early work matters more for the deadlines.
-- Sleep instead of idling (Oct 10, Manish: no hourly runs that can't work). Whenever a cycle ends with no task done
-  because of the weekly cap (`W >= C`, or `H` too small for any runnable task), call the scheduled-tasks tool
-  `update_scheduled_task` for `rebuttal-autopilot` with `fireAt` = weekly `resetsAt` + 10 minutes, so no run happens
-  until the reset. Do the same with `fireAt` = the earliest `after` date when every remaining task is date-gated.
-  A cycle that finds the task on a one-time `fireAt` (no cron) first restores `cronExpression: "12 * * * *"`.
+- Dynamic schedule (Oct 13, Manish: no fixed hourly runs; wake only when work can happen). The routine has no
+  cron; each run sets its own next one-time `fireAt`. Step 0 of the routine prompt sets a dead-man `fireAt` of now + 3
+  hours so a crashed run cannot end the chain. Last step of every cycle, including skips and failures: run
+  `python3 docs/autopilot/next_run.py --now <now ISO> --w W --f F --cap C --weekly-reset <weekly resetsAt>
+  --five-hour-reset <5-hour resetsAt> --runnable <runnable task count> [--next-after <earliest after date>]` and pass
+  its output as `fireAt` to `update_scheduled_task` for `rebuttal-autopilot`. No model or subagent is needed for this.
 - `F >= 85`: log `PAUSE 5h F%` and stop; the next cycle retries after the 5-hour window moves on.
 - Other scheduled tasks on this account (for example the ETF monitor) share the same budget; the numbers already
   include them.
@@ -61,9 +62,9 @@ marked `size: S` this cycle.
 
 ## 2b. Fill the 5-hour window
 
-The task runs every hour (at about :12-:15). Each cycle keeps working: after a task (or a team workflow) finishes,
+The task wakes when `next_run.py` says (section 2). Each cycle keeps working: after a task (or a team workflow) finishes,
 check usage again and pick the next runnable work while `F < 80`, `W < 80` and the cycle has run under 50 minutes, so
-the next hourly cycle finds the lock free. The 5-hour window resets at a fixed time (see `resetsAt`); spending it fully
+the next cycle finds the lock free. The 5-hour window resets at a fixed time (see `resetsAt`); spending it fully
 before the reset is free, so never leave it idle while there is runnable work.
 
 ## 3. Pick work and run the team
