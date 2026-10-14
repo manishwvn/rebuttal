@@ -194,8 +194,11 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
                 raise ApprovalError("This proposal has no buyer-facing message to edit")
             actions, decision = with_edited_text(state, approval["edited_message"])
         # Everything that can fail before the first byte is sent happens here: if any of it raises, nothing was sent.
-        audit.log(dispute_id, "approve", {"proposal": proposal_id, "by": approval["by"],
-                                          "edited": approval["status"] == "edited"})
+        # Once per proposal: a retry after a failed send must not add a second "approve" line.
+        if not any(r["step"] == "approve" and r["detail"].get("proposal") == proposal_id
+                   for r in audit.for_dispute(dispute_id)):
+            audit.log(dispute_id, "approve", {"proposal": proposal_id, "by": approval["by"],
+                                              "edited": approval["status"] == "edited"})
         pdf = None
         if any(a["kind"] in EVIDENCE_KINDS for a in actions):
             pdf = build_evidence_pdf(CaseFile.from_dict(state["case"]), Decision.from_dict(decision))

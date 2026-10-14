@@ -489,3 +489,20 @@ def test_approval_decision_schema():
                 {"decision": "reject", "edited_message": "x"}, {"decision": "edit", "edited_message": "x" * 2001}):
         with pytest.raises(ValidationError):
             ApprovalDecision(**bad)
+
+
+def test_approve_is_audited_once_per_proposal_across_a_failed_execute_and_retry(rt, monkeypatch):
+    from rebuttal import approval
+
+    p = rt.analyze("PP-D-2000")
+    real = approval.execute_action
+
+    def answer_503(*args, **kwargs):
+        raise PayPalError(503, {"name": "SERVICE_UNAVAILABLE"})
+
+    monkeypatch.setattr(approval, "execute_action", answer_503)
+    with pytest.raises(PayPalError):
+        rt.approvals.approve(p.id)
+    monkeypatch.setattr(approval, "execute_action", real)
+    assert rt.approvals.retry(p.id).status == "EXECUTED"
+    assert steps(rt, "PP-D-2000").count("approve") == 1

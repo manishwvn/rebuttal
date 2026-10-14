@@ -57,8 +57,9 @@ class AuditLog:
             "step": step,
             "detail": detail,
         }
-        self.records.append(record)
-        if self._pool:
+        if self._pool is None:
+            self.records.append(record)  # with a database, for_dispute reads it: no unbounded in-process copy
+        else:
             with self._pool.connection() as conn:
                 conn.execute("INSERT INTO rebuttal_audit (ts, dispute_id, step, detail) VALUES (%s, %s, %s, %s)",
                              (record["ts"], dispute_id, step, Jsonb(json.loads(json.dumps(detail, default=str)))))
@@ -82,4 +83,5 @@ class AuditLog:
                                     "WHERE dispute_id = %s ORDER BY id", (dispute_id,)).fetchall()
             return [{"ts": r["ts"].isoformat(timespec="seconds"), "dispute_id": r["dispute_id"], "step": r["step"],
                      "detail": r["detail"]} for r in rows]
+        # File-only (dev) mode reads this process's records, not the JSONL file: after a restart it starts empty.
         return [r for r in self.records if r["dispute_id"] == dispute_id]
