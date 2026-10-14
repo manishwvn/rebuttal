@@ -54,6 +54,9 @@ export function hoursLabel(hours: number): string {
   return h >= 48 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : `${Math.round(h)}h`
 }
 
+// Time left to respond; negative hours mean the due date has passed.
+export const deadlineLabel = (hours: number) => (hours < 0 ? 'Overdue' : `${hoursLabel(hours)} left to respond`)
+
 export const urgency = (hours: number) => (hours < 48 ? 'bad' : hours < 96 ? 'warn' : 'good')
 
 export const ageHours = (iso: string, now = Date.now()) => Math.max(0, (now - Date.parse(iso)) / 3_600_000)
