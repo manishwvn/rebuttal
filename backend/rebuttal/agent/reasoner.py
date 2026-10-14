@@ -65,14 +65,16 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
     """False when PayPal's allowed_response_options (or, if it gave none, the proven fallback) rule it out."""
     options, _ = effective_options(case.allowed_response_options, case.reason, case.stage)
     need = PAYPAL_REQUIRES.get(resolution)
-    if need is None or options is None:
+    if need is None:
         return True
     action, kind = need
+    if options is None:
+        # PayPal gives no list at a chargeback, and offers are not possible there.
+        return not (case.stage == "CHARGEBACK" and action == "make_offer")
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
     return kind in options.get(action, {}).get(key, [])
 
 
-DAMAGE_WORDS = policies.DAMAGE_WORDS
 TEMPERATURE = 0.0  # evals and the demo should repeat; the models still vary a little at 0
 
 
@@ -114,8 +116,10 @@ class RuleReasoner:
         )
 
     def _pick(self, case: CaseFile) -> tuple[str, float, list[str]]:
-        f, msg = case.facts, case.last_buyer_message.lower()
+        f = case.facts
         reason = case.reason
+        if f.get("order_found") is False:
+            return "SUBMIT_EVIDENCE", 0.3, ["No merchant order record; needs merchant review."]
 
         if reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED":
             if not f.get("has_tracking"):
@@ -133,8 +137,8 @@ class RuleReasoner:
         if reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED":
             if f.get("is_agent_purchase") and not f.get("agent_followed_instruction", True):
                 return "OFFER_REPLACEMENT", 0.8, ["The buyer's assistant ordered a different variant than instructed."]
-            if any(w in msg for w in DAMAGE_WORDS):
-                if case.amount < policies.SMALL_ITEM_REFUND_THRESHOLD:
+            if f.get("buyer_reports_damage"):
+                if f.get("refund_without_return_eligible"):
                     return "ACCEPT_CLAIM", 0.8, ["Damaged and under $20: refund without return."]
                 return "OFFER_REPLACEMENT", 0.75, ["Damaged in transit; replace it."]
             if f.get("within_return_window", False):
@@ -284,7 +288,9 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         base = RuleReasoner().decide(case)
         base.guard_notes = notes + [why, f"Fell back to rules: {base.resolution}."]
         base.source = f"{decision.source}+guard"
-        return base
+        # Cannot loop: rules pick SHARE_TRACKING only when tracking exists, SUBMIT_REFUND_PROOF only when a refund
+        # exists, and never an unknown resolution, so this second pass returns without falling back again.
+        return guard(base, case)
 
     if decision.resolution not in RESOLUTIONS:
         return fallback(f"Unknown resolution '{decision.resolution}'.")
@@ -360,6 +366,10 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             decision.confidence = min(decision.confidence, 0.3)
             notes.append(f"{wanted} is not possible on this dispute and there is no close alternative; "
                          "the merchant must resolve it in Resolution Center.")
+    if decision.resolution in ("ACCEPT_CLAIM", "OFFER_REPLACEMENT") and f.get("order_found") is False:
+        decision.confidence = min(decision.confidence, 0.3)
+        notes.append("No merchant order record, so nothing shows the sale or shipment; the merchant must review before "
+                     "approving.")
     if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
             and f.get("shipment_status") == "DELIVERED" and f.get("delivered_address_matches") is True
             and f.get("buyer_asks_for_refund") is False):
