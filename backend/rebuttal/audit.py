@@ -57,8 +57,9 @@ class AuditLog:
             "step": step,
             "detail": detail,
         }
-        self.records.append(record)
-        if self._pool:
+        if self._pool is None:
+            self.records.append(record)  # with a database, for_dispute reads it: no unbounded in-process copy
+        else:
             with self._pool.connection() as conn:
                 conn.execute("INSERT INTO rebuttal_audit (ts, dispute_id, step, detail) VALUES (%s, %s, %s, %s)",
                              (record["ts"], dispute_id, step, Jsonb(json.loads(json.dumps(detail, default=str)))))
