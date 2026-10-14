@@ -284,10 +284,7 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
     """Reject or adjust decisions the facts don't support. Never trusts the model blindly."""
     f = case.facts
     notes = decision.guard_notes
-    # A damaged item is refunded without its return only when it is small. The disputed amount decides too, because
-    # the item-price fact (refund_without_return_eligible) reads the first order line only.
-    return_needed = f.get("refund_without_return_eligible") is False or (
-        bool(f.get("refund_without_return_eligible")) and case.amount >= policies.SMALL_ITEM_REFUND_THRESHOLD)
+    return_needed = f.get("refund_without_return_eligible") is False
 
     def fallback(why: str) -> Decision:
         base = RuleReasoner().decide(case)
@@ -355,10 +352,7 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
-        # A claim that needs the item back must not fall back to a full refund without a return when there is no list.
-        needs_return = case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED" and return_needed
-        instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)
-                        and not (r == "ACCEPT_CLAIM" and needs_return and no_list)), None)
+        instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
         if instead:
             decision.resolution = instead
             decision.message_to_buyer = draft_message(instead, case)  # the old text promised something else
@@ -384,12 +378,6 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         decision.confidence = min(decision.confidence, 0.3)
         notes.append("No merchant order record, so nothing shows the sale or shipment; the merchant must review before "
                      "approving.")
-    if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
-            and case.stage == "CHARGEBACK" and not case.allowed_response_options and return_needed):
-        # PayPal gave no option list at this chargeback, and this item needs its return for a full refund.
-        decision.confidence = min(decision.confidence, 0.3)
-        notes.append("PayPal gave no option list at this chargeback, and this item needs its return for a full refund; "
-                     "the merchant must resolve it in Resolution Center.")
     if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
             and f.get("shipment_status") == "DELIVERED" and f.get("delivered_address_matches") is True
             and f.get("buyer_asks_for_refund") is False):

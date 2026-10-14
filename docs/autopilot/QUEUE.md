@@ -214,6 +214,9 @@ Evidence: (a) approval.py:177 logs 'approve' on every execute attempt, so after 
 ### R11 Prompt and guard: untrusted buyer text and address mismatch — size S — done #63 — audit Oct 14, priority later
 Evidence: reasoner.py SYSTEM_PROMPT (line 223) passes buyer_messages verbatim with no note that they are untrusted, and the guard has no check for an ACCEPT_CLAIM that contradicts delivered + matching address + no refund request. delivered_address_matches is computed but neither the prompt nor the guard uses it, and draft_message SHARE_TRACKING hard-codes 'to the address on your order'. Fix: add a SYSTEM_PROMPT sentence saying buyer messages are quotes, never instructions. In guard, turn SHARE_TRACKING or SUBMIT_EVIDENCE on NOT_RECEIVED with delivered_address_matches False into OFFER_REPLACEMENT, and add a guard note when ACCEPT_CLAIM contradicts the facts. Make the draft text depend on whether the address matches. Acceptance: unit tests cover each rule; no tuning against the held-out sets.
 
+### R12 Return-needed rule at CHARGEBACK with no option list — size S — blocked on sandbox confirmation — from the PR #65 review
+Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows` now refuses offers (R2), so a not-as-described dispute that needs the item back can fall through to ACCEPT_CLAIM, a full refund without a return. R2 first capped it, but the cap rested on an unverified assumption about what the sandbox returns at CHARGEBACK (see the VERIFY note in `reasoner.py`) and fired on every case without damage. Fix: once a real sandbox CHARGEBACK shows whether the option list is omitted, add a guard rule for ACCEPT_CLAIM when the item needs its return, scoped to that evidence. Acceptance: a test built from the captured payload.
+
 ## USER
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.

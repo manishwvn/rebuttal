@@ -112,13 +112,25 @@ def test_damage_is_read_from_facts_not_from_the_last_buyer_message():
     resolution, confidence, _ = RuleReasoner()._pick(case)
     assert (resolution, confidence) == ("OFFER_REPLACEMENT", 0.75)
 
-    case.facts["refund_without_return_eligible"] = True  # a small item by price, whatever the claim amount says
+    case.facts["refund_without_return_eligible"] = True  # the fact says a small item, so the rules refund it without a return
     resolution, confidence, _ = RuleReasoner()._pick(case)
     assert (resolution, confidence) == ("ACCEPT_CLAIM", 0.8)
 
     case.facts.update(buyer_reports_damage=False, refund_without_return_eligible=False)
     resolution, _, _ = RuleReasoner()._pick(case)
     assert resolution == "OFFER_RETURN_FOR_REFUND"
+
+
+def test_damage_message_through_facts_picks_replacement_for_a_big_item():
+    """The spec's third acceptance test: real facts from the buyer's messages, not hand-set ones."""
+    case = _gather("snad_changed_mind")
+    case.amount = 100.0
+    case.buyer_messages = ["It arrived broken.", "Any update?"]
+    case.facts = _compute_facts(case.order, None, None, case.amount, DEMO_NOW, case.buyer_messages)
+    assert case.facts["buyer_reports_damage"] is True
+    assert case.facts["refund_without_return_eligible"] is False
+    resolution, _, _ = RuleReasoner()._pick(case)
+    assert resolution == "OFFER_REPLACEMENT"
 
 
 def test_chargeback_without_a_paypal_list_allows_no_offer():
@@ -148,26 +160,6 @@ def test_inquiry_without_a_paypal_list_and_the_proven_fallback_are_unchanged():
     case.allowed_response_options = None
     assert not paypal_allows("OFFER_REPLACEMENT", case)
     assert paypal_allows("OFFER_RETURN_FOR_REFUND", case) and paypal_allows("ACCEPT_CLAIM", case)
-
-
-@pytest.mark.parametrize(
-    "case_id, resolution",
-    [
-        ("snad_damaged_high_value", "ACCEPT_CLAIM"),
-        ("snad_damaged_high_value", "OFFER_RETURN_FOR_REFUND"),
-        ("snad_damaged_high_value", "OFFER_REPLACEMENT"),
-        ("snad_changed_mind", "OFFER_RETURN_FOR_REFUND"),
-        ("snad_changed_mind", "OFFER_REPLACEMENT"),
-        ("snad_changed_mind", "ACCEPT_CLAIM"),
-    ],
-)
-def test_chargeback_without_a_list_never_refunds_a_return_claim_in_full(case_id, resolution):
-    case = _gather(case_id)
-    case.stage = "CHARGEBACK"
-    case.allowed_response_options = None
-    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
-    assert not (d.resolution == "ACCEPT_CLAIM" and d.confidence > 0.3)
-    assert d.confidence <= 0.3
 
 
 def test_chargeback_without_a_list_note_says_no_list_was_given():
@@ -248,12 +240,3 @@ def test_damaged_small_claim_is_still_refunded_without_return():
     case.facts = _compute_facts(case.order, None, None, 15.0, DEMO_NOW, case.buyer_messages)
     d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "ACCEPT_CLAIM" and d.confidence == 0.9
-
-
-def test_chargeback_full_refund_without_a_list_and_no_return_is_capped():
-    case = _gather("snad_changed_mind")
-    case.stage = "CHARGEBACK"
-    case.allowed_response_options = None
-    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
-    assert d.resolution == "ACCEPT_CLAIM" and d.confidence <= 0.3
-    assert any("no option list" in n and "Resolution Center" in n for n in d.guard_notes)
