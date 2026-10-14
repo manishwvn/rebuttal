@@ -29,4 +29,6 @@ test('a failed first inbox load shows a failed state and Retry loads the dispute
   await expect(page.getByTestId('waiting')).toBeVisible()
   await expect(page.getByTestId('inbox-retry')).toHaveCount(0)
   await expect(page.getByTestId('app-error')).toHaveCount(0)
+  // selectedId is null on a fresh load, so this text shows only once the disputes have loaded.
+  await expect(page.getByText('Pick a dispute in the inbox to see what the agent proposes.')).toBeVisible()
 })
