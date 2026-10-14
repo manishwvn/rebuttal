@@ -19,8 +19,8 @@ I could not verify how the credit is issued, so check the source rather than tru
 2. Create or log in to your account at <https://dashboard.render.com>.
 3. Apply it in Render: **Account / Workspace Settings > Billing**, then the credits or promo code field (the exact
    label may differ).
-4. `render.yaml` uses the **free** plan, so the credit is optional. Keep it for upgrading to an always-on paid
-   instance (`plan: 0.5c-512mb`, roughly $7/month, so $50 covers it through Dec 15) if the cold starts below bother you.
+4. `render.yaml` uses the **free** plan, so the credit is not needed. We plan no paid instance (no spend unless Manish
+   decides otherwise); the keep-awake ping in the Notes section reduces cold starts instead.
 
 ## 2. Deploy from GitHub
 
@@ -112,7 +112,8 @@ same origin (`REBUTTAL_FRONTEND_DIR` overrides the folder). `/` shows a sign-in 
 The sign-in screen has a **Try the demo** link (`#demo`) that needs no token. Never set `VITE_API_TOKEN` on Render: the
 frontend build fails on purpose when it is set. `frontend/dist` is not committed.
 
-Assumption, not yet verified on Render: the Python runtime ships Node and npm. If the build log says `npm: not found`,
+Verified: the live root `/` serves the dashboard (checked Oct 14), so no extra step is needed on the live service. If a
+future build log says `npm: not found`,
 add `pip install nodeenv && nodeenv --node=22.12.0 ../.node && . ../.node/bin/activate` before the `npm ci` step in
 `buildCommand`, or set the `NODE_VERSION` environment variable. Without a built frontend the API still starts and
 serves only `/api`.
@@ -120,9 +121,11 @@ serves only `/api`.
 ## Notes and open items
 
 - **Free plan trade-offs:** the service sleeps after 15 idle minutes and wakes on the next request, which takes about
-  a minute. A PayPal webhook that arrives while it sleeps may time out; PayPal retries deliveries, and the analysis is
+  50 s. A PayPal webhook that arrives while it sleeps may time out; PayPal retries deliveries, and the analysis is
   safe to repeat (a second analysis of the same dispute does nothing). Judges opening the app cold should expect that
-  wait. The daily keep-alive ping keeps Supabase awake but does not keep Render awake.
+  wait. `.github/workflows/keep-render-awake.yml` pings `APP_HEALTH_URL` (the variable from section 4) every 10 minutes, so the
+  service rarely sleeps. It is best effort: GitHub may delay scheduled runs, so a cold start can still happen. It costs
+  nothing (public repo). The daily Supabase keep-alive is separate and does not touch Render.
 - Mock instead of the real sandbox: set `REBUTTAL_MOCK=1` in Render. Then the in-memory sandbox plus the judge
   simulator (`/api/simulator/dispute/{case}`) run, and webhooks are accepted without a webhook id. Paused proposals
   and the audit log are then in memory (lost on restart) unless `REBUTTAL_MOCK_USE_DATABASE=1`.

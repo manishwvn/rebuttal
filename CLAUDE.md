@@ -69,9 +69,13 @@ backend/
   rebuttal/runtime.py       wiring            app.py     FastAPI (dashboard API, webhook, simulator)
   rebuttal/scenarios.py     labeled case -> sandbox state
   rebuttal/demo.py, demo_api.py  judge demo: per-visitor mock Runtime + public /api/demo routes
+  rebuttal/analytics.py     read-only analytics rows, summary and deadlines over disputes (pure functions)
+  rebuttal/studio_ai.py     read-only, token-gated Groq proxy for the AG Studio assistant (no PayPal client)
+  rebuttal/agent/toolkit.py read-only PayPal tools in PayPal's agent toolkit shape, over client.read_only()
   evals/cases.json, run.py  20 labeled disputes, accuracy report (--langfuse records an experiment)
   scripts/spike_sandbox.py  Gate 1 real-sandbox test     scripts/demo.py   demo run -> preview_data.json
   scripts/build_preview.py  preview page from template
+frontend/                   React + Vite dashboard: AG Grid inbox and case view, AG Studio analytics tab
 preview/                    template.html -> rebuttal-preview.html (design target for the React app)
 ```
 
@@ -99,12 +103,7 @@ a verified webhook, then gather > decide > guard > propose, and paused at the ap
 A live order maps to a merchant record when its invoice is `RB-<case id>-<n>`: make one with
 `uv run python -u -m scripts.make_test_order --case agent_wrong_size` (see `scripts/make_test_order.py`).
 
-Next, in order:
-
-1. Frontend (`frontend/`, none yet): inbox of disputes, case view (facts, reasoning, drafted message), approve / edit /
-   reject against `/api/proposals/*`, using the `preview/` page as the design target.
-2. AG Grid dashboard (AG Studio, custom widgets, theming): the main sponsor-prize target.
-3. Video script by Oct 12; rough cut by end of Week 3. Then the remaining Week 2-5 items in `PLAN.md`.
+The ordered task list lives in `docs/autopilot/QUEUE.md`. `STATUS.md` has the detail.
 
 ## Tooling
 

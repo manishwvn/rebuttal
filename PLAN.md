@@ -25,7 +25,7 @@ Judging Dec 1–15, winners ~Dec 21. Owner: Manish. Builder: Claude Code. Strate
   subscription form on Nov 10, because the sponsor prize depends on it.
 - **Bryntum: backup only.** Build the Scheduler deadline board only if AG Studio work finishes early. It does not
   block anything.
-- **The 3-minute video is a top priority.** Script this week (by Oct 12), rough cut by end of Week 3 (Oct 23),
+- **The 3-minute video is a top priority.** Script done (due Oct 12; `docs/video-script.md`), rough cut by end of Week 3 (Oct 23),
   final in Week 5. Judges often score from the video alone.
 - **Feedback loop:** in Week 3, post a preview in the Discord AG Grid and general channels and ask for judge-style
   feedback. Fold what comes back into Week 4.
@@ -79,7 +79,7 @@ The PayPal client, approval gate, audit log and eval harness carry over, so the 
 
 - **Feature freeze Nov 3.** After that only fixes, docs and video.
 - README with setup, sandbox test credentials, eval table, and how each sponsor tool is used.
-- Final video under 3 minutes (script in `docs/pitches.md`, drafted by Oct 12, rough cut by Oct 23), uploaded public on YouTube.
+- Final video under 3 minutes (script done in `docs/video-script.md`, rough cut by Oct 23), uploaded public on YouTube.
 - Devpost write-up, APIMatic subscription form (with the log of where the plugin helped), license check, submit **Nov 10**.
 
 ## Persistence: Supabase (decided Oct 7, replaces the paid Render Postgres plan)
@@ -88,7 +88,7 @@ Render web services have an ephemeral filesystem, so a SQLite file is lost on ev
 for approval would vanish. **Decision: the free Supabase Postgres** (project `rebuttal`, us-east-1, $0/month), used
 by `langgraph-checkpoint-postgres` for paused proposals and by the audit log (`rebuttal_audit` table). Both switch on
 when `DATABASE_URL` is a `postgresql://` URL; without it the app keeps SQLite (or memory in mock mode), so judges can
-run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed (free plan for now, see `render.yaml`).
+run locally with no setup. This drops the roughly $6 Render Postgres line; the Render web service is still needed (free plan, see `render.yaml`, with the best-effort 10-minute keep-awake ping in `.github/workflows/keep-render-awake.yml`).
 
 - Connection mode: **session pooler, port 5432** (`aws-0-us-east-1.pooler.supabase.com`, user `postgres.<ref>`).
   Supabase docs: direct connections are IPv6-only on the free plan, session mode is "for persistent clients on
@@ -105,7 +105,7 @@ run locally with no setup. This drops the roughly $6 Render Postgres line; the R
 - The password lives only in `backend/.env` (`DATABASE_URL`) and, on deploy, in Render's environment variables.
 - Render: `rootDir: backend`, pin `PYTHON_VERSION` to a full 3.12.x. Start command:
   `uv run uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT` (our inference; Render documents only `uv sync`).
-  Not verified: how the hackathon credits apply, and whether 512 MB is enough.
+  Not verified: whether 512 MB is enough.
 
 ## Observability
 
@@ -119,7 +119,7 @@ the dispute id and model, one session per dispute. The 20 eval cases are a Langf
 |---|---|
 | Sandbox dispute creation is fiddly (buyer consent + auth header) | Resolution Center by hand for the demo; API creation only for the simulator |
 | AG Studio watermark or trial limits before judging ends Dec 15 | AG Grid confirmed the watermark isn't penalized. The video and screenshots carry the sponsor features either way |
-| Render free tier sleeps; judges see a cold start | Use the $50 participant credits for an always-on instance through Dec 15 |
+| Render free tier sleeps; judges see a cold start | Free plan, no spend: `.github/workflows/keep-render-awake.yml` pings every 10 minutes (best effort). No paid plan unless Manish decides otherwise |
 | Another entrant ("Witness") covers AI-assistant dispute evidence | Our pitch is prevention for all disputes; the assistant case is one showcase |
 | Video overloaded | One hero case, two cutaways, eval number on screen |
 | Scope creep | Freeze Nov 3; Elastic and extra sponsor work are cut first |

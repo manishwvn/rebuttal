@@ -1,11 +1,11 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (daily audit + R1 mock database isolation; before that C2 submission docs; before that A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (R8 stale docs fixed; before that daily audit + R1 mock database isolation; before that C2 submission docs; before that A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md`. An hourly cron fires it; the
 wake file `~/.rebuttal-autopilot/next-wake` (written by `docs/autopilot/next_run.py` from usage) skips runs that cannot
 work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`; completion percent:
-`python3 docs/autopilot/progress.py` (48% on Oct 14 after the daily audit added R1-R11), logged after every run.
+`python3 docs/autopilot/progress.py` (52% on Oct 14 after R3, R6 and R8 merged), logged after every run.
 
 **Prize strategy:** `docs/prize-fit.md` (prizes, rules, competition, decisions; read Oct 9 from Devpost and Discord).
 
@@ -13,7 +13,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 
 - **Daily audit Oct 14 + R1:** audit added R1-R11 to `docs/autopilot/QUEUE.md` (guard fallback, duplicate-charge fact, API 500s, deadline clock, stale docs). R1 fixed: mock mode (`REBUTTAL_MOCK=1`, the default) no longer writes checkpoints or audit rows to `DATABASE_URL` unless `REBUTTAL_MOCK_USE_DATABASE=1`; `tests/live_postgres.py` opts in. Stray mock rows (`PP-D-2000`) remain in Supabase; harmless.
 - **Submission docs (C2, branch `autopilot/c2-submission-docs`, docs only):** judge-ready `README.md` (quickstart, Mermaid architecture, safety design, eval table copied from `backend/evals/RESULTS.md`, sponsor use, credits), drafts `docs/devpost.md`, `docs/discord-preview.md`, `docs/apimatic-form.md`. Nothing posted or submitted. APIMatic evidence is thin (2 logged checks, no code changed). Checked live Oct 14: `/api/health` ok, `/` serves the dashboard, `POST /api/demo/sessions` 200. Not verified: full demo click-through on the deployed service (only `/api/health`, `/` and `POST /api/demo/sessions` were checked). USER item U2 added (ready Oct 23).
-- **Q4 (branch `feat/q4-sandbox-dispute`, PR open):** `backend/scripts/make_sandbox_dispute.py` opens a sandbox dispute as the buyer business account (`PAYPAL_BUYER_CLIENT_ID/SECRET`) via `PayPalClient.create_dispute`. Not yet run against the real sandbox; request body carries a VERIFY note. Manual step: the buyer approves the order link once.
+- **Q4 (branch `feat/q4-sandbox-dispute`, merged as #42):** `backend/scripts/make_sandbox_dispute.py` opens a sandbox dispute as the buyer business account (`PAYPAL_BUYER_CLIENT_ID/SECRET`) via `PayPalClient.create_dispute`. Not yet run against the real sandbox; request body carries a VERIFY note. Manual step: the buyer approves the order link once.
 - **Live backend:** Render free plan, service `rebuttal` (render.yaml names it `rebuttal-api`), id
   `srv-db3179ss728c73b0do1g`, `https://rebuttal-oq3g.onrender.com`, health `/api/health`. Real PayPal sandbox
   (`REBUTTAL_MOCK=0`), Groq as the model (`GROQ_MODEL` unset on Render, so the code default `qwen/qwen3.8-27b`),
@@ -91,7 +91,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   approve button still runs the one `execute` node, on the mock. Every other `/api` route keeps the token
   (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
   `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
-- **Tests:** 398 pass (backend), 29 Playwright tests (27 run, 2 skipped); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **Tests:** 480 pass (backend, `uv run pytest -q`), 47 Playwright tests (`npx playwright test --list`; some skip unless `SCREENSHOTS=1`); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
 
 ## Known issues (analytics)
 
@@ -108,11 +108,12 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 ## Next, in order
 
 1. Autopilot queue: `docs/autopilot/QUEUE.md` (source of truth for what is next).
-2. Trim `AllCommunityModule`; run one live Groq smoke check of the Studio assistant by hand. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
+2. Trim `AllCommunityModule`; run one live Groq smoke check of the Studio assistant by hand. Then frontend slice 2: Studio polish, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
-3. Video script by **Oct 12**; rough cut Oct 23.
-4. Render paid plan by **Nov 1** (use the $50 credit). Feature freeze Nov 3. **Submit Nov 10** (deadline Nov 12).
+3. Video script done (`docs/video-script.md`, A4); rough cut Oct 23.
+4. Render stays on the free plan, no spend (no paid plan unless Manish decides otherwise); the best-effort 10-minute
+   keep-awake ping is `.github/workflows/keep-render-awake.yml` (A1). Feature freeze Nov 3. **Submit Nov 10** (deadline Nov 12).
    Delete the Render service Dec 22.
 
 ## Open decisions
@@ -136,7 +137,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 
 - **Groq daily quota (200k tokens) is shared** by the live service and every eval run; a heavy eval day can starve
   live analyses (they then fall back to the rules baseline and say so in the guard notes).
-- **Free Render cold starts** (about 50 s after 15 idle minutes); a webhook that arrives while it sleeps may time out
+- **Free Render cold starts** (about 50 s after 15 idle minutes; the keep-awake ping runs every 10 minutes but is best effort, so a cold start can still happen); a webhook that arrives while it sleeps may time out
   (PayPal retries; repeating an analysis is harmless).
 - Render also has `NVIDIA_API_KEY` and `REBUTTAL_MODEL` set although the blueprint does not list them; check
   `REBUTTAL_MODEL` is still a `claude-*` name or empty, because any other value is read as the NVIDIA model name.

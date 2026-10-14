@@ -7,6 +7,11 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 11:11 CDT | W 36→37 % | F 3→11 % | R3, R6, R8 | merged #58, #59, #60
+Three disjoint S tasks in parallel worktrees: Sonnet builders for R3 (facts.py duplicate filter: settled 'S' and same or missing invoice, VERIFY note on DUPLICATE_INVOICE_ID) and R6 (hours_left recomputed from the runtime clock at read time, Overdue pill), Haiku chores for R8 docs.
+Reviewers: Opus on R3 (write boundary and guard confirmed intact, 26 boundary tests pass), Sonnet on R6 and R8; every should-fix fixed in one round. #59 conflicted with #58 in test_core.py (both added tests); kept both, 487 pass.
+A reviewer ran evals in the main checkout and left RESULTS.md modified; restored from HEAD. Reviewer prompts must say: never run evals.
+
 ## 2026-10-14 08:31 CDT | W 34→? % | F 69→? % | R5 | merged (this PR)
 Sonnet agent: webhook returns 400 for non-JSON or non-object bodies and ignores a null resource; list/analyze map PayPal 404 to 404 and other PayPal or transport errors to 502 (helper `paypal_read_failed`, logs status and debug_id only); 11 new tests (480 pass).
 Lead slip in #55: merged before the docs-only fixup commit's CI finished; it then passed. From now on wait on `gh pr checks` for the last pushed commit.
