@@ -91,6 +91,42 @@ ${flow}
   return page("How a dispute moves through Rebuttal", css, body);
 }
 
+const PROOF_STEPS: ReadonlyArray<{ readonly text: string; readonly cls: string }> = [
+  { text: "Buyer files a dispute in the PayPal sandbox", cls: "" },
+  {
+    text: "Signed webhook CUSTOMER.DISPUTE.CREATED arrives (about 4 minutes later), signature verified",
+    cls: "wide",
+  },
+  { text: "gather, decide, guard, propose (reads only)", cls: "" },
+  { text: "Paused at the approval gate", cls: "last" },
+];
+
+export function liveProofCard(): string {
+  const boxes = PROOF_STEPS.map(
+    (step) => `<div class="box ${step.cls}">${escapeHtml(step.text)}</div>`,
+  );
+  const flow = boxes.join('\n<span class="arrow">&rarr;</span>\n');
+  const css = `
+.sub { font-size: 26px; line-height: 1.35; margin: 0 0 56px; }
+.flow { display: flex; align-items: stretch; margin: auto 0; }
+.box { flex: 1 1 0; min-width: 0; min-height: 170px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center; background: #ffffff; border: 1px solid ${BORDER}; border-radius: 10px; padding: 16px 12px; font-size: 24px; line-height: 1.25; }
+.box.wide { flex-grow: 1.6; }
+.box.last { background: ${ACCENT}; border-color: ${ACCENT}; color: #ffffff; }
+.arrow { flex: 0 0 28px; display: flex; align-items: center; justify-content: center; font-size: 30px; }`;
+  const body = `<!-- Facts from STATUS.md (Webhook proven live, Hero case correct live); no live call made for the video. -->
+<section class="content">
+<h1>${escapeHtml("Proof on the real PayPal sandbox")}</h1>
+<p class="sub">${escapeHtml(
+    "Rebuttal on Render, October 7, 2026. A dispute filed by a buyer account.",
+  )}</p>
+<div class="flow">
+${flow}
+</div>
+</section>
+<p class="footer">${escapeHtml("PayPal writes before approval: 0")}</p>`;
+  return page("Proof on the real PayPal sandbox", css, body);
+}
+
 function trimTrailingBlank(lines: string[]): string[] {
   let end = lines.length;
   while (end > 0 && lines[end - 1].trim() === "") {
