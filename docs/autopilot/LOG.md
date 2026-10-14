@@ -1,5 +1,8 @@
 # Autopilot log
 
+## 2026-10-14 07:35 CDT | W 27→? % | F 19→? % | C2 | merged #53
+Took C2 (docs) instead of S2: S2 needs a strict team-cycle run that will not fit the rest of this cycle. Sonnet wrote the README rework, docs/devpost.md, docs/discord-preview.md and docs/apimatic-form.md. The Sonnet reviewer caught the judge steps promising a model first choice and a guard change that the offline demo does not show, plus stale coverage (now 93%, 469 tests). All fixed.
+
 ## 2026-10-14 07:11 CDT | W 26→? % | F 8→? % | B1 part 3 | merged #52
 Stale lock (04:11, 180 min) taken over; that cycle's team-cycle workflow had died after building and auditing 4 of 5 pieces. Salvaged them by cherry-pick, Sonnet integrator built p3 (Studio wiring, edit-mode toggle, since ag-studio 3.0.0 exposes `ai` only in edit mode) and opened #52. Sonnet reviewer, 3 rounds: shared Groq TokenBudget with the dispute agent (try_reserve), fixed an event-loop stall (reserve slept holding the budget lock), cancel on upstream failure, ADR 0010 + CLAUDE.md carve-out for the second model path.
 Not verified live: no real Groq turn yet (B2 left items).

@@ -1,6 +1,6 @@
 # STATUS
 
-Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
+Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (C2 submission docs; before that A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
 **Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md`. An hourly cron fires it; the
 wake file `~/.rebuttal-autopilot/next-wake` (written by `docs/autopilot/next_run.py` from usage) skips runs that cannot
@@ -11,6 +11,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 
 ## Where we are
 
+- **Submission docs (C2, branch `autopilot/c2-submission-docs`, docs only):** judge-ready `README.md` (quickstart, Mermaid architecture, safety design, eval table copied from `backend/evals/RESULTS.md`, sponsor use, credits), drafts `docs/devpost.md`, `docs/discord-preview.md`, `docs/apimatic-form.md`. Nothing posted or submitted. APIMatic evidence is thin (2 logged checks, no code changed). Checked live Oct 14: `/api/health` ok, `/` serves the dashboard, `POST /api/demo/sessions` 200. Not verified: full demo click-through on the deployed service (only `/api/health`, `/` and `POST /api/demo/sessions` were checked). USER item U2 added (ready Oct 23).
 - **Q4 (branch `feat/q4-sandbox-dispute`, PR open):** `backend/scripts/make_sandbox_dispute.py` opens a sandbox dispute as the buyer business account (`PAYPAL_BUYER_CLIENT_ID/SECRET`) via `PayPalClient.create_dispute`. Not yet run against the real sandbox; request body carries a VERIFY note. Manual step: the buyer approves the order link once.
 - **Live backend:** Render free plan, service `rebuttal` (render.yaml names it `rebuttal-api`), id
   `srv-db3179ss728c73b0do1g`, `https://rebuttal-oq3g.onrender.com`, health `/api/health`. Real PayPal sandbox
