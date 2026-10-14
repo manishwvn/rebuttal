@@ -235,11 +235,12 @@ Read these honestly:
   it in edit mode). Studio ships no model, so the adapter ([`studioAiAdapter.ts`](frontend/src/components/analytics/studioAiAdapter.ts))
   talks to a token-protected, read-only backend proxy to Groq ([`studio_ai.py`](backend/rebuttal/studio_ai.py)). The key
   stays on the server, the proxy cannot reach PayPal, and it shares the dispute agent's Groq budget
-  ([ADR 0010](docs/adr/0010-studio-assistant-proxy.md)). It is hidden when no Groq key is set. **Verified with mocks
-  only, not against live Groq.**
-- Licence: Studio runs unlicensed with the AG Grid watermark, which AG Grid confirmed on Discord is not penalized (for
-  AG Grid; whether it covers Studio specifically is not independently verified). Details and open items:
-  [docs/ag-studio.md](docs/ag-studio.md).
+  ([ADR 0010](docs/adr/0010-studio-assistant-proxy.md)). It is hidden when no Groq key is set. **Verified with mocks; one
+  tiny live Groq call through the proxy succeeded, but no full Studio turn with tools has run.**
+- Licence: Studio runs unlicensed. Its console banner shows, and the documented watermark was not seen in our one
+  screenshot check. AG Grid confirmed on Discord that the watermark is not penalized (for AG Grid; whether it covers
+  Studio specifically is not independently verified). The AI module setup and the licence
+  notes are in [frontend/README.md](frontend/README.md). Details and open items: [docs/ag-studio.md](docs/ag-studio.md).
 
 **APIMatic Context Plugin for PayPal** ([`paypal@context-plugins-local`](https://github.com/paypaldev/server-sdk-context-plugin-preview)).
 We installed it on 2026-10-06 and used it while building the PayPal integration in Claude Code. The honest record is
@@ -295,7 +296,7 @@ Rebuttal stands on open-source packages. Versions are in `backend/pyproject.toml
   [Langfuse](https://langfuse.com), [fpdf2](https://github.com/py-pdf/fpdf2) (evidence PDFs), psycopg.
 - Dev tools: pytest, pytest-cov, ruff, [uv](https://docs.astral.sh/uv/).
 - Frontend: [React](https://react.dev), [Vite](https://vite.dev), TypeScript, [AG Grid Community](https://www.ag-grid.com)
-  (MIT), [AG Studio](https://www.ag-grid.com/studio/) (commercial, run unlicensed with the watermark, see above),
+  (MIT), [AG Studio](https://www.ag-grid.com/studio/) (commercial, run unlicensed, see above),
   Playwright, oxlint.
 - Fonts from Google Fonts: Bricolage Grotesque, Public Sans, JetBrains Mono.
 - Services: PayPal sandbox, Render, Supabase, Groq.

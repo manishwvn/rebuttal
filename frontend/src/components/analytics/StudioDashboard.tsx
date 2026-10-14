@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AgStudioAiModule, createAiHarness, enableStudioDevValidations } from 'ag-studio'
-import type { AgAiPromptStarter } from 'ag-studio'
+import type { AgAiPromptStarter, AgStudioApi, AgStudioApiReadyEvent } from 'ag-studio'
 import { AgStudio, AgStudioProvider } from 'ag-studio-react'
 import { api } from '../../api'
 import type { AnalyticsRow, AnalyticsSummary, DeadlineRow } from '../../types'
+// The extension is explicit: on a case-insensitive disk './SavedViews' would resolve to savedViews.ts first.
+import { SavedViews } from './SavedViews.tsx'
 import { DASHBOARD_STATE, DASHBOARD_THEME, dashboardData } from './studioConfig'
 import { createProxyAdapter } from './studioAiAdapter'
 import { RB_WIDGETS, type RebuttalRegistry } from './widgets'
@@ -51,15 +53,24 @@ export function StudioDashboard({ rows, deadlines, summary }: Props) {
   // Studio shows the AI panel in edit mode only (AgEditModePanelType includes 'ai'; the view-mode panels are filters
   // only). So the assistant is opened by switching Studio to edit mode; the dashboard is read-only otherwise.
   const [asking, setAsking] = useState(false)
+  // Studio passes its API once, in onApiReady. The saved-views toolbar needs it to read and set Studio's state.
+  const [studioApi, setStudioApi] = useState<AgStudioApi<RebuttalRegistry> | null>(null)
+  const onApiReady = useCallback(
+    ({ api: readyApi }: AgStudioApiReadyEvent) => setStudioApi(readyApi as AgStudioApi<RebuttalRegistry>),
+    [],
+  )
   if (aiEnabled === null) return <div className="analytics-frame" />
 
   return (
     <>
-      {aiEnabled && (
-        <button type="button" className="ghost studio-ai-toggle" aria-pressed={asking} onClick={() => setAsking((on) => !on)}>
-          {asking ? 'Back to dashboard' : 'Ask the assistant'}
-        </button>
-      )}
+      <div className="studio-toolbar">
+        {aiEnabled && (
+          <button type="button" className="ghost studio-ai-toggle" aria-pressed={asking} onClick={() => setAsking((on) => !on)}>
+            {asking ? 'Back to dashboard' : 'Ask the assistant'}
+          </button>
+        )}
+        <SavedViews api={studioApi} />
+      </div>
       <div className="analytics-frame">
       <AgStudioProvider modules={aiEnabled ? STUDIO_AI_MODULES : []}>
         <AgStudio<RebuttalRegistry>
@@ -71,10 +82,11 @@ export function StudioDashboard({ rows, deadlines, summary }: Props) {
           mode={asking ? 'edit' : 'view'}
           ai={
             aiEnabled
-              ? ({ api: studioApi }) =>
-                  createAiHarness(studioApi, { adapter: STUDIO_AI_ADAPTER, promptStarters: PROMPT_STARTERS })
+              ? ({ api: aiStudioApi }) =>
+                  createAiHarness(aiStudioApi, { adapter: STUDIO_AI_ADAPTER, promptStarters: PROMPT_STARTERS })
               : undefined
           }
+          onApiReady={onApiReady}
         />
       </AgStudioProvider>
       </div>

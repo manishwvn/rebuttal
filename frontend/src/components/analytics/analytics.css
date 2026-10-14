@@ -49,3 +49,39 @@
   margin: 0 0 8px;
   width: auto;
 }
+
+/* The toolbar above the Studio frame: the assistant toggle and the saved views share one row that wraps on a phone. */
+.studio-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Saved views: labels, the view list, the name box and the buttons. The status line takes a row of its own. */
+.saved-views {
+  display: flex;
+  flex: 1 1 480px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.saved-views select {
+  flex: 0 1 auto;
+}
+.saved-views input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 200px;
+  max-width: 100%;
+}
+.saved-views .note,
+.saved-views .error {
+  flex-basis: 100%;
+  margin: 0;
+}

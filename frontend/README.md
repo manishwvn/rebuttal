@@ -36,7 +36,12 @@ npm run build        # type-check + production build into dist/ (refuses VITE_AP
 npm run lint         # oxlint
 npx playwright test  # end-to-end: starts the mock backend and the built dashboard itself, uses your Google Chrome
 SCREENSHOTS=1 npx playwright test screenshots   # regenerates docs/screenshots/
+SCREENSHOTS=1 npx playwright test studio-screenshots   # one PNG per Studio widget plus the assistant panel, into docs/screenshots/
 ```
+
+The Studio run writes one PNG per widget, `docs/screenshots/studio-<id>.png`, for the ids `kpi-disputes`, `kpi-disputed`,
+`kpi-refunded`, `kpi-kept`, `agreement`, `bar-reason`, `money-split`, `bar-product` and `deadlines`, plus
+`studio-assistant.png` for the assistant panel.
 
 ## Configuration
 
@@ -74,6 +79,36 @@ are in [docs/demo-mode.md](../docs/demo-mode.md). End-to-end test:
 npx playwright test e2e/demo.spec.ts
 ```
 
+## Analytics tab: prompt starters and saved views
+
+- **Prompt starters.** The assistant shows four clickable prompt starters: Top disputed products, Why buyers dispute,
+  Money at risk, Deadlines. The e2e test is `e2e/studio-assistant.spec.ts`.
+- **Saved views.** A toolbar above the dashboard has a Saved view select, Load, Delete, and View name with Save view.
+  It stores Studio's report state per browser in `localStorage` under the key `rebuttal.studio.views.v1`. Saved views
+  are not shared between browsers or devices, are lost if site data is cleared, and fail soft if storage is blocked.
+  The code is `src/components/analytics/savedViews.ts` and `src/components/analytics/SavedViews.tsx`.
+
+## AG Studio AI and licensing
+
+The Analytics tab and the assistant use `ag-studio` and `ag-studio-react` 3.0.0. Studio is a commercial product. This
+project runs it WITHOUT a licence key. Studio shows its console banner when run without a key. The watermark is
+documented for unlicensed use, but was not seen in our one screenshot check ([docs/ag-studio.md](../docs/ag-studio.md)
+section 9). AG Grid staff confirmed on Discord that the watermark is not penalized for this hackathon. That was said for
+AG Grid. It is not independently confirmed for Studio's AI module. The details are in
+[docs/ag-studio.md](../docs/ag-studio.md) section 3.
+
+The AI features need:
+
+- the `AgStudioAiModule` registered in `AgStudioProvider` (`src/components/analytics/StudioDashboard.tsx`);
+- an app-supplied `AgLlmAdapter`. Ours is `src/components/analytics/studioAiAdapter.ts`, which talks to the read-only
+  backend proxy `backend/rebuttal/studio_ai.py` ([ADR 0010](../docs/adr/0010-studio-assistant-proxy.md));
+- a Groq key on the server only, in `GROQ_API_KEY`. The assistant is hidden when it is unset;
+- a licence. The Studio docs say every deployment needs a licence. Whether the licence must include the AI module is
+  NOT VERIFIED ([docs/ag-studio.md](../docs/ag-studio.md) section 9). We have no licence. A trial key would go in
+  `<AgStudioProvider licenseKey>` and come from an environment variable, never from git.
+
+Nothing here purchases a licence.
+
 ## Layout
 
 ```
@@ -86,5 +121,7 @@ src/components/ConfirmDialog.tsx  native modal <dialog>
 src/components/SimulatorPanel.tsx  mock-only case picker
 src/components/analytics/  Analytics tab: an AG Studio 3.0.0 dashboard (unlicensed, watermark allowed) fed by
                            /api/analytics (one call); lazy-loaded. Notes: docs/ag-studio.md
+  analytics/savedViews.ts    saved-views store: Studio report state in localStorage (rebuttal.studio.views.v1)
+  analytics/SavedViews.tsx   saved-views toolbar above the dashboard
 e2e/                       Playwright tests (dispute flows, and the build guard)
 ```
