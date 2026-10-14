@@ -100,6 +100,7 @@ What the Analytics tab uses (`frontend/src/components/analytics/widgets/`):
 - `useWidgetRows` is the shared hook. It sets the display state, calls `widgetApi.getData({ fields })` for the fields mapped to the named slots, and drops late answers. A failed request shows `noData`.
 - Each component renders `data-widget-id` (the dashboard widget id), and rows carry `data-testid` plus value attributes, so `frontend/e2e/analytics.spec.ts` checks the numbers against `GET /api/analytics`.
 - Custom widgets read colours and fonts from the CSS variables in `index.css` (`--accent`, `--muted`, `--line`, `--display`), which follow the colour scheme. The card around each widget is Studio's, and takes its colours from the theme (section 5).
+- Screenshots of each widget and the assistant panel are made by `frontend/e2e/studio-screenshots.spec.ts` (see [frontend/README.md](../frontend/README.md)).
 
 ## 7. Studio Agent Framework (part 3, on this branch)
 
@@ -109,7 +110,7 @@ Status: the proxy, adapter and dashboard wiring below are committed code with un
 - Enable it by registering the module, `<AgStudioProvider modules={[AgStudioAiModule]}>`, then pass `ai={({ api }) => createAiHarness(api, { adapter, promptStarters, models })}` to `AgStudio` ([AI quick start](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-quickstart/)). The installed `ag-studio` 3.0.0 type files confirm `AgStudioAiModule`, `createAiHarness`, `AgLlmAdapter` and the `ai` property.
 - `createAiHarness` gives five built-in agents, with the lead agent fronting the chat. Tools can be customised ([built-in agents](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-builtin-agents/), [tools](https://www.ag-grid.com/studio/archive/3.0.0/react/ai-tools/)).
 - The adapter, which translates Studio's request format to a provider's format, is NOT shipped. The docs' example is an OpenAI Responses adapter that calls the provider from the browser, and the docs warn that this may expose the key. They say to route the requests through your own endpoint.
-- The AI panel exists in edit mode only: the installed types list `ai` among the edit-mode panels (`AgEditModePanelType`) and only `filters` among the view-mode panels. So the Analytics tab keeps `mode="view"`, and an "Ask the assistant" button switches Studio to edit mode, where the AI Assistant panel opens beside the dashboard. "Back to dashboard" returns to view mode. Edit mode also shows Studio's compose and data panels, and edits made there are not saved (Studio does not persist state).
+- The AI panel exists in edit mode only: the installed types list `ai` among the edit-mode panels (`AgEditModePanelType`) and only `filters` among the view-mode panels. So the Analytics tab keeps `mode="view"`, and an "Ask the assistant" button switches Studio to edit mode, where the AI Assistant panel opens beside the dashboard. "Back to dashboard" returns to view mode. Edit mode also shows Studio's compose and data panels. Edits made there can be saved with the saved-views toolbar on the dashboard, per browser (Studio itself does not persist state).
 
 **What is built**
 
@@ -122,6 +123,8 @@ Status: the proxy, adapter and dashboard wiring below are committed code with un
   - No key: the status route says `enabled: false` and the POST returns 503.
 - Frontend (`frontend/src/components/analytics/studioAiAdapter.ts`): our own `AgLlmAdapter`, since Studio ships none. It translates Studio's request (conversation items, tool schemas, tool choice, json format) to chat-completions messages and the non-streaming reply back into Studio events and a completed response (text, tool calls, usage; failed and cancelled states). `api.studioAi` calls the proxy with the bearer token.
 - Dashboard (`StudioDashboard.tsx`): asks the status route once. Studio reads `ai` only when it is created, so Studio mounts after the answer. Enabled: `AgStudioProvider` registers `AgStudioAiModule`, `ai` is `createAiHarness(api, { adapter, promptStarters })`, and the toggle button shows. A failed status call means no assistant. Four prompt starters: top disputed products, why buyers dispute, money at risk, deadlines. No `models` option, so there is no model picker; the server owns the model. Studio's tools run in the browser over the analytics data, which is already read-only. The Analytics chunk stays lazy-loaded.
+- Prompt starters: the four starters above are covered by the e2e test `frontend/e2e/studio-assistant.spec.ts`.
+- Saved views: a toolbar above the dashboard saves and loads Studio's report state per browser, in `localStorage` under `rebuttal.studio.views.v1`. It uses `api.getState()` and `api.setState()`, reached from `onApiReady`. The saved state is layout and filters, not data. Code: `frontend/src/components/analytics/savedViews.ts` and `SavedViews.tsx`.
 - Demo mode (`DemoApp`) has no Analytics tab, so it has no AI. `tests/test_demo_isolation.py` checks that both proxy routes require the API token and that the status route exposes only `enabled`.
 
 **Limits (constants in `studio_ai.py`)**
@@ -156,5 +159,5 @@ Fallback used: no. Studio 3.0.0 built and ran with Vite 8 and React 19 (PR for B
 - Whether Studio's dashboard-changing tools behave well in edit mode on this dashboard. The panel opens in edit mode (the e2e test shows it); no real turn has run.
 - Streaming is not used: the adapter sends one non-streaming request per turn.
 - The rate limits are per process: a restart or a second instance resets them. They are keyed on `X-Forwarded-For`.
-- Live Groq smoke check: not run by the autopilot step; run once by hand.
+- Live Groq smoke check: on 2026-10-14 one `POST /api/studio/ai` through the proxy in mock mode returned HTTP 200 in about 500 ms with a non-empty reply. It was one tiny text turn, not a full Studio turn with tools.
 - Custom widget runtime behaviour beyond the documented API. Checked in B1b by the Playwright run: `getData` rows are keyed by `field.key` (the widgets read `row[field.key]` and the spec compares the rendered numbers with the API). Studio's dev validations (`enableStudioDevValidations`) logged nothing besides the licence banner on the Analytics tab.
