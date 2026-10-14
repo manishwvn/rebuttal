@@ -69,7 +69,8 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
         return True
     action, kind = need
     if options is None:
-        # PayPal gives no list at a chargeback, and offers are not possible there.
+        # Offers are not possible at a chargeback. PayPal sending no list there is unverified.
+        # VERIFY: confirm the sandbox omits allowed_response_options at CHARGEBACK; mock.py returns the full list.
         return not (case.stage == "CHARGEBACK" and action == "make_offer")
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
     return kind in options.get(action, {}).get(key, [])
@@ -349,7 +350,12 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             decision.confidence = min(decision.confidence, 0.5)
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
-        instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
+        no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
+        # A claim that needs the item back must not fall back to a full refund without a return when there is no list.
+        needs_return = (case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+                        and f.get("refund_without_return_eligible") is False)
+        instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)
+                        and not (r == "ACCEPT_CLAIM" and needs_return and no_list)), None)
         if instead:
             decision.resolution = instead
             decision.message_to_buyer = draft_message(instead, case)  # the old text promised something else
@@ -358,15 +364,20 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
                 decision.message_to_buyer += (" If you'd like a replacement instead, just say so and we'll ship it "
                                               "as soon as the return is scanned.")
             _, fallback = effective_options(case.allowed_response_options, case.reason, case.stage)
-            source = ("PayPal's allowed options were not available (dispute under review?), so only the offer "
-                      "types the sandbox is known to accept were considered" if fallback
-                      else "PayPal does not allow it (allowed_response_options)")
+            if fallback:
+                source = ("PayPal's allowed options were not available (dispute under review?), so only the offer "
+                          "types the sandbox is known to accept were considered")
+            elif no_list:
+                source = "PayPal gave no option list at this chargeback; offers are assumed not possible here"
+            else:
+                source = "PayPal does not allow it (allowed_response_options)"
             notes.append(f"{wanted} is not possible on this dispute: {source}; proposing {instead} instead.")
         else:
             decision.confidence = min(decision.confidence, 0.3)
             notes.append(f"{wanted} is not possible on this dispute and there is no close alternative; "
                          "the merchant must resolve it in Resolution Center.")
-    if decision.resolution in ("ACCEPT_CLAIM", "OFFER_REPLACEMENT") and f.get("order_found") is False:
+    if decision.resolution in ("ACCEPT_CLAIM", "OFFER_REPLACEMENT", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND") \
+            and f.get("order_found") is False:
         decision.confidence = min(decision.confidence, 0.3)
         notes.append("No merchant order record, so nothing shows the sale or shipment; the merchant must review before "
                      "approving.")

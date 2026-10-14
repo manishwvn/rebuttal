@@ -148,3 +148,74 @@ def test_inquiry_without_a_paypal_list_and_the_proven_fallback_are_unchanged():
     case.allowed_response_options = None
     assert not paypal_allows("OFFER_REPLACEMENT", case)
     assert paypal_allows("OFFER_RETURN_FOR_REFUND", case) and paypal_allows("ACCEPT_CLAIM", case)
+
+
+@pytest.mark.parametrize(
+    "case_id, resolution",
+    [
+        ("snad_damaged_high_value", "ACCEPT_CLAIM"),
+        ("snad_damaged_high_value", "OFFER_RETURN_FOR_REFUND"),
+        ("snad_damaged_high_value", "OFFER_REPLACEMENT"),
+        ("snad_changed_mind", "OFFER_RETURN_FOR_REFUND"),
+        ("snad_changed_mind", "OFFER_REPLACEMENT"),
+    ],
+)
+def test_chargeback_without_a_list_never_refunds_a_return_claim_in_full(case_id, resolution):
+    case = _gather(case_id)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert not (d.resolution == "ACCEPT_CLAIM" and d.confidence > 0.3)
+    assert d.confidence <= 0.3
+
+
+def test_chargeback_without_a_list_note_says_no_list_was_given():
+    case = _gather("inr_delivered_claim")
+    case.allowed_response_options = None
+    d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
+    assert any("PayPal gave no option list at this chargeback" in n for n in d.guard_notes)
+    assert not any("PayPal does not allow it" in n for n in d.guard_notes)
+
+
+def test_chargeback_with_a_list_keeps_the_does_not_allow_note():
+    case = _gather("inr_delivered_claim")
+    case.allowed_response_options = {"accept_claim": {"accept_claim_types": ["REFUND"]},
+                                     "make_offer": {"offer_types": []}}
+    d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
+    assert any("PayPal does not allow it (allowed_response_options)" in n for n in d.guard_notes)
+
+
+def test_change_of_mind_claim_without_return_becomes_return_for_refund_when_damaged():
+    case = _gather("snad_changed_mind")
+    assert case.stage == "INQUIRY" and case.facts["refund_without_return_eligible"] is False
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and d.guard_notes == []  # no damage: this rule leaves the claim alone
+    case.facts["buyer_reports_damage"] = True
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "OFFER_RETURN_FOR_REFUND"
+
+
+def test_missing_order_caps_partial_and_return_offers_too():
+    for resolution in ("OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND"):
+        case = _orderless_case("MERCHANDISE_OR_SERVICE_NOT_RECEIVED")
+        d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+        assert d.resolution == resolution and d.confidence <= 0.3
+        assert any("No merchant order record" in n for n in d.guard_notes)
+
+
+@pytest.mark.xfail(strict=True, reason="facts.py DAMAGE_WORDS is a substring match ('dent' in 'student'); "
+                   "needs a whole-word fix outside queue R2 p1 scope")
+def test_student_is_not_read_as_damage():
+    order = _gather("inr_no_tracking").order
+    facts = _compute_facts(order, None, None, 10.0, DEMO_NOW, ["I am a student and I changed my mind, refund me."])
+    assert facts["buyer_reports_damage"] is False
+
+
+@pytest.mark.xfail(strict=True, reason="facts.py refund_without_return_eligible uses items[0] only, not the disputed "
+                   "amount or the damaged line; needs a fix outside queue R2 p1 scope")
+def test_two_line_order_with_a_cheap_first_line_is_not_refund_without_return():
+    order = _gather("inr_no_tracking").order
+    order.items = [{"name": "Vase", "variant": "Blue", "price": 15.0},
+                   {"name": "Lamp", "variant": "Brass", "price": 200.0}]
+    facts = _compute_facts(order, None, None, 215.0, DEMO_NOW, ["The lamp arrived broken."])
+    assert facts["refund_without_return_eligible"] is False
