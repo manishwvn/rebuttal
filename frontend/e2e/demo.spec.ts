@@ -145,3 +145,25 @@ test('A failed start-up offers Try again, and Try again starts the demo', async 
   await expect(page.getByTestId('mode-badge')).toContainText('demo · mock')
   await expect(page.getByTestId('demo-error')).toHaveCount(0)
 })
+
+test('The case view counts down to the due date, and shows Overdue once it has passed', async ({ page }) => {
+  // The demo runtime's clock is frozen on the seeded day, so the hero case still has time left.
+  await enterDemo(page)
+  await page.locator(`[row-id="${HERO}"]`).click()
+  const pill = page.getByTestId('deadline-pill')
+  await expect(pill).toContainText('left to respond')
+  expect(await pill.innerText()).not.toMatch(/overdue|^-/i)
+})
+
+test('A negative hours_left from the server shows Overdue', async ({ page }) => {
+  // Registered before the demo opens, so the very first disputes response is already rewritten.
+  await page.route('**/api/demo/*/disputes', async (route) => {
+    const response = await route.fetch()
+    const rows = await response.json()
+    for (const row of rows) if (row.proposal) row.proposal.case_summary.hours_left = -5.5
+    await route.fulfill({ response, json: rows })
+  })
+  await enterDemo(page)
+  await page.locator(`[row-id="${HERO}"]`).click()
+  await expect(page.getByTestId('deadline-pill')).toHaveText('Overdue')
+})

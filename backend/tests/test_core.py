@@ -1,4 +1,6 @@
 
+from datetime import timedelta
+
 import pytest
 
 from rebuttal.agent.facts import gather
@@ -300,6 +302,17 @@ def test_guard_turns_accept_claim_on_a_high_value_damaged_item_into_return_for_r
     assert guard(Decision("ACCEPT_CLAIM", 0.95, [], "", "m", "", source="groq"), low).resolution == "ACCEPT_CLAIM"
     assert not mind.facts["buyer_reports_damage"]
     assert guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="groq"), mind).guard_notes == []
+
+
+def test_hours_left_follows_the_runtime_clock_after_analysis(rt):
+    first = rt.analyze("PP-D-2000").case_summary["hours_left"]
+    due = rt.agent.proposal("PP-D-2000").case_summary["due"]
+    assert first > 0 and due
+    rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=10)
+    later = rt.agent.proposal("PP-D-2000").case_summary["hours_left"]
+    assert later == pytest.approx(first - 10, abs=0.11)
+    rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=first + 5)
+    assert rt.agent.proposal("PP-D-2000").case_summary["hours_left"] == pytest.approx(-5, abs=0.11)
 
 
 def _duplicate_flag(rt, mutate):
