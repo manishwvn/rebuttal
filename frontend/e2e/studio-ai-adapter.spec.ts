@@ -84,6 +84,14 @@ test('provided tools are dropped and the tool choice is mapped', () => {
   expect(body.tool_choice).toEqual({ type: 'function', function: { name: 'lookup_order' } })
 })
 
+test('client tools without a tool choice are sent with no tool_choice', () => {
+  const body = toStudioAiRequest(
+    turn({ input: [userText('Hi')], tools: [{ name: 'lookup_order', description: 'Find an order.', parameters: {} }] }),
+  )
+  expect(body.tools).toHaveLength(1)
+  expect(body).not.toHaveProperty('tool_choice')
+})
+
 test('a string tool choice passes through, and no tool choice is sent without client tools', () => {
   const auto = toStudioAiRequest(
     turn({ tools: [{ name: 'lookup_order', description: 'Find an order.', parameters: {} }], toolChoice: 'auto' }),
@@ -119,13 +127,17 @@ test('a JSON response format without instructions creates the system message', (
 test('executeTurn streams a text reply and completes with its output and usage', async () => {
   const controller = new AbortController()
   let sentSignal: AbortSignal | undefined
+  let sends = 0
   const adapter = createProxyAdapter(async (_body, signal) => {
+    sends += 1
     sentSignal = signal
     return reply({ message: { content: 'Refund approved.', tool_calls: [] }, usage: { prompt_tokens: 120, completion_tokens: 8 } })
   })
   const handler = adapter.executeTurn(turn({ input: [userText('Refund?')] }), { signal: controller.signal })
+  expect(sends).toBe(1)
   const events = await collect(handler.stream)
   const response = await handler.complete
+  expect(sends).toBe(1)
   const messageId = response.output[0].id
   expect(events).toEqual([
     { type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' },
@@ -175,6 +187,25 @@ test('a rejected send completes as failed with its message, and the stream ends 
     error: { code: 'proxy_error', message: 'The model proxy is not configured.' },
   })
 })
+
+const malformedReplies: [string, unknown][] = [
+  ['no message', {}],
+  ['no message and no tool_calls', { finish_reason: 'stop' }],
+  ['no tool_calls key', { message: { content: 'Partial.' }, finish_reason: 'stop' }],
+  ['a null tool call', { message: { content: null, tool_calls: [null] }, finish_reason: 'tool_calls' }],
+]
+
+for (const [name, badReply] of malformedReplies) {
+  test(`a malformed reply (${name}) completes as failed and the stream ends empty without throwing`, async () => {
+    const handler = createProxyAdapter(async () => badReply as StudioAiReply).executeTurn(turn({ input: [userText('Hi')] }))
+    await expect(collect(handler.stream)).resolves.toEqual([])
+    expect(await handler.complete).toMatchObject({
+      status: 'failed',
+      output: [],
+      error: { code: 'proxy_error', message: 'The model reply was malformed.' },
+    })
+  })
+}
 
 test('an AbortError rejection completes as cancelled with no error', async () => {
   const aborted = new Error('The operation was aborted.')

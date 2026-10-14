@@ -94,24 +94,39 @@ function newId(): string {
   return `studio-ai-${fallbackIds}`
 }
 
-// A failed turn yields no events: `complete` carries the failure.
+// The fetch boundary casts the JSON reply without checking it, so a reply off the wire shape fails the turn here
+// with a fixed message instead of a TypeError.
+function checkedReply(value: StudioAiReply): StudioAiReply {
+  const calls = value?.message?.tool_calls
+  if (!Array.isArray(calls) || !calls.every((call) => call?.function)) throw new Error('The model reply was malformed.')
+  return value
+}
+
+function eventsFor(reply: StudioAiReply, messageId: string): AgAiEvent[] {
+  const events: AgAiEvent[] = []
+  if (reply.message.content) {
+    events.push({ type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' })
+    events.push({ type: 'TEXT_MESSAGE_CONTENT', messageId, delta: reply.message.content })
+    events.push({ type: 'TEXT_MESSAGE_END', messageId })
+  }
+  for (const call of reply.message.tool_calls) {
+    events.push({ type: 'TOOL_CALL_START', toolCallId: call.id, toolCallName: call.function.name })
+    events.push({ type: 'TOOL_CALL_ARGS', toolCallId: call.id, delta: call.function.arguments })
+    events.push({ type: 'TOOL_CALL_END', toolCallId: call.id })
+  }
+  return events
+}
+
+// A failed turn yields no events: `complete` carries the failure. The events are built before the first yield, so a
+// bad reply ends the stream empty instead of throwing mid-stream.
 async function* streamEvents(reply: Promise<StudioAiReply>, messageId: string): AsyncGenerator<AgAiEvent> {
-  let value: StudioAiReply
+  let events: AgAiEvent[]
   try {
-    value = await reply
+    events = eventsFor(checkedReply(await reply), messageId)
   } catch {
     return
   }
-  if (value.message.content) {
-    yield { type: 'TEXT_MESSAGE_START', messageId, role: 'assistant' }
-    yield { type: 'TEXT_MESSAGE_CONTENT', messageId, delta: value.message.content }
-    yield { type: 'TEXT_MESSAGE_END', messageId }
-  }
-  for (const call of value.message.tool_calls) {
-    yield { type: 'TOOL_CALL_START', toolCallId: call.id, toolCallName: call.function.name }
-    yield { type: 'TOOL_CALL_ARGS', toolCallId: call.id, delta: call.function.arguments }
-    yield { type: 'TOOL_CALL_END', toolCallId: call.id }
-  }
+  yield* events
 }
 
 function completedResponse(reply: StudioAiReply, messageId: string): AgLlmResponse {
@@ -165,14 +180,14 @@ export function createProxyAdapter(send: StudioAiSend): AgLlmAdapter {
       const signal = options?.signal
       const messageId = newId()
       // The send starts now, once, and both stream and complete share it. A send that throws instead of rejecting
-      // also ends as a failed reply, so executeTurn never throws.
+      // also ends as a failed reply, and a malformed reply fails the same way, so executeTurn never throws and
+      // complete always resolves.
       const reply = new Promise<StudioAiReply>((resolve) => resolve(send(toStudioAiRequest(request), signal)))
       return {
         stream: streamEvents(reply, messageId),
-        complete: reply.then(
-          (value) => completedResponse(value, messageId),
-          (error: unknown) => failedResponse(error, signal),
-        ),
+        complete: reply
+          .then((value) => completedResponse(checkedReply(value), messageId))
+          .catch((error: unknown) => failedResponse(error, signal)),
       }
     },
   }
