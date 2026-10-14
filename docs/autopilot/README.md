@@ -2,7 +2,7 @@
 
 Rebuttal is finished by an unattended lead-dev session, not by hand-written prompts.
 
-- **When:** a Claude desktop scheduled task (`rebuttal-autopilot`) every 3 hours, while the Mac is on, plugged in,
+- **When:** a Claude desktop scheduled task (`rebuttal-autopilot`) fires hourly; the wake gate in `CYCLE.md` section 2 skips runs that cannot work, while the Mac is on, plugged in,
   awake and the Claude app is open. A missed run happens on the next launch.
 - **What each cycle does:** `CYCLE.md`: lock, usage guard, 1-3 tasks from `QUEUE.md` (by usage headroom), each in its own
   git worktree, run by the `team-cycle` workflow: Opus lead -> Sonnet tech lead per task -> Haiku fleet

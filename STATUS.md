@@ -2,8 +2,9 @@
 
 Read this at the start of a session; update it at the end of every task. Last updated: Oct 14, 2026 (A8 eval re-run; was Oct 9, A6 demo mode). Detail: `docs/handoff-2026-10-07.md`, `PLAN.md`, `docs/deploy.md`.
 
-**Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md` every 3 hours; see
-`docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
+**Autopilot:** an unattended lead-dev session works through `docs/autopilot/QUEUE.md`. An hourly cron fires it; the
+wake file `~/.rebuttal-autopilot/next-wake` (written by `docs/autopilot/next_run.py` from usage) skips runs that cannot
+work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/README.md`. Progress: `docs/autopilot/LOG.md`.
 
 **Prize strategy:** `docs/prize-fit.md` (prizes, rules, competition, decisions; read Oct 9 from Devpost and Discord).
 
