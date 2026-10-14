@@ -47,6 +47,8 @@ stop_tree() {
 
 cleanup() {
   trap - EXIT
+  # Ignore further INT/TERM so a second signal cannot stop cleanup halfway and leave a server running.
+  trap '' INT TERM
   stop_tree "$VITE_PID"
   stop_tree "$BACKEND_PID"
 }
