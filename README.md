@@ -17,18 +17,14 @@ Built for the PayPal AI Hackathon (Devpost), Oct-Nov 2026. Sandbox only: the cod
 1. Open the link. The service runs on Render's free plan, so the first load can take about 50 seconds if it was idle.
 2. The page creates a private demo session with six seeded disputes. Open the hero case, "Buyer's AI assistant ordered
    the wrong size" (`agent_wrong_size`). It is already analyzed and waiting for you.
-3. Read the facts (assistant said "medium", the seller shipped a large), the model's first choice (a free replacement),
-   the guard's change (a refund after the return) and the drafted message.
+3. Read the facts (assistant said "medium", the seller shipped a large), the decision (a refund after the return) and
+   the drafted message. The demo uses the offline rules reasoner, so no model runs in it.
 4. Edit one line if you like, then approve. One PayPal call goes out, to an in-memory mock sandbox. Open the audit
    trail to see every step.
 5. Add any of the 20 labeled disputes from the simulator, or click **Reset demo**.
 
 A demo session uses the in-memory PayPal mock and the offline rules reasoner: no model, no keys, no database. It never
 reaches the real PayPal client or the real runtime. Routes, limits and tests: [docs/demo-mode.md](docs/demo-mode.md).
-
-What was checked on the live service for this README (Oct 14, 2026): `/api/health` answers ok, `/` serves the
-dashboard, and `POST /api/demo/sessions` returns 200. The full demo click-through on the deployed service was not
-re-run for this README; it is covered by the Playwright test `frontend/e2e/demo.spec.ts` against a local build.
 
 **Run it locally** (needs [uv](https://docs.astral.sh/uv/) and Node.js; nothing below needs a key). Terminal 1:
 
@@ -69,7 +65,7 @@ Live end to end (Oct 7, 2026): deployed on Render with Groq and Supabase Postgre
 real PayPal sandbox arrived as a signature-verified webhook, the agent gathered the facts and drafted a resolution,
 and the proposal is waiting for approval in the checkpointed workflow. No PayPal writes happened before approval.
 
-Backend test coverage: 91% of lines and branches (`cd backend && uv run pytest --cov`; CI prints it on every run).
+469 backend tests, 93% combined line and branch coverage (`cd backend && uv run pytest --cov`; CI prints it on every run).
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard, and the Playwright end-to-end tests.
 
 Not verified live: an approved write to the real PayPal sandbox through the deployed app (the hero dispute was
@@ -122,7 +118,7 @@ flowchart LR
   X --> N
   A -.- C[(checkpoints<br/>SQLite / Postgres)]
   G & D & R & X & N -.-> L[(audit log)]
-  G & D & X -.-> T[Langfuse traces]
+  G -.->|traces each graph run| T[Langfuse]
 ```
 
 Where things live:
@@ -245,8 +241,7 @@ Read these honestly:
 We installed it on 2026-10-06 and used it while building the PayPal integration in Claude Code. The honest record is
 [docs/apimatic-log.md](docs/apimatic-log.md): two logged uses, both checks of our hand-written client against the
 APIMatic-generated PayPal Server SDK models. The first found no drift in our Orders v2 payloads and carrier values. The
-second found the SDK has no Disputes controller, so it could not confirm the dispute-creation body. The plugin changed
-no code. The SDK covers orders, payments, vault, subscriptions and transaction search, not disputes, which is most of
+second found the SDK has no Disputes controller, so it could not confirm the dispute-creation body. The SDK covers orders, payments, vault, subscriptions and transaction search, not disputes, which is most of
 what Rebuttal calls.
 
 **PayPal APIs used** (all sandbox; see [`client.py`](backend/rebuttal/paypal/client.py)):

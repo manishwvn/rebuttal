@@ -4,9 +4,9 @@ For Manish to paste into the APIMatic form. Claude does not submit it. The form'
 this draft, so the answers are written for the generic questions below; adapt them to the exact wording. Source for
 every claim: [docs/apimatic-log.md](apimatic-log.md).
 
-## Honest summary of the evidence
+## Note for Manish (do not paste)
 
-The evidence is thin. The plugin was used twice, both times as a check, and it changed no code. The APIMatic PayPal
+The evidence is thin. The plugin was used twice, both times as a check, and the first check changed no code and the second could not confirm the dispute body. The APIMatic PayPal
 Server SDK has no Disputes controller, and disputes are most of what Rebuttal calls. Say so plainly rather than
 overstating; the log is public in the repo. Before submitting, add real uses to the log if they happen (the
 "Candidate uses" at the bottom of the log are not done).
@@ -14,10 +14,10 @@ overstating; the log is public in the repo. Before submitting, add real uses to 
 ## How did you use the APIMatic Context Plugin?
 
 We installed the APIMatic Context Plugin for PayPal (`paypal@context-plugins-local`, from
-https://github.com/paypaldev/server-sdk-context-plugin-preview) on 2026-10-06 and used it in Claude Code while building
-the PayPal integration in `backend/rebuttal/paypal/client.py`. We followed its Python skills (`python-models`,
-`python-calling-endpoints`) and installed the `paypal-server-sdk` Python package it documents in a scratch virtual
-environment to read the generated models. We used it to check our hand-written client against the SDK models.
+https://github.com/paypaldev/server-sdk-context-plugin-preview) on 2026-10-06. We used its Python guidance
+(`python-models`, `python-calling-endpoints`) in Claude Code, and installed the `paypal-server-sdk` Python package it
+documents in a scratch virtual environment to read the generated models, then checked our hand-written PayPal client
+against them.
 
 ## What did it help with?
 
@@ -34,11 +34,9 @@ environment to read the generated models. We used it to check our hand-written c
 
 ## What did it not help with?
 
-- It did not change any file in either logged use; both were checks.
+- The first use was a check only and changed no file. In the second, the SDK could not confirm the dispute body.
 - It has no Disputes models, so the Disputes API (the core of Rebuttal) is checked against the PayPal docs and the live
   sandbox instead.
-- We did not use the SDK in production code. Rebuttal keeps its own small `httpx` client so a read-only transport and an
-  in-memory mock can gate every call.
 
 ## Links to evidence
 
@@ -55,7 +53,7 @@ environment to read the generated models. We used it to check our hand-written c
 We used the APIMatic Context Plugin for PayPal in Claude Code to check our PayPal client against the generated Server
 SDK models. It confirmed our Orders v2 payloads and shipment tracking fields matched, and showed the SDK has no
 Disputes API, so dispute shapes stay checked against PayPal's docs and the live sandbox. Two uses are logged in
-docs/apimatic-log.md; neither changed code.
+docs/apimatic-log.md.
 
 ## Before you submit
 

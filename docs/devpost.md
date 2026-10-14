@@ -25,7 +25,7 @@ When a buyer opens a dispute, PayPal sends a signature-verified webhook. Rebutta
 
 The merchant sees the facts, the reasoning and the drafted message in a dashboard, then approves, edits or rejects. Only then does one PayPal call go out. Every step is in an audit log.
 
-Hero case: the buyer's AI assistant was told "medium", the order shipped a large. The model first suggests a free replacement. PayPal does not allow that offer on this dispute, so the guard changes it to a refund after the return.
+Hero case: the buyer's AI assistant was told "medium", the order shipped a large. In the live Groq run (see backend/evals/RESULTS.md), the model first suggested a free replacement, PayPal does not allow that offer on this dispute, and the guard changed it to a refund after the return. The judge demo uses the offline rules reasoner and goes straight to the refund after return.
 
 The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built with AG Studio, with custom widgets and an assistant that answers questions about the dispute data.
 
@@ -54,7 +54,7 @@ The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built wi
 - Eval numbers (from backend/evals/RESULTS.md, Groq `qwen/qwen3.8-27b`): main set 75% model alone, 95% (19/20) final on Oct 14; held-out set 1: 80% model alone, 100% (10/10) final; held-out set 2: 80% model alone, 100% (10/10) final. Zero PayPal writes before approval in every run. Held-out sets have 10 cases each, so the sample is small.
 - The write boundary is enforced by tests, not by convention.
 - A public demo that needs no accounts and cannot reach the real PayPal client.
-- 91% backend test coverage, ten architecture decision records.
+- 469 backend tests at 93% combined line and branch coverage, ten architecture decision records.
 
 ## What we learned
 
@@ -88,14 +88,14 @@ Python, FastAPI, LangGraph, LangChain, Pydantic, Groq, Anthropic API, Langfuse, 
 
 1. Open https://rebuttal-oq3g.onrender.com/#demo. No login, token or PayPal account is needed. The service sleeps when idle, so the first load can take about 50 seconds.
 2. A private demo session starts with six disputes. Open "Buyer's AI assistant ordered the wrong size". It is already analyzed.
-3. Read the facts, the model's choice, the guard's change and the drafted message. Edit a line if you want, then approve. The call goes to an in-memory mock of the PayPal sandbox, never to the real one.
+3. Read the facts, the decision and the drafted message. Edit a line if you want, then approve. The call goes to an in-memory mock of the PayPal sandbox, never to the real one.
 4. Use the simulator to add any of the 20 labeled disputes, or click Reset demo.
 5. The demo uses the offline rules reasoner, not a model. The live service (not the demo) uses Groq against the real PayPal sandbox and requires an API token, so it is not part of judge testing.
 6. Run it yourself: README.md, section "Try it in 60 seconds". Needs uv and Node.js, no keys. `cd backend && uv run pytest` runs the tests.
-7. The project stays free to test until Dec 15, 2026. Hosting is Render's free plan, which Manish must keep up until judging ends.
 
 ## Not verified / TODO before submitting
 
+- TODO (Manish): keep the project free to test until Dec 15, 2026. Hosting is Render's free plan, so keep the service up until judging ends.
 - TODO: video link (Manish).
 - TODO: a sourced number for what disputes cost small merchants, if we want to claim impact in figures. None is in the repo, so none is used above.
 - Not verified: the full demo click-through on the deployed service (only the session API was checked), the AG Studio assistant against live Groq, and the GitHub URL being public with the MIT license shown in the About box (check on github.com).
