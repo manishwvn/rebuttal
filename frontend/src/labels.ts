@@ -16,6 +16,8 @@ export const RESOLUTION: Record<string, string> = {
   OFFER_RETURN_FOR_REFUND: 'Refund after the item is returned',
   ACCEPT_CLAIM: 'Accept and refund in full',
   SUBMIT_REFUND_PROOF: 'Send PayPal proof of the refund',
+  ESCALATE: 'Ask PayPal to decide (escalate to a claim)',
+  APPEAL: "Appeal PayPal's decision with new evidence",
 }
 
 export const reasonLabel = (reason: string) => REASON[reason] ?? reason
@@ -67,6 +69,8 @@ const ENDPOINT: Record<ActionKind, string> = {
   make_offer: 'make-offer',
   accept_claim: 'accept-claim',
   provide_evidence: 'provide-evidence',
+  escalate: 'escalate',
+  appeal: 'appeal',
 }
 
 export const endpointFor = (disputeId: string, action: PlannedAction) =>
