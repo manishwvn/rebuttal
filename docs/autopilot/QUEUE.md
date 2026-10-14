@@ -119,7 +119,7 @@ disputes by reason and by product, money kept vs refunded, response deadlines, m
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with
 tests). Split into PRs: data endpoints, Studio layout and theme, custom widgets.
 
-### B2 AG Studio depth — size L — in-progress (cycle 2026-10-14T20:11Z) [30%] — needs B1
+### B2 AG Studio depth — size L — in review (PR #70) — needs B1
 Studio Agent Framework: plain-English questions over the dispute data ("which products cause most disputes this
 month?"), using Groq free tier, read-only data access only (assistant + read-only proxy done #52; left: one live
 Groq smoke check of the assistant, prompt starters showing, AI module licence note). Saved views. Playwright screenshots of every widget into
