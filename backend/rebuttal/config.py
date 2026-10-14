@@ -64,6 +64,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
     mock = os.getenv("REBUTTAL_MOCK", "1") == "1" or not (client_id and client_secret)
 
     database_url = os.getenv("DATABASE_URL", "")
+    if mock and os.getenv("REBUTTAL_MOCK_USE_DATABASE") != "1":
+        database_url = ""  # mock mode must not write into the database the live service uses (opt in explicitly)
     checkpoint_target = os.getenv("REBUTTAL_CHECKPOINT_URL") or (
         database_url if database_url.startswith(("postgres://", "postgresql://")) else None)
     if not checkpoint_target and not mock:

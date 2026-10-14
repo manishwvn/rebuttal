@@ -33,7 +33,7 @@ I could not verify how the credit is issued, so check the source rather than tru
    |---|---|
    | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | your PayPal **sandbox** app keys |
    | `GROQ_API_KEY` | your Groq key (the live model) |
-   | `DATABASE_URL` | the Supabase **session pooler** URL, port 5432 (the one already in `.env`) |
+   | `DATABASE_URL` | the Supabase **session pooler** URL, port 5432 (the one already in `.env`). Mock mode (`REBUTTAL_MOCK=1`, the default) never uses it unless `REBUTTAL_MOCK_USE_DATABASE=1` (an explicit `REBUTTAL_CHECKPOINT_URL` still applies) |
    | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | your Langfuse keys (leave empty to run without tracing) |
    | `PAYPAL_WEBHOOK_ID` | leave empty for now; you get it in step 3 |
 
@@ -124,7 +124,8 @@ serves only `/api`.
   safe to repeat (a second analysis of the same dispute does nothing). Judges opening the app cold should expect that
   wait. The daily keep-alive ping keeps Supabase awake but does not keep Render awake.
 - Mock instead of the real sandbox: set `REBUTTAL_MOCK=1` in Render. Then the in-memory sandbox plus the judge
-  simulator (`/api/simulator/dispute/{case}`) run, and webhooks are accepted without a webhook id.
+  simulator (`/api/simulator/dispute/{case}`) run, and webhooks are accepted without a webhook id. Paused proposals
+  and the audit log are then in memory (lost on restart) unless `REBUTTAL_MOCK_USE_DATABASE=1`.
 - Not verified here: the `uv` build/start commands on Render (Render documents `uv.lock` support but not these exact
   commands), and whether 512 MB is enough. If the build fails, read the build log and tell me the first error.
 - The NVIDIA and Anthropic keys are not needed on Render. Do not set `ANTHROPIC_API_KEY` there: it would win over

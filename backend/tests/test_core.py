@@ -22,6 +22,42 @@ def test_refuses_live_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("PAYPAL_ENV", "sandbox")
 
 
+def _db_env(monkeypatch, mock, **extra):
+    for k in ("REBUTTAL_CHECKPOINT_URL", "REBUTTAL_MOCK_USE_DATABASE"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("PAYPAL_ENV", "sandbox")
+    monkeypatch.setenv("REBUTTAL_MOCK", mock)
+    monkeypatch.setenv("PAYPAL_CLIENT_ID", "id")
+    monkeypatch.setenv("PAYPAL_CLIENT_SECRET", "secret")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    for k, v in extra.items():
+        monkeypatch.setenv(k, v)
+
+
+def test_mock_mode_ignores_database_url(monkeypatch, tmp_path):
+    _db_env(monkeypatch, "1")
+    s = load_settings(env_file=tmp_path / "missing.env")
+    assert s.mock and s.database_url is None and s.checkpoint_target is None
+
+
+def test_real_sandbox_uses_database_url(monkeypatch, tmp_path):
+    _db_env(monkeypatch, "0")
+    s = load_settings(env_file=tmp_path / "missing.env")
+    assert not s.mock and s.database_url == "postgresql://x" and s.checkpoint_target == "postgresql://x"
+
+
+def test_mock_database_opt_in(monkeypatch, tmp_path):
+    _db_env(monkeypatch, "1", REBUTTAL_MOCK_USE_DATABASE="1")
+    s = load_settings(env_file=tmp_path / "missing.env")
+    assert s.mock and s.database_url == "postgresql://x" and s.checkpoint_target == "postgresql://x"
+
+
+def test_mock_mode_explicit_checkpoint_url_wins(monkeypatch, tmp_path):
+    _db_env(monkeypatch, "1", REBUTTAL_CHECKPOINT_URL="local.sqlite")
+    s = load_settings(env_file=tmp_path / "missing.env")
+    assert s.checkpoint_target == "local.sqlite" and s.database_url is None
+
+
 def test_analyze_never_writes_to_paypal(rt):
     for d in rt.client.list_disputes():
         rt.analyze(d["dispute_id"])
