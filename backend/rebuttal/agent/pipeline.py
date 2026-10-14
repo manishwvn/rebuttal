@@ -131,6 +131,9 @@ def _plan_actions(decision: Decision, case: CaseFile) -> list[PlannedAction]:
         return [PlannedAction("accept_claim", f"Accept claim and refund ${case.amount:.2f}", {"note": msg})]
 
     if r == "SUBMIT_REFUND_PROOF":
+        # Source: PayPal Disputes v1 OpenAPI (developer.paypal.com/docs/api/customer-disputes/v1/schema.json):
+        # evidence_info.refund_ids -> refund_ids_list = array of plain strings (1-100, each 1-255 chars). Unlike
+        # tracking_info, these are NOT objects. Not yet confirmed against the live sandbox (VERIFY).
         evidences = [{"evidence_type": "PROOF_OF_REFUND",
                       "evidence_info": {"refund_ids": f.get("refund_ids", [])},
                       "notes": decision.evidence_summary[:2000]}]
