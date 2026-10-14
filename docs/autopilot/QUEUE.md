@@ -221,7 +221,9 @@ Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows`
 S2 shipped escalate, appeal and the richer evidence types against the mock only. Using the existing named manual
 scripts (`spike_sandbox.py`, `make_sandbox_dispute.py`; `require-evidence` stays confined to them), confirm: the link
 rel names `escalate` and `appeal` on a shown dispute; that escalate is accepted on an INQUIRY waiting for the seller;
-the appeal multipart body and the stage it moves to; that a seller can send PROOF_OF_RETURN. Fix the mock and the
+the appeal multipart body and the stage it moves to; that a seller can send PROOF_OF_RETURN; escalate after a seller
+reply (the status send-message leaves, and whether a buyer reply returns the INQUIRY to WAITING_FOR_SELLER_RESPONSE,
+which the ESCALATE rule and the mock's `require-evidence` stand-in assume). Fix the mock and the
 client together and remove the matching `VERIFY` notes (`client.py`, `mock.py`, `facts.py`, `approval.py`).
 
 ## USER

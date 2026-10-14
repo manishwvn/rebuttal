@@ -338,6 +338,10 @@ class MockPayPal:
             dispute.setdefault("messages", []).append(
                 {"posted_by": "SELLER", "time_posted": _now(), "content": body.get("message", "")}
             )
+            # The real sandbox moved the dispute to UNDER_REVIEW after a message and refused the offer that followed.
+            # VERIFY: whether the INQUIRY returns to WAITING_FOR_SELLER_RESPONSE after a buyer reply, which is the
+            # state escalate needs; the mock only reaches it through the sandbox-only require-evidence.
+            dispute["status"] = "UNDER_REVIEW"
         elif action == "make-offer":
             amount = body.get("offer_amount")
             dispute["offer"] = {

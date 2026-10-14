@@ -354,6 +354,7 @@ def test_a_later_proposal_with_the_same_text_is_not_mistaken_for_the_first_one()
     rt = Runtime(seed_cases=["inr_in_transit"], force_rules=True)
     first = rt.analyze("PP-D-2000")
     assert rt.approvals.approve(first.id).result[0].get("reconciled") is None
+    rt.mock.disputes["PP-D-2000"]["status"] = "WAITING_FOR_SELLER_RESPONSE"  # the mock waits on PayPal after a message
     second = rt.analyze("PP-D-2000", force=True)
     assert second.id != first.id and second.actions[0].params == first.actions[0].params
     done = rt.approvals.approve(second.id)

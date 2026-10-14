@@ -34,7 +34,7 @@ def _evidence_list(facts, resolution="SUBMIT_EVIDENCE", summary="Seller evidence
 
 
 # --- escalate ------------------------------------------------------------------------------------------------------
-def test_escalate_plans_one_claim_escalation_with_the_buyer_note():
+def test_escalate_plans_one_claim_escalation_with_the_note_to_paypal():
     case = _case(**_tracked())
     (action,) = plan_actions(_decision("ESCALATE", message="Escalating to a claim."), case)
     assert action.kind == "escalate"

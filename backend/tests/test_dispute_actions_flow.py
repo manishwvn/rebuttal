@@ -7,16 +7,24 @@ together through `Runtime`, the way the dashboard does.
 import pytest
 
 from rebuttal.approval import idempotency_key
+from rebuttal.paypal.client import permit_writes
 from rebuttal.runtime import Runtime
 
 ID = "PP-D-2000"
 
 
 def escalatable_rt() -> Runtime:
-    """A delivered NOT_RECEIVED inquiry the seller has already answered: the case the rules escalate."""
+    """A delivered NOT_RECEIVED inquiry the seller has already answered and is waiting on the seller again: the case
+    the rules escalate. The mock moves the dispute to UNDER_REVIEW after the message, as the real sandbox did, and
+    the sandbox-only require-evidence stands in for the buyer's reply that brings it back to the seller.
+    VERIFY: whether a real buyer reply returns an INQUIRY to WAITING_FOR_SELLER_RESPONSE (S3 in QUEUE.md)."""
     rt = Runtime(seed_cases=["inr_delivered"], force_rules=True)
-    rt.mock.disputes[ID].setdefault("messages", []).append(
-        {"posted_by": "SELLER", "time_posted": "2026-10-05T10:00:00Z", "content": "It was delivered, see tracking."})
+    with permit_writes():
+        rt.client.send_message(ID, "It was delivered, see tracking.")
+        rt.client.require_evidence(ID)
+    assert rt.mock.disputes[ID]["status"] == "WAITING_FOR_SELLER_RESPONSE"
+    rt.mock.calls.clear()  # the setup writes are not the proposal's
+    rt.mock.request_ids.clear()
     return rt
 
 

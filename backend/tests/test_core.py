@@ -146,6 +146,17 @@ def test_mock_rejects_seller_actions_while_under_review(rt):
     assert err.value.status == 422 and "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE" in str(err.value)
 
 
+def test_mock_message_moves_the_dispute_to_under_review_like_the_real_sandbox(rt):
+    from rebuttal.paypal.client import PayPalError
+
+    with permit_writes():
+        rt.client.send_message("PP-D-2000", "hi")
+        assert rt.mock.disputes["PP-D-2000"]["status"] == "UNDER_REVIEW"
+        with pytest.raises(PayPalError) as err:
+            rt.client.make_offer("PP-D-2000", note="x", offer_type="REFUND")
+    assert err.value.status == 422 and "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE" in str(err.value)
+
+
 def test_spike_retry_status_only(rt, capsys, monkeypatch):
     from scripts import spike_retry
 

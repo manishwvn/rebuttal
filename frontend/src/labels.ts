@@ -1,4 +1,4 @@
-import type { ActionKind, PlannedAction, Proposal } from './types'
+import type { ActionKind, PlannedAction, Proposal } from './types.ts'
 
 export const REASON: Record<string, string> = {
   MERCHANDISE_OR_SERVICE_NOT_RECEIVED: 'Not received',
@@ -76,9 +76,17 @@ const ENDPOINT: Record<ActionKind, string> = {
 export const endpointFor = (disputeId: string, action: PlannedAction) =>
   `POST /v1/customer/disputes/${disputeId}/${ENDPOINT[action.kind]}`
 
-// What the buyer reads: the offer note, or the message. Evidence goes to PayPal, not the buyer, so it has none.
+// The text the merchant can read and edit: the message or offer note the buyer receives, or the escalation note, which
+// goes to PayPal and not to the buyer. Evidence has none.
 export function actionText(action: PlannedAction): string | null {
   return action.params.message ?? action.params.note ?? null
+}
+
+// Who reads that text, so the case view names the right reader. Only the escalate note is addressed to PayPal.
+export function textLabels(action: PlannedAction) {
+  return action.kind === 'escalate'
+    ? { draft: 'Note to PayPal', approved: 'Note you approved', summary: 'Note to PayPal' }
+    : { draft: 'Message the buyer will receive', approved: 'Message you approved', summary: 'Message' }
 }
 
 export function actionAmount(action: PlannedAction, caseAmount: number): string | null {

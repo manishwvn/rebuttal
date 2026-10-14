@@ -144,6 +144,8 @@ class RuleReasoner:
                     return "OFFER_REPLACEMENT", 0.75, ["Delivered, but not to the address on the order."]
                 if case.stage == "CHARGEBACK":
                     return "SUBMIT_EVIDENCE", 0.85, ["Claim stage; delivered to the order address."]
+                # VERIFY: after our own message the real sandbox showed UNDER_REVIEW, where escalate was refused, so this
+                # rule fires live only if a buyer reply returns the INQUIRY to the seller (S3 in QUEUE.md).
                 if (_escalation_offered(case) and f.get("delivered_address_matches") is True
                         and f.get("seller_already_responded")):
                     return "ESCALATE", 0.7, ["Delivered to the order address and we already answered the buyer, "
@@ -188,6 +190,16 @@ class RuleReasoner:
 
 
 # ------------------------------------------------------------------- drafting
+def draft_escalation_note(case: CaseFile) -> str:
+    """The note that goes with an escalation. PayPal reads it, not the buyer, so it states the facts and is not a
+    friendly message. It travels in Decision.message_to_buyer, the field every text-bearing action uses."""
+    f = case.facts
+    tracking = f"{f.get('carrier', '')} {f.get('tracking_number', '')}".strip()
+    return (f"Seller note for the dispute review: {tracking} shows {f.get('item', 'the order')} delivered on "
+            f"{f.get('delivered_on')} to the address on the order. We have already answered the buyer. "
+            "We ask PayPal to decide this dispute on the evidence.")
+
+
 def draft_message(resolution: str, case: CaseFile) -> str:
     f = case.facts
     first = case.order.buyer_name.split()[0] if case.order else "there"
@@ -203,9 +215,7 @@ def draft_message(resolution: str, case: CaseFile) -> str:
         return (f"Hi {first}, your {item} is on its way. Tracking {tracking} shows it moving normally. "
                 "Delivery usually takes 3 to 7 business days. We'll keep an eye on it too.")
     if resolution == "ESCALATE":
-        return (f"Hi {first}, thanks for your patience. {tracking} shows your {item} was delivered on "
-                f"{f.get('delivered_on')} to the address on your order. We've asked PayPal to review the dispute "
-                "and decide it on the evidence, so it can be settled fairly.")
+        return draft_escalation_note(case)
     if resolution == "OFFER_REPLACEMENT":
         if f.get("is_agent_purchase") and not f.get("agent_followed_instruction", True):
             return (f"Hi {first}, sorry about the mix-up. Your shopping assistant placed the order for "
@@ -333,6 +343,13 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
                                                   and f.get("delivered_address_matches") is True):
         return fallback("Proposed escalating, but PayPal does not offer escalation here or delivery to the order "
                         "address is not proven.")
+    if decision.resolution == "ESCALATE":
+        # The note goes to PayPal, not the buyer, so a model's friendly buyer message is replaced by the factual note.
+        note = draft_escalation_note(case)
+        if decision.message_to_buyer != note:
+            decision.message_to_buyer = note
+            notes.append("Replaced the drafted text with a factual note to PayPal; escalation notes go to PayPal, "
+                         "not the buyer.")
     if decision.resolution == "APPEAL" and not (f.get("can_appeal") is True and f.get("order_found") is not False):
         return fallback("Proposed an appeal, but PayPal offers none or we hold no order record.")
     if (decision.resolution == "SUBMIT_EVIDENCE" and f.get("assistant_misordered")

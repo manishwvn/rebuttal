@@ -3,6 +3,7 @@ import { useApi } from '../apiContext'
 import {
   actionAmount,
   actionText,
+  textLabels,
   displayStatus,
   endpointFor,
   deadlineLabel,
@@ -94,6 +95,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
   const facts = summary.facts
   const action = proposal.actions[0]
   const originalText = actionText(action)
+  const labels = textLabels(action)
   const status = displayStatus(proposal)
   const pending = proposal.status === 'PENDING'
 
@@ -249,7 +251,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
 
         {proposal.status === 'APPROVED' && originalText !== null ? (
           <>
-            <span className="label">Message you approved{approvedWithEdits ? ' (your edited version)' : ''}</span>
+            <span className="label">{labels.approved}{approvedWithEdits ? ' (your edited version)' : ''}</span>
             <blockquote className="quote" data-testid="approved-text">
               {proposal.approved_message}
             </blockquote>
@@ -257,7 +259,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
         ) : originalText !== null ? (
           <>
             <label htmlFor="draft" className="label">
-              Message the buyer will receive {pending ? '(you can edit it)' : ''}
+              {labels.draft} {pending ? '(you can edit it)' : ''}
             </label>
             <textarea id="draft" value={draft} readOnly={!pending} onChange={(e) => setDraft(e.target.value)} rows={5} maxLength={2000} />
           </>
@@ -377,7 +379,7 @@ function SendSummary({
         )}
         <dt>Amount</dt>
         <dd>{amount ?? 'No money moves with this call'}</dd>
-        <dt>{message === null ? 'Evidence' : 'Message'}</dt>
+        <dt>{message === null ? 'Evidence' : textLabels(action).summary}</dt>
         <dd>
           {message === null ? (
             <>{action.params.evidences?.map((e) => e.evidence_type).join(', ')} with an evidence PDF ({action.params.filename})</>

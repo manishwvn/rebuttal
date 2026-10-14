@@ -12,6 +12,7 @@ from rebuttal.agent.reasoner import (
     Decision,
     RuleReasoner,
     build_payload,
+    draft_escalation_note,
     draft_evidence_summary,
     draft_message,
     guard,
@@ -202,11 +203,20 @@ def test_guard_turns_APPEAL_into_the_rules_pick_without_an_order_record():
     assert any("Proposed an appeal" in n for n in d.guard_notes)
 
 
-def test_guard_keeps_a_valid_ESCALATE_untouched():
+def test_guard_keeps_a_valid_ESCALATE_but_swaps_a_buyer_message_for_the_note_to_paypal():
     case = _delivered_case()
     case.facts.update(can_escalate=True, seller_already_responded=True)
-    d = guard(Decision("ESCALATE", 0.8, ["x"], "", "our message", "", source="claude"), case)
-    assert (d.resolution, d.confidence, d.message_to_buyer, d.guard_notes) == ("ESCALATE", 0.8, "our message", [])
+    d = guard(Decision("ESCALATE", 0.8, ["x"], "", "Hi Lena, thanks for waiting!", "", source="claude"), case)
+    assert (d.resolution, d.confidence) == ("ESCALATE", 0.8)
+    assert d.message_to_buyer == draft_escalation_note(case)
+    assert any("note to PayPal" in n for n in d.guard_notes)
+
+
+def test_guard_leaves_the_rules_escalation_note_without_a_guard_note():
+    case = _delivered_case()
+    case.facts.update(can_escalate=True, seller_already_responded=True)
+    d = guard(RuleReasoner().decide(case), case)
+    assert d.resolution == "ESCALATE" and d.guard_notes == []
 
 
 def test_guard_keeps_a_valid_APPEAL_untouched():
@@ -244,11 +254,13 @@ def test_the_fallback_cannot_loop_for_any_combination_of_dispute_facts(
 
 
 # -------------------------------------------------------------------------- drafts
-def test_draft_message_ESCALATE_mentions_the_tracking_and_stays_short():
+def test_the_ESCALATE_draft_is_a_factual_note_to_paypal_not_a_message_to_the_buyer():
     case = _delivered_case()
     msg = draft_message("ESCALATE", case)
+    assert msg == draft_escalation_note(case)
     assert f"{case.facts['carrier']} {case.facts['tracking_number']}" in msg
-    assert case.facts["delivered_on"] in msg and "PayPal" in msg
+    assert case.facts["delivered_on"] in msg and "ask PayPal to decide" in msg
+    assert not msg.startswith("Hi ") and "your" not in msg.lower()  # nothing addressed to the buyer
     assert len(msg.split()) < 90
 
 
