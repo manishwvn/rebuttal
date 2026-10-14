@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { defineConfig } from '@playwright/test'
 
 // Google Chrome is on developer machines, as in frontend/playwright.config.ts, so no browser download is needed.
