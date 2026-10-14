@@ -7,7 +7,9 @@ Two graph nodes live here, side by side so the rule is easy to audit:
   a restart, because the paused state is in the checkpointer.
 - `execute` makes the PayPal write call. The graph only routes to it after an approve or edit decision, and it
   refuses to run without one. Every call carries a deterministic idempotency key, and before sending it reads the
-  dispute to see whether this very action already landed (a retry after a crash).
+  dispute to see whether this very action already landed (a retry after a crash). Escalate and appeal are not
+  recognised by `already_applied`: they fall back to `not_allowed_now`, which fails closed once the dispute's stage or
+  links have moved on.
 
 Two rules for node code, both learned from review:
 
@@ -29,7 +31,7 @@ from typing import TYPE_CHECKING, Literal
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from .agent.facts import CaseFile, seller_activity
+from .agent.facts import CaseFile, dispute_actions, seller_activity
 from .agent.pipeline import Proposal, build_evidence_pdf
 from .agent.reasoner import Decision, effective_options
 from .audit import AuditLog
@@ -93,7 +95,8 @@ def already_applied(dispute: dict, action: dict, baseline: dict) -> bool:
     type than it did then. Best effort, for a retry after a crash between the PayPal call and the checkpoint:
     PayPal documents `PayPal-Request-Id` for Orders and Payments but not for the Disputes API, so the key alone
     cannot be relied on here. Messages and offers are recognised; evidence and accept-claim are not (they fall back
-    to `not_allowed_now`, the key, and PayPal's own refusal of a repeated action)."""
+    to `not_allowed_now`, the key, and PayPal's own refusal of a repeated action). Escalate and appeal are not
+    recognised either: `not_allowed_now` fails them closed once the stage or links have moved on."""
     now = seller_activity(dispute)
     kind, params = action["kind"], action["params"]
     if kind == "send_message":
@@ -105,12 +108,19 @@ def already_applied(dispute: dict, action: dict, baseline: dict) -> bool:
 
 def not_allowed_now(dispute: dict, action: dict) -> str | None:
     """Why PayPal would refuse this action on the dispute as it is now, if its own list of allowed responses says
-    so (the dispute may have moved on while the proposal waited, or after a crash that did send). None = go ahead."""
+    so, or for escalate and appeal, if the dispute's links no longer offer them (the dispute may have moved on while
+    the proposal waited, or after a crash that did send). None = go ahead."""
+    kind, params = action["kind"], action["params"]
+    # Escalate and appeal do not depend on allowed_response_options, so they are checked before the options logic.
+    if kind == "escalate" and not dispute_actions(dispute)["can_escalate"]:
+        return ("PayPal no longer allows escalating this dispute to a claim "
+                "(the dispute has changed since the proposal was made)")
+    if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:
+        return "PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made)"
     options, _ = effective_options(dispute.get("allowed_response_options"), dispute.get("reason", ""),
                                    dispute.get("dispute_life_cycle_stage", ""))  # none listed: the proven fallback
     if options is None:
         return None
-    kind, params = action["kind"], action["params"]
     if kind == "accept_claim" and "accept_claim" not in options:
         return "PayPal no longer allows accepting this claim (the dispute has changed since the proposal was made)"
     if kind == "make_offer" and params["offer_type"] not in options.get("make_offer", {}).get("offer_types", []):
@@ -156,9 +166,14 @@ def execute_action(client: PayPalClient, dispute_id: str, action: dict, request_
                                  request_id=request_id)
     if kind == "accept_claim":
         return client.accept_claim(dispute_id, note=prm["note"], request_id=request_id)
+    if kind == "escalate":
+        return client.escalate(dispute_id, prm["note"], request_id=request_id)
     if kind == "provide_evidence":
         files = [(prm["filename"], evidence_pdf, "application/pdf")] if evidence_pdf else []
         return client.provide_evidence(dispute_id, prm["evidences"], files, request_id=request_id)
+    if kind == "appeal":
+        files = [(prm["filename"], evidence_pdf, "application/pdf")] if evidence_pdf else []
+        return client.appeal(dispute_id, prm["evidences"], files, request_id=request_id)
     raise ApprovalError(f"Unknown action {kind}")
 
 
@@ -177,7 +192,7 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
         audit.log(dispute_id, "approve", {"proposal": proposal_id, "by": approval["by"],
                                           "edited": approval["status"] == "edited"})
         pdf = None
-        if any(a["kind"] == "provide_evidence" for a in actions):
+        if any(a["kind"] in ("provide_evidence", "appeal") for a in actions):
             pdf = build_evidence_pdf(CaseFile.from_dict(state["case"]), Decision.from_dict(decision))
         current = client.get_dispute(dispute_id)
 
