@@ -161,7 +161,7 @@ design (single write path, guard, approval), eval table, how each sponsor tool i
 `docs/apimatic-log.md`, PayPal APIs), license. Draft `docs/devpost.md` (every Devpost field) and
 `docs/discord-preview.md` (short post asking for judge-style feedback). Prepare the APIMatic form answers.
 
-### C3 Discord preview — size S — in-progress (cycle 2026-10-14T14:11) — after C2 and A5 — target Oct 23
+### C3 Discord preview — size S — done (this PR) — after C2 and A5 — target Oct 23
 Make the USER item: post `docs/discord-preview.md` in the AG Grid and general channels (exact steps). Do not post.
 
 ### D1 Feature freeze — Nov 3
@@ -221,8 +221,15 @@ Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows`
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
 
-- **U2 APIMatic form and Discord preview**: ready on Oct 23 (after C3). Steps: TODO (the lead writes them in C3).
-  Inputs are ready: `docs/apimatic-form.md` (answers for the APIMatic form) and `docs/discord-preview.md` (the post).
+- **U2 APIMatic form and Discord preview**: ready on Oct 23 (after C3). Inputs are ready: `docs/apimatic-form.md` (answers for the APIMatic form) and `docs/discord-preview.md` (the posts, sections A and B).
+  1. Discord, AG Grid channel: in the hackathon's Discord server (use the invite link from the Devpost page; the repo does not name the server or its channels), open the AG Grid sponsor channel. Paste section A of `docs/discord-preview.md` (the text under "## A. AG Grid channel", without the heading) and post it.
+  2. Discord, general channel: open the general feedback channel, paste section B (the text under "## B. General channel") and post it.
+  3. Tell the lead "U2 Discord posted" once both posts are up.
+  4. APIMatic form: open the APIMatic form link from the hackathon's sponsor resources (the repo does not record the form URL). Check its questions against `docs/apimatic-form.md`, which was written for generic questions.
+  5. Paste the answers from `docs/apimatic-form.md`: "How did you use the APIMatic Context Plugin?", "What did it not help with?", "Links to evidence", and the "Short answer" if the form has a small text box. Skip "Note for Manish" and "Before you submit".
+  6. Replace `<YouTube link, added by Manish>` in "Links to evidence" with the video link, or leave that line out if there is no video yet.
+  7. Do not submit the separate free-subscription claim form linked in `docs/apimatic-log.md`.
+  8. Submit the APIMatic form yourself, then tell the lead "U2 done".
 
 - ~~**U1 Second sandbox business account**~~ done Oct 9. Original steps kept for reference: developer.paypal.com > log in > Testing Tools >
   Sandbox Accounts > Create account > Business, United States > Create. Then Apps & Credentials (Sandbox) > Create App
