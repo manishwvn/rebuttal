@@ -7,7 +7,11 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
-## 2026-10-14 08:11 CDT | W 28→34 % | F 26→70 % | audit, R1 | merged (this PR)
+## 2026-10-14 08:31 CDT | W 34→? % | F 69→? % | R5 | merged (this PR)
+Sonnet agent: webhook returns 400 for non-JSON or non-object bodies and ignores a null resource; list/analyze map PayPal 404 to 404 and other PayPal or transport errors to 502 (helper `paypal_read_failed`, logs status and debug_id only); 11 new tests (480 pass).
+Lead slip in #55: merged before the docs-only fixup commit's CI finished; it then passed. From now on wait on `gh pr checks` for the last pushed commit.
+
+## 2026-10-14 08:11 CDT | W 28→34 % | F 26→69 % | audit, R1 | merged #55
 Daily system-audit: 41 raw findings, 11 verified tasks, 5 rejected, not critical. The audit alone used about 37% of the 5-hour window.
 R1 built by a Sonnet agent: mock mode ignores DATABASE_URL unless REBUTTAL_MOCK_USE_DATABASE=1 (live_postgres.py opts in); explicit REBUTTAL_CHECKPOINT_URL still wins; 4 new tests.
 Left undone on purpose: deleting the stray PP-D-2000 rows from the shared live database (no live effect).
