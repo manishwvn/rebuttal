@@ -19,7 +19,7 @@ from .reasoner import Decision
 
 @dataclass
 class PlannedAction:
-    kind: str  # send_message | make_offer | provide_evidence | accept_claim
+    kind: str  # send_message | make_offer | provide_evidence | accept_claim | escalate | appeal
     summary: str
     params: dict
 
@@ -41,7 +41,7 @@ class Proposal:
 
     @property
     def needs_evidence_pdf(self) -> bool:
-        return any(a.kind == "provide_evidence" for a in self.actions)
+        return any(a.kind in ("provide_evidence", "appeal") for a in self.actions)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -72,7 +72,7 @@ def approved_text(actions: list[dict], approval: dict | None) -> str | None:
 
     An edit lives in the approval record until `execute` applies it to the action, so while an approved proposal is
     waiting for a retry the planned action still holds the draft. None before a decision, after a rejection, and for
-    an action with no buyer text (evidence)."""
+    an action with no buyer text (evidence, appeal)."""
     status = (approval or {}).get("status")
     if status not in ("approved", "edited") or not actions:
         return None
@@ -98,6 +98,38 @@ def case_summary(case: CaseFile, now: datetime | None = None) -> dict:
 
 def _money(v: float) -> dict:
     return {"currency_code": "USD", "value": f"{v:.2f}"}
+
+
+_PAYPAL_CARRIERS = ("UPS", "USPS", "FEDEX", "DHL")
+
+
+def _tracking(carrier: str, number: str) -> dict:
+    # VERIFY: carrier enum subset; other carriers go as OTHER with carrier_name_other
+    if carrier in _PAYPAL_CARRIERS:
+        return {"carrier_name": carrier, "tracking_number": number}
+    return {"carrier_name": "OTHER", "carrier_name_other": carrier, "tracking_number": number}
+
+
+def _return_entries(f: dict, notes: str) -> list[dict]:
+    """PROOF_OF_RETURN for a return the merchant has received; empty when there is no return on file."""
+    if f.get("return_received") and f.get("return_carrier") and f.get("return_tracking_number"):
+        return [{"evidence_type": "PROOF_OF_RETURN",
+                 "evidence_info": {"tracking_info": [_tracking(f["return_carrier"], f["return_tracking_number"])]},
+                 "notes": notes}]
+    return []
+
+
+def _evidences(decision: Decision, case: CaseFile) -> list[dict]:
+    """The evidence list for SUBMIT_EVIDENCE and APPEAL. An in-transit shipment with tracking is still proof of
+    fulfillment; with no tracking and no return the list is a plain OTHER entry with the summary."""
+    f, notes = case.facts, decision.evidence_summary[:2000]
+    evidences = []
+    if f.get("has_tracking"):
+        evidences.append({"evidence_type": "PROOF_OF_FULFILLMENT",
+                          "evidence_info": {"tracking_info": [_tracking(f["carrier"], f["tracking_number"])]},
+                          "notes": notes})
+    evidences += _return_entries(f, notes)
+    return evidences or [{"evidence_type": "OTHER", "notes": notes}]
 
 
 def plan_actions(decision: Decision, case: CaseFile) -> list[PlannedAction]:
@@ -129,22 +161,22 @@ def _plan_actions(decision: Decision, case: CaseFile) -> list[PlannedAction]:
                                "return_address": policies.RETURN_ADDRESS})]
     if r == "ACCEPT_CLAIM":
         return [PlannedAction("accept_claim", f"Accept claim and refund ${case.amount:.2f}", {"note": msg})]
+    if r == "ESCALATE":
+        return [PlannedAction("escalate", "Escalate to a PayPal claim", {"note": msg[:2000]})]
+    if r == "APPEAL":
+        return [PlannedAction("appeal", "Appeal with new evidence and evidence PDF",
+                              {"evidences": _evidences(decision, case), "filename": f"appeal-{case.dispute_id}.pdf"})]
 
     if r == "SUBMIT_REFUND_PROOF":
         # Source: PayPal Disputes v1 OpenAPI (developer.paypal.com/docs/api/customer-disputes/v1/schema.json):
         # evidence_info.refund_ids -> refund_ids_list = array of plain strings (1-100, each 1-255 chars). Unlike
         # tracking_info, these are NOT objects. Not yet confirmed against the live sandbox (VERIFY).
+        notes = decision.evidence_summary[:2000]
         evidences = [{"evidence_type": "PROOF_OF_REFUND",
                       "evidence_info": {"refund_ids": f["refund_ids"]},
-                      "notes": decision.evidence_summary[:2000]}]
+                      "notes": notes}, *_return_entries(f, notes)]
     else:  # SUBMIT_EVIDENCE
-        if f.get("shipment_status") == "DELIVERED":
-            evidences = [{"evidence_type": "PROOF_OF_FULFILLMENT",
-                          "evidence_info": {"tracking_info": [{"carrier_name": f["carrier"],
-                                                               "tracking_number": f["tracking_number"]}]},
-                          "notes": decision.evidence_summary[:2000]}]
-        else:
-            evidences = [{"evidence_type": "OTHER", "notes": decision.evidence_summary[:2000]}]
+        evidences = _evidences(decision, case)
     return [PlannedAction("provide_evidence", f"Submit {evidences[0]['evidence_type']} with evidence PDF",
                           {"evidences": evidences, "filename": f"evidence-{case.dispute_id}.pdf"})]
 
@@ -166,7 +198,8 @@ def build_evidence_pdf(case: CaseFile, decision: Decision) -> bytes:
     if case.order:
         rows += [("Invoice", case.order.invoice_id), ("Order date", case.order.created.date().isoformat()),
                  ("Ship to", case.order.ship_to)]
-    for key in ("item", "carrier", "tracking_number", "shipment_status", "delivered_on"):
+    for key in ("item", "carrier", "tracking_number", "shipment_status", "delivered_on",
+                "return_carrier", "return_tracking_number"):
         if key in case.facts:
             rows.append((key.replace("_", " ").title(), str(case.facts[key])))
     for k, v in rows:
