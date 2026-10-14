@@ -7,6 +7,10 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 11:40 CDT | W 37→? % | F 11→? % | R4, R9 | merged #61, #62
+R4: PayPal Disputes v1 schema.json says evidence_info.refund_ids is an array of 1-100 plain strings, so the request was already right; mock now rejects malformed refund_ids with 400 INVALID_REQUEST, VERIFY until a live PROOF_OF_REFUND. Opus reviewer confirmed the write boundary and the schema independently.
+R9: evals.run and scripts.demo print only unless --save; README start commands unified (dropped REBUTTAL_ALLOW_OPEN_API, kept blank REBUTTAL_CHECKPOINT_URL), coverage 94%.
+
 ## 2026-10-14 11:11 CDT | W 36→37 % | F 3→11 % | R3, R6, R8 | merged #58, #59, #60
 Three disjoint S tasks in parallel worktrees: Sonnet builders for R3 (facts.py duplicate filter: settled 'S' and same or missing invoice, VERIFY note on DUPLICATE_INVOICE_ID) and R6 (hours_left recomputed from the runtime clock at read time, Overdue pill), Haiku chores for R8 docs.
 Reviewers: Opus on R3 (write boundary and guard confirmed intact, 26 boundary tests pass), Sonnet on R6 and R8; every should-fix fixed in one round. #59 conflicted with #58 in test_core.py (both added tests); kept both, 487 pass.
