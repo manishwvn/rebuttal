@@ -164,10 +164,11 @@ def test_appeal_needs_at_least_one_evidence(sandbox):
     assert DISPUTE not in sandbox.evidence_files
 
 
-def test_provide_evidence_proof_of_return_needs_evidence_info(sandbox, client):
+@pytest.mark.parametrize("evidence_type", ["PROOF_OF_RETURN", "PROOF_OF_FULFILLMENT", "PROOF_OF_REFUND"])
+def test_provide_evidence_proof_needs_evidence_info(sandbox, client, evidence_type):
     sandbox.add_dispute(_dispute())
     with permit_writes(), pytest.raises(PayPalError) as err:
-        client.provide_evidence(DISPUTE, [{"evidence_type": "PROOF_OF_RETURN", "notes": "returned"}])
+        client.provide_evidence(DISPUTE, [{"evidence_type": evidence_type, "notes": "proof"}])
     assert err.value.status == 400
     assert err.value.body["details"] == [{"field": "/evidences/0/evidence_info", "location": "body",
                                           "issue": "MISSING_REQUIRED_PARAMETER"}]
@@ -183,6 +184,19 @@ def test_provide_evidence_tracking_other_needs_carrier_name_other(sandbox, clien
     assert err.value.status == 400
     assert err.value.body["details"] == [{"field": "/evidences/0/evidence_info/tracking_info", "location": "body",
                                           "issue": "MISSING_REQUIRED_PARAMETER"}]
+
+
+@pytest.mark.parametrize("tracking", [{"carrier_name": "USPS"}, {"tracking_number": "TRK-1"}])
+def test_provide_evidence_tracking_needs_carrier_and_number(sandbox, client, tracking):
+    sandbox.add_dispute(_dispute())
+    evidence = {"evidence_type": "PROOF_OF_FULFILLMENT", "evidence_info": {"tracking_info": [tracking]}}
+    with permit_writes(), pytest.raises(PayPalError) as err:
+        client.provide_evidence(DISPUTE, [evidence])
+    assert err.value.status == 400
+    assert err.value.body["details"] == [{"field": "/evidences/0/evidence_info/tracking_info", "location": "body",
+                                          "issue": "MISSING_REQUIRED_PARAMETER"}]
+    assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_SELLER_RESPONSE"
+    assert DISPUTE not in sandbox.evidence_files
 
 
 def test_rejected_provide_evidence_keeps_the_filename_out_of_the_record(sandbox):
