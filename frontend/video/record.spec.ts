@@ -36,7 +36,9 @@ const auditSteps = (page: Page) =>
     .evaluateAll((items) => items.map((li) => li.getAttribute('data-step')))
 
 // Moves the mouse to the middle of an element in 25 steps, so the overlay cursor visibly travels.
+// The element is scrolled into view first, so its middle is on screen and the cursor stays in the frame.
 async function moveTo(page: Page, target: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded()
   const box = await target.boundingBox()
   if (!box) throw new Error('element has no bounding box, so the cursor cannot move to it')
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 25 })
@@ -53,11 +55,14 @@ function readPytestOutput(work: string): string {
   const file = join(work, 'pytest.txt')
   if (!existsSync(file)) throw new Error(`${file} is missing: save the pytest output there before recording`)
   const output = readFileSync(file, 'utf8')
-  if (!output.includes(' passed')) throw new Error(`${file} has no pytest ' passed' summary, so the card would show a failing run`)
+  if (!/\b\d+ passed\b/.test(output)) throw new Error(`${file} has no pytest 'N passed' summary, so it is not a passing run`)
+  if (/\b[1-9]\d* (failed|errors?)\b/.test(output)) throw new Error(`${file} reports failures or errors, so the card would show a failing run`)
   return output
 }
 
 test('record the demo video', async ({ browser }) => {
+  // The take runs for the full video, about three minutes, so the default 30 s test timeout would abort it.
+  test.setTimeout(15 * 60_000)
   const work = process.env.VIDEO_WORK_DIR
   if (!work) throw new Error('VIDEO_WORK_DIR is not set: point it at the folder that receives screen.webm and timeline.json')
 
@@ -202,27 +207,31 @@ test('record the demo video', async ({ browser }) => {
   const t0 = Date.now()
   const page = await context.newPage()
 
-  // Setup, not a shot: the mock runs on a fixed clock, so the inbox Age column is the same in every take.
-  await page.clock.setFixedTime(new Date('2026-10-06T16:00:00Z'))
-  await page.goto('/')
-  await expect(page.getByTestId('mode-badge')).toContainText('mock / rules')
-  await expect(row(page)).toBeVisible()
-  await expect(page.locator('[row-id]')).toHaveCount(6)
-  await expect(statusCell(page, DISPUTE)).toHaveText('Not analyzed')
+  // The footage is saved even when a step fails, so the failing take can still be inspected. The error still propagates.
+  try {
+    // Setup, not a shot: the mock runs on a fixed clock, so the inbox Age column is the same in every take.
+    await page.clock.setFixedTime(new Date('2026-10-06T16:00:00Z'))
+    await page.goto('/')
+    await expect(page.getByTestId('mode-badge')).toContainText('mock / rules')
+    await expect(row(page)).toBeVisible()
+    await expect(page.locator('[row-id]')).toHaveCount(6)
+    await expect(statusCell(page, DISPUTE)).toHaveText('Not analyzed')
 
-  const timeline: { id: string; startMs: number; endMs: number }[] = []
-  for (const shot of shots) {
-    const handler = handlers[shot.id]
-    const hold = durations[shot.id].holdMs
-    if (handler.card) await page.setContent(handler.card())
-    await setOverlay(page, { caption: shot.narration, badge: shot.badge, tag: shot.tag })
-    const startMs = Date.now() - t0
-    await handler.run?.(page)
-    await page.waitForTimeout(Math.max(0, hold - (Date.now() - t0 - startMs)))
-    timeline.push({ id: shot.id, startMs, endMs: Date.now() - t0 })
+    const timeline: { id: string; startMs: number; endMs: number }[] = []
+    for (const shot of shots) {
+      const handler = handlers[shot.id]
+      const hold = durations[shot.id].holdMs
+      if (handler.card) await page.setContent(handler.card())
+      await setOverlay(page, { caption: shot.narration, badge: shot.badge, tag: shot.tag })
+      const startMs = Date.now() - t0
+      await handler.run?.(page)
+      await page.waitForTimeout(Math.max(0, hold - (Date.now() - t0 - startMs)))
+      timeline.push({ id: shot.id, startMs, endMs: Date.now() - t0 })
+    }
+
+    writeFileSync(join(work, 'timeline.json'), JSON.stringify(timeline, null, 2))
+  } finally {
+    await context.close()
+    await page.video()!.saveAs(join(work, 'screen.webm'))
   }
-
-  writeFileSync(join(work, 'timeline.json'), JSON.stringify(timeline, null, 2))
-  await context.close()
-  await page.video()!.saveAs(join(work, 'screen.webm'))
 })
