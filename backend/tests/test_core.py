@@ -314,6 +314,7 @@ def test_hours_left_follows_the_runtime_clock_after_analysis(rt):
     rt.agent._clock = lambda: DEMO_NOW + timedelta(hours=first + 5)
     assert rt.agent.proposal("PP-D-2000").case_summary["hours_left"] == pytest.approx(-5, abs=0.11)
 
+
 def _duplicate_flag(rt, mutate):
     """gather() on a duplicate_true case after mutate(duplicate_txn_info) edited the second charge."""
     base = min(rt.mock.transactions, key=len)  # the seeded capture id; the scenario adds its duplicate as base + "D"
