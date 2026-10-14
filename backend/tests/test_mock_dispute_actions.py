@@ -16,6 +16,7 @@ BASE = "https://api-m.sandbox.paypal.com"
 DISPUTE = "PP-D-1"
 APPEAL_PATH = f"/v1/customer/disputes/{DISPUTE}/appeal"
 EVIDENCE = {"evidence_type": "OTHER", "notes": "Delivered per tracking"}
+NOT_ALLOWED = [{"issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"}]
 
 
 def _dispute(stage="INQUIRY", status="WAITING_FOR_SELLER_RESPONSE", outcome=None) -> dict:
@@ -45,21 +46,27 @@ def client(sandbox: MockPayPal) -> PayPalClient:
     return PayPalClient(BASE, "id", "secret", transport=sandbox.transport())
 
 
-def _post_appeal(sandbox: MockPayPal, evidences, request_id: str = "req-appeal-1") -> httpx.Response:
-    """The appeal request, built as the provide-evidence multipart body: an `input` JSON part plus a document."""
+def _post_evidence(sandbox: MockPayPal, action: str, evidences, request_id: str = "req-1") -> httpx.Response:
+    """A provide-evidence or appeal request, built as the multipart body: an `input` JSON part plus a document."""
     files = {
         "input": (None, json.dumps({"evidences": evidences}), "application/json"),
         "file1": ("a.pdf", b"%PDF", "application/pdf"),
     }
     with httpx.Client(base_url=BASE, transport=sandbox.transport()) as http:
-        return http.post(APPEAL_PATH, headers={"Authorization": "Bearer x", "PayPal-Request-Id": request_id},
-                         files=files)
+        return http.post(f"/v1/customer/disputes/{DISPUTE}/{action}",
+                         headers={"Authorization": "Bearer x", "PayPal-Request-Id": request_id}, files=files)
+
+
+def _post_appeal(sandbox: MockPayPal, evidences, request_id: str = "req-appeal-1") -> httpx.Response:
+    return _post_evidence(sandbox, "appeal", evidences, request_id)
 
 
 @pytest.mark.parametrize(("dispute", "rels"), [
     (_dispute(), ["self", "escalate"]),
+    (_dispute(status="WAITING_FOR_BUYER_RESPONSE"), ["self"]),
     (_dispute(stage="CHARGEBACK", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self", "appeal"]),
     (_dispute(stage="PRE_ARBITRATION", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self", "appeal"]),
+    (_dispute(stage="ARBITRATION", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self"]),
     (_dispute(stage="CHARGEBACK", status="RESOLVED", outcome="RESOLVED_SELLER_FAVOUR"), ["self"]),
     (_dispute(stage="CHARGEBACK", status="UNDER_REVIEW"), ["self"]),
     (_dispute(stage="CHARGEBACK"), ["self"]),
@@ -91,7 +98,16 @@ def test_escalate_refused_once_past_inquiry(sandbox, client):
     with permit_writes(), pytest.raises(PayPalError) as err:
         client.escalate(DISPUTE, "Too late")
     assert err.value.status == 422
-    assert err.value.body["details"] == [{"issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"}]
+    assert err.value.body["details"] == NOT_ALLOWED
+
+
+def test_escalate_refused_while_waiting_for_the_buyer(sandbox, client):
+    sandbox.add_dispute(_dispute(status="WAITING_FOR_BUYER_RESPONSE"))
+    with permit_writes(), pytest.raises(PayPalError) as err:
+        client.escalate(DISPUTE, "Buyer has not answered")
+    assert err.value.status == 422
+    assert err.value.body["details"] == NOT_ALLOWED
+    assert sandbox.disputes[DISPUTE]["dispute_life_cycle_stage"] == "INQUIRY"
 
 
 @pytest.mark.parametrize("note", ["", "x" * 2001])
@@ -122,13 +138,21 @@ def test_appeal_on_a_lost_dispute_goes_back_under_review(sandbox, stage, next_st
     assert sandbox.events[-1]["event_type"] == "CUSTOMER.DISPUTE.UPDATED"
 
 
-def test_appeal_refused_on_an_open_dispute(sandbox):
-    sandbox.add_dispute(_dispute())
+@pytest.mark.parametrize(("stage", "status", "outcome"), [
+    ("INQUIRY", "WAITING_FOR_SELLER_RESPONSE", None),  # open dispute
+    ("CHARGEBACK", "RESOLVED", "RESOLVED_SELLER_FAVOUR"),  # seller won, nothing to appeal
+    ("CHARGEBACK", "UNDER_REVIEW", "RESOLVED_BUYER_FAVOUR"),  # already contested
+    ("ARBITRATION", "RESOLVED", "RESOLVED_BUYER_FAVOUR"),  # lost at the last stage
+])
+def test_appeal_refused_when_no_appeal_is_offered(sandbox, stage, status, outcome):
+    sandbox.add_dispute(_dispute(stage=stage, status=status, outcome=outcome))
     resp = _post_appeal(sandbox, [EVIDENCE])
     assert resp.status_code == 422
-    assert resp.json()["details"] == [{"issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"}]
-    assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_SELLER_RESPONSE"
-    assert DISPUTE not in sandbox.evidence_files  # refused before the upload is read
+    assert resp.json()["details"] == NOT_ALLOWED
+    dispute = sandbox.disputes[DISPUTE]
+    assert dispute["dispute_life_cycle_stage"] == stage
+    assert dispute["status"] == status
+    assert DISPUTE not in sandbox.evidence_files  # refused before the upload is recorded
 
 
 def test_appeal_needs_at_least_one_evidence(sandbox):
@@ -137,6 +161,7 @@ def test_appeal_needs_at_least_one_evidence(sandbox):
     assert resp.status_code == 400
     assert resp.json()["details"] == [{"field": "/evidences", "location": "body", "issue": "INVALID_ARRAY_SIZE"}]
     assert sandbox.disputes[DISPUTE]["status"] == "RESOLVED"
+    assert DISPUTE not in sandbox.evidence_files
 
 
 def test_provide_evidence_proof_of_return_needs_evidence_info(sandbox, client):
@@ -160,6 +185,13 @@ def test_provide_evidence_tracking_other_needs_carrier_name_other(sandbox, clien
                                           "issue": "MISSING_REQUIRED_PARAMETER"}]
 
 
+def test_rejected_provide_evidence_keeps_the_filename_out_of_the_record(sandbox):
+    sandbox.add_dispute(_dispute())
+    resp = _post_evidence(sandbox, "provide-evidence", [{"evidence_type": "PROOF_OF_RETURN"}])
+    assert resp.status_code == 400
+    assert DISPUTE not in sandbox.evidence_files
+
+
 def test_appeal_checks_evidence_info_too(sandbox):
     sandbox.add_dispute(_dispute(stage="CHARGEBACK", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"))
     resp = _post_appeal(sandbox, [{"evidence_type": "PROOF_OF_REFUND"}])
@@ -167,6 +199,7 @@ def test_appeal_checks_evidence_info_too(sandbox):
     assert resp.json()["details"] == [{"field": "/evidences/0/evidence_info", "location": "body",
                                        "issue": "MISSING_REQUIRED_PARAMETER"}]
     assert sandbox.disputes[DISPUTE]["status"] == "RESOLVED"
+    assert DISPUTE not in sandbox.evidence_files
 
 
 def test_repeated_appeal_request_id_is_replayed_not_applied_twice(sandbox):

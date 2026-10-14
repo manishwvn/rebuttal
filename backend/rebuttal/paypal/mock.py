@@ -21,7 +21,8 @@ _DISPUTE_PATH = re.compile(r"^/v1/customer/disputes/([^/]+)(?:/([a-z-]+))?$")
 _ORDER_PATH = re.compile(r"^/v2/checkout/orders/([^/]+)$")
 _CAPTURE_PATH = re.compile(r"^/v2/payments/captures/([^/]+)$")
 # Seller actions the real sandbox rejected with ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE
-# on an INQUIRY dispute in UNDER_REVIEW.
+# on an INQUIRY dispute in UNDER_REVIEW. appeal is from the OpenAPI spec only (VERIFY), and escalate beyond the
+# observed INQUIRY case is too (VERIFY).
 _SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "escalate", "appeal"}
 # Where a successful appeal sends a lost chargeback. VERIFY: the appeal stage transition is from the OpenAPI spec only.
 _APPEAL_NEXT_STAGE = {"CHARGEBACK": "PRE_ARBITRATION", "PRE_ARBITRATION": "ARBITRATION"}
@@ -297,8 +298,9 @@ class MockPayPal:
         if action in ("escalate", "appeal") and not _offers(dispute, action):
             return _not_allowed_now()
 
+        files: list[str] = []
         if action in ("provide-evidence", "appeal"):
-            body = self._parse_evidence(request)
+            body, files = self._parse_evidence(request)
         else:
             body = json.loads(request.content or b"{}")
 
@@ -328,6 +330,9 @@ class MockPayPal:
             if bad_info:
                 return _invalid_request([bad_info])
 
+        # Uploaded filenames are kept only once the evidence has passed validation, like the rest of the write.
+        if files:
+            self.evidence_files.setdefault(dispute_id, []).extend(files)
         dispute["update_time"] = _now()
         if action == "send-message":
             dispute.setdefault("messages", []).append(
@@ -383,7 +388,10 @@ class MockPayPal:
         self._event(event, dispute)
         return _json(200, {"links": [{"rel": "self", "href": f"/v1/customer/disputes/{dispute_id}"}]})
 
-    def _parse_evidence(self, request: httpx.Request) -> dict:
+    @staticmethod
+    def _parse_evidence(request: httpx.Request) -> tuple[dict, list[str]]:
+        """The multipart body: the `input` JSON part and the uploaded filenames. Recording the filenames is left to the
+        caller, which does it only after validation passes."""
         ctype = request.headers.get("content-type", "")
         raw = b"Content-Type: " + ctype.encode() + b"\r\n\r\n" + request.content
         msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(raw)
@@ -395,6 +403,4 @@ class MockPayPal:
                 payload = json.loads(part.get_content())
             elif part.get_filename():
                 files.append(part.get_filename())
-        dispute_id = request.url.path.split("/")[4]
-        self.evidence_files.setdefault(dispute_id, []).extend(files)
-        return payload
+        return payload, files
