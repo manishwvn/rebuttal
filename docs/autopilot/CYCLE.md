@@ -50,7 +50,7 @@ Load and call `mcp__ccd_session_mgmt__get_usage` (ToolSearch `select:mcp__ccd_se
 `~/Library/Application Support/Claude Usage/history/` (the Claude Usage menu-bar app); if both fail, do only a task
 marked `size: S` this cycle.
 
-- Weekly cap `C`: 80, unless `~/.rebuttal-autopilot/weekly-cap` exists (Manish's one-off override, for example `90`);
+- Weekly cap `C`: 80, unless `~/.rebuttal-autopilot/weekly-cap` exists and is non-empty (Manish's one-off override, for example `90`);
   then `C` is the number in it, the `W >= 80` and `W >= 82` checks below use `C` instead, and the mid-task stop is
   `W >= C`. A cycle that stops because `W >= C` under an override empties that file (`: > weekly-cap`) so later
   cycles fall back to 80; an empty file means no override. Never create or raise the file yourself. Headroom in section 3 is `H = C - W`.
@@ -61,7 +61,7 @@ marked `size: S` this cycle.
   `update_scheduled_task` (it needs a person's approval), so the Oct 13 one-time `fireAt` chain died after one run.
   Now an hourly cron fires the routine, and the wake file `~/.rebuttal-autopilot/next-wake` decides. Step 0 of the
   routine prompt runs `python3 docs/autopilot/next_run.py --gate ~/.rebuttal-autopilot/next-wake`; exit 3 means
-  skip: end the run at once with one line, no other tool call, no log line. Last step of every cycle that got past
+  skip: end the run at once with one line, no other tool call, no log line. Any other exit: continue as a normal run (the lock and usage guard still protect). Last step of every cycle that got past
   the gate, including skips and failures: run `python3 docs/autopilot/next_run.py --write
   ~/.rebuttal-autopilot/next-wake --now <now ISO> --w W --f F --cap C --weekly-reset <weekly resetsAt>
   --five-hour-reset <5-hour resetsAt> --runnable <runnable task count> [--next-after <earliest after date>]`. A run

@@ -22,28 +22,33 @@ def next_run(now, w, f, cap, weekly_reset, five_hour_reset, runnable, next_after
     return now + timedelta(hours=6)  # nothing runnable: cheap check for new queue tasks
 
 
+def when(text):
+    """ISO 8601 to an aware datetime; a naive one is taken as local time."""
+    t = datetime.fromisoformat(text.strip())
+    return t if t.tzinfo else t.astimezone()
+
+
 def gate(path, now):
     """True when a run should work: no wake file, an unreadable one, or its time has come."""
     try:
         with open(path) as fh:
-            wake = datetime.fromisoformat(fh.read().strip())
+            return now >= when(fh.read())
     except (OSError, ValueError):
         return True
-    return now >= wake
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--gate", metavar="WAKE_FILE")
     p.add_argument("--write", metavar="WAKE_FILE")
-    p.add_argument("--now", type=datetime.fromisoformat)
+    p.add_argument("--now", type=when)
     p.add_argument("--w", type=float)
     p.add_argument("--f", type=float)
     p.add_argument("--cap", type=float, default=80)
-    p.add_argument("--weekly-reset", type=datetime.fromisoformat)
-    p.add_argument("--five-hour-reset", type=datetime.fromisoformat)
+    p.add_argument("--weekly-reset", type=when)
+    p.add_argument("--five-hour-reset", type=when)
     p.add_argument("--runnable", type=int)
-    p.add_argument("--next-after", type=datetime.fromisoformat)
+    p.add_argument("--next-after", type=when)
     a = p.parse_args()
     if a.gate:
         if gate(a.gate, a.now or datetime.now(timezone.utc).astimezone()):
