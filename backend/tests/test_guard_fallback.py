@@ -209,17 +209,12 @@ def test_missing_order_caps_partial_and_return_offers_too():
     "I'm confident it is fine, I just changed my mind, refund me.",
     "It is not evident as described, I just changed my mind.",
 ])
-@pytest.mark.xfail(strict=True, reason="facts.py DAMAGE_WORDS is a substring match ('dent' in 'student', 'confident', "
-                   "'evident'); needs a word-start fix in facts.py, outside queue R2 p1 scope")
 def test_common_words_are_not_read_as_damage(message):
     order = _gather("inr_no_tracking").order
     facts = _compute_facts(order, None, None, 10.0, DEMO_NOW, [message])
     assert facts["buyer_reports_damage"] is False
 
 
-@pytest.mark.xfail(strict=True, reason="facts.py refund_without_return_eligible uses items[0] only, not the damaged "
-                   "line; guard() now caps it by the disputed amount, but the fact needs a facts.py fix outside queue "
-                   "R2 p1 scope")
 def test_two_line_order_with_a_cheap_first_line_is_not_refund_without_return():
     order = _gather("inr_no_tracking").order
     order.items = [{"name": "Vase", "variant": "Blue", "price": 15.0},
