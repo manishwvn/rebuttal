@@ -189,11 +189,17 @@ export const DASHBOARD_STATE: AgReportState<RebuttalRegistry> = {
 }
 
 // Colours and fonts come from the design tokens in index.css: the light values match :root, the dark values match the
-// prefers-color-scheme block. Canvas is --bg, widget cards are --surface with a --line border and --r (10px) radius,
-// text is --ink, the accent is --accent, grid headers are --raised, and widget titles use --display.
+// prefers-color-scheme block. Studio's param names map to those tokens as follows:
+//   --bg (canvas)        studioCanvasBackgroundColor
+//   --surface (cards)    studioWidgetBackgroundColor
+//   --line (card border) studioWidgetBorder, width 1
+//   --r (10px radius)    studioWidgetBorderRadius
+//   --ink (text)         foregroundColor
+//   --accent             accentColor
+//   --raised (headers)   gridHeaderBackgroundColor
+//   --display (titles)   studioWidgetTitleFontFamily
 // Chart series use --accent, --good, --warn, --bad and --muted, then two extra tints that are not tokens.
-// Strokes match the fills, since Studio's default stroke is blue. The Studio theme names the grid header colour
-// gridHeaderBackgroundColor.
+// Strokes match the fills, since Studio's default stroke is blue.
 export const DASHBOARD_THEME: AgStudioTheme = studioTheme
   .withParams(
     {
