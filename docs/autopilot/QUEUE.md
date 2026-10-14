@@ -130,12 +130,17 @@ Grow to about 40 cases: 10 more held-out cases written by a subagent that is **n
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
 Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
 
-### B4 Automated demo video — size L — in-progress (cycle 2026-10-14T20:11Z) [40%] (part 1 #66: one-command rough cut, 2:31; left: AG Studio segment, live-proof insert, USER item to review and upload) — after A4, B1 — rough cut deadline Oct 23
+### B4 Automated demo video — size L — in review (PR #__PR__) [90%] (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from
 the A4 script via macOS `say` (pick a natural voice, export AIFF); `ffmpeg` (`brew install ffmpeg`) joins them,
 adds captions and title cards. Output `media/rebuttal-demo.mp4` (git-ignored; keep the script and the build command
 `scripts/make_video.sh` in git). Under 3:00. Then add a USER item: watch it, optionally re-record the narration in his
 own voice (give exact steps), and upload to YouTube as Public.
+
+USER: (1) Watch media/rebuttal-demo.mp4 (open it in QuickTime; run scripts/make_video.sh first if the file is missing). Check the Analytics segment (about 1:36) and the live-proof card (about 2:23) read right and nothing is cut off.
+(2) Optional, a better voice: VIDEO_VOICE="<name>" scripts/make_video.sh (list the voices with `say -v ?`). Own voice is not wired: make_video.sh always writes the narration with `say`, and the shot hold times follow the narration length, so a dropped-in audio file would not line up. If you want your own voice, record each caption from docs/video-script.md section 7 and send the files in chat; the lead wires an own-voice option.
+(3) Upload to YouTube as Public: go to studio.youtube.com, click Create (top right) > Upload videos > Select files, choose media/rebuttal-demo.mp4; title "Rebuttal: a PayPal dispute agent that waits for your approval"; description from docs/devpost.md; under "Audience" choose "No, it is not made for kids"; click Next three times; on Visibility choose Public and click Publish; copy the link into the Devpost form.
+(4) Say done in chat.
 
 ### B5 Sandbox simulator for judges — size M — superseded by Q4
 Research (PayPal plugin, docs) whether a test dispute can be created on the real sandbox without a buyer password.
