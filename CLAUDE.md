@@ -39,7 +39,9 @@ equally, often from the video alone.
   must stay green.
 - Facts are computed in code (`agent/facts.py`). The model interprets words and drafts text, and only the `decide`
   node calls a model; its output is validated against a Pydantic schema. `guard()` rejects model choices the facts
-  don't support.
+  don't support. The one other model path is the read-only, token-gated Studio assistant proxy
+  (`rebuttal/studio_ai.py`, ADR 0010): it holds no PayPal client, sees only the analytics data the browser sends, and
+  makes no dispute decisions.
 - Every agent step and PayPal write goes to the audit log, and every approved PayPal write carries a deterministic
   `PayPal-Request-Id`.
 - Tests never call a model or send traces: `tests/conftest.py` sets `REBUTTAL_REASONER=rules` and

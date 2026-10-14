@@ -68,6 +68,11 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   **Analytics** tab with an AG Studio 3.0.0 dashboard (`ag-studio` + `ag-studio-react`, unlicensed with the watermark
   allowed on Discord; four Studio KPI values, light and dark). Notes: `docs/ag-studio.md`;
   screenshot `docs/screenshots/analytics.png`. Fallback to Community grid/charts not needed.
+- **Studio assistant (B1 part 3, branch `autopilot/b1-agent-framework`):** read-only Groq proxy
+  (`backend/rebuttal/studio_ai.py`, `GET /api/studio/ai/status`, `POST /api/studio/ai`, behind the API token), our own
+  `AgLlmAdapter` (`frontend/src/components/analytics/studioAiAdapter.ts`) and the wiring in `StudioDashboard.tsx`
+  ("Ask the assistant" switches Studio to edit mode, the only mode with an AI panel). Tests use no model. NOT run
+  against live Groq: see `docs/ag-studio.md` section 9.
 - **Analytics custom widgets and theme (B1 parts 2-3, branch `autopilot/b1-widgets-theme`):** four custom React widgets
   registered with `createWidgets` (`frontend/src/components/analytics/widgets/`): ranked bars (used for reason and for
   product), money split (kept, refunded, open), deadline list and model-vs-final agreement. They replace the Studio
@@ -101,8 +106,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 ## Next, in order
 
 1. Autopilot queue: `docs/autopilot/QUEUE.md` (source of truth for what is next).
-2. B1 part 3: the Studio Agent Framework (browser adapter proxied through the backend, read-only); trim
-   `AllCommunityModule`. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
+2. Trim `AllCommunityModule`; run one live Groq smoke check of the Studio assistant by hand. Then frontend slice 2: Studio polish, Render static site, point the dashboard at the
    live sandbox with `VITE_API_BASE` + `VITE_API_TOKEN`. Slice 1 is done (see above). Build and test with
    `REBUTTAL_REASONER=rules`, `REBUTTAL_MOCK=1` to save Groq tokens (`REBUTTAL_PROVIDER=rules` is not a valid value).
 3. Video script by **Oct 12**; rough cut Oct 23.

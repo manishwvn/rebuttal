@@ -18,9 +18,11 @@ from fastapi.testclient import TestClient
 
 from rebuttal import app as app_module
 from rebuttal import runtime as runtime_module
+from rebuttal.agent.llm import TokenBudget
 from rebuttal.demo import DemoManager
 from rebuttal.demo_api import make_demo_router
 from rebuttal.runtime import Runtime
+from rebuttal.studio_ai import make_studio_ai_router
 
 PACKAGE = Path(__file__).resolve().parents[1] / "rebuttal"
 DEMO_MODULES = [PACKAGE / "demo.py", PACKAGE / "demo_api.py"]
@@ -43,6 +45,8 @@ REAL_ROUTES = [
     ("GET", "/api/simulator/cases", None),
     ("POST", "/api/simulator/dispute/agent_wrong_size", None),
     ("POST", "/api/simulator/interrupt-next-write", None),
+    ("GET", "/api/studio/ai/status", None),
+    ("POST", "/api/studio/ai", {"messages": [{"role": "user", "content": "hi"}]}),
 ]
 # A hostile environment: real-sandbox mode, real-looking keys, a real database, and a model provider.
 HOSTILE_ENV = {
@@ -148,6 +152,26 @@ def test_without_a_token_every_real_sandbox_route_is_refused_before_it_runs(guar
     assert guarded.request(method, path, json=body).status_code == 401
 
 
+def test_studio_ai_routes_answer_the_right_token_and_expose_only_enabled(monkeypatch):
+    # The status route reports only whether a Groq key is configured: no key name, no model, and no upstream call.
+    monkeypatch.setattr(app_module, "API_TOKEN", "s3cret")
+    client = TestClient(app_module.app)
+    status = client.get("/api/studio/ai/status", headers={"Authorization": "Bearer s3cret"})
+    assert status.status_code == 200 and set(status.json()) == {"enabled"}
+
+
+def test_studio_ai_chat_with_the_token_but_no_groq_key_is_503_never_500(monkeypatch):
+    # A router built without a key, in a separate app: the shared app's key may come from the environment, and the suite
+    # must never reach api.groq.com.
+    monkeypatch.setattr(app_module, "API_TOKEN", "s3cret")
+    app = FastAPI()
+    app.include_router(make_studio_ai_router(None, "m", budget=TokenBudget(tpm=1000, rpm=10)), dependencies=app_module.protected)
+    client = BoundedClient(TestClient(app))
+    body = {"messages": [{"role": "user", "content": "hi"}]}
+    response = client.post("/api/studio/ai", json=body, headers={"Authorization": "Bearer s3cret"})
+    assert response.status_code == 503, response.status_code
+
+
 def test_demo_routes_answer_without_a_token_and_ignore_a_wrong_one(guarded):
     sid = guarded.post("/api/demo/sessions").json()["session_id"]
     for path in (f"/api/demo/{sid}/disputes", f"/api/demo/{sid}/proposals/pending",
@@ -163,22 +187,23 @@ def test_health_stays_open_without_a_token(monkeypatch):
     assert health.status_code == 200 and health.json()["auth"] is True
 
 
-def served_api_routes(routes):
-    """Every APIRoute the app serves. FastAPI keeps a router from include_router nested in an _IncludedRouter that
-    wraps it, so the walk goes into the wrapped routers too."""
+def served_api_routes(routes, inherited=()):
+    """Every APIRoute the app served, with the calls of the dependencies that guard it. FastAPI keeps a router from
+    include_router nested in an _IncludedRouter that wraps it, so the walk goes into the wrapped routers too. The
+    dependencies given to include_router (`dependencies=protected`) sit on that wrapper, not on the route."""
     for route in routes:
         if isinstance(route, APIRoute):
-            yield route
+            yield route, [*inherited, *(dependency.call for dependency in route.dependant.dependencies)]
         elif hasattr(route, "original_router"):
-            yield from served_api_routes(route.original_router.routes)
+            wrapper = (*inherited, *(dependency.dependency for dependency in route.include_context.dependencies))
+            yield from served_api_routes(route.original_router.routes, wrapper)
 
 
 def test_every_api_route_is_guarded_except_the_demo_and_the_two_open_ones():
     demo_routes = 0
-    for route in served_api_routes(app_module.app.routes):
+    for route, calls in served_api_routes(app_module.app.routes):
         if not route.path.startswith("/api/"):
             continue
-        calls = [dependency.call for dependency in route.dependant.dependencies]
         if route.path.startswith("/api/demo"):
             demo_routes += 1
             # The handler must come from demo_api. A path built at runtime (such as "/api/" + "demo/peek") hides from

@@ -1,3 +1,4 @@
+import type { StudioAiReply, StudioAiRequest } from './components/analytics/studioAiAdapter'
 import type { AnalyticsReport, AuditEntry, DemoSessionInfo, Dispute, Health, Proposal, SimulatorCase } from './types'
 
 // The dashboard only ever talks to the Rebuttal backend. It never calls PayPal.
@@ -39,7 +40,7 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  init: { method?: 'GET' | 'POST'; body?: unknown; sendToken?: boolean; token?: string } = {},
+  init: { method?: 'GET' | 'POST'; body?: unknown; sendToken?: boolean; token?: string; signal?: AbortSignal } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {}
   const token = init.sendToken !== false ? (init.token ?? getToken()) : null
@@ -51,8 +52,11 @@ async function request<T>(
       method: init.method ?? 'GET',
       headers,
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      signal: init.signal,
     })
-  } catch {
+  } catch (error) {
+    // A cancelled call is the caller's own abort, not a network failure: rethrow it as it is.
+    if (init.signal?.aborted) throw error
     throw new ApiError(0, `Cannot reach the backend at ${API_BASE}. Is it running?`)
   }
   if (!response.ok) {
@@ -105,6 +109,9 @@ export type Api = ReturnType<typeof createApi>
 export const api = {
   ...createApi(),
   analytics: () => request<AnalyticsReport>('/api/analytics'),
+  studioAiStatus: () => request<{ enabled: boolean }>('/api/studio/ai/status'),
+  studioAi: (body: StudioAiRequest, signal?: AbortSignal) =>
+    request<StudioAiReply>('/api/studio/ai', { method: 'POST', body, signal }),
 }
 
 // Checks a pasted token against a protected route without storing it. Resolves true when the backend accepts it.

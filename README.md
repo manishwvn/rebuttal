@@ -131,13 +131,15 @@ experiment.
 
 ## Architecture decisions
 
-The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md), [isolated judge demo runtime](docs/adr/0009-isolated-judge-demo-runtime.md)) are recorded in [docs/adr/](docs/adr/README.md).
+The main design decisions (single write path, read-only analysis, approval interrupt, facts over model, idempotency and audit, persistence, held-out evals, [read-only PayPal toolkit adapter](docs/adr/0008-read-only-paypal-toolkit-adapter.md), [isolated judge demo runtime](docs/adr/0009-isolated-judge-demo-runtime.md), [Studio assistant proxy](docs/adr/0010-studio-assistant-proxy.md)) are recorded in [docs/adr/](docs/adr/README.md).
 
 ## Sponsor tools (planned)
 
 AG Studio (dashboard and agent), APIMatic Context Plugin (used while building the PayPal integration in Claude Code,
 see [docs/apimatic-log.md](docs/apimatic-log.md)), PayPal Agent Toolkit (tool format used read-only, see above), Render
 (hosting), Bryntum Scheduler (backup), Elastic (optional retrieval).
+
+The Analytics tab has an optional natural-language assistant built on the AG Studio Agent Framework: a read-only, token-protected backend proxy to Groq with the key kept server-side, hidden when no Groq key is set. It opens from an "Ask the assistant" button (Studio shows its AI panel in edit mode). Verified with mocks only, not against live Groq. See [docs/ag-studio.md section 7](docs/ag-studio.md#7-studio-agent-framework-part-3-on-this-branch).
 
 ## License
 

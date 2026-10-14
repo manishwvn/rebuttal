@@ -186,3 +186,28 @@ test('analytics screenshot for the PR', async ({ page }) => {
   await page.waitForTimeout(800) // let the charts finish their entrance animation
   await page.screenshot({ path: '../docs/screenshots/analytics.png', fullPage: true })
 })
+
+// With the AI proxy reported enabled, Studio mounts with the assistant harness. No model runs in tests: the status
+// route is stubbed and any POST to the proxy is aborted and counted.
+test('the Studio assistant mounts when the proxy is enabled', async ({ page }) => {
+  await page.route('**/api/studio/ai/status', (route) => route.fulfill({ json: { enabled: true } }))
+  let proxyCalls = 0
+  await page.route('**/api/studio/ai', (route) => {
+    proxyCalls += 1
+    return route.abort()
+  })
+  const errors: string[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !isLicenceBanner(m.text())) errors.push(m.text())
+  })
+  page.on('pageerror', (e) => errors.push(e.message))
+
+  await page.goto('/#analytics')
+  await expect(kpi(page, /^Disputes$/)).toBeVisible()
+  // View mode has no assistant. The toggle switches Studio to edit mode, where its AI panel lives.
+  await page.getByRole('button', { name: 'Ask the assistant' }).click()
+  await expect(page.getByText('AI Assistant', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Back to dashboard' })).toBeVisible()
+  expect(proxyCalls).toBe(0)
+  expect(errors).toEqual([])
+})

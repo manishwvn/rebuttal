@@ -110,15 +110,16 @@ once (respects one Groq eval per day), update `backend/evals/RESULTS.md`, `STATU
 `docs/video-script.md`. Change no agent code because of the result. A8 must run on a different day than the holdout2 Groq run (B3), so the
 two do not share one day's Groq quota.
 
-### B1 AG Studio dashboard, first pass — size L — in progress: part 1 (data endpoints, Studio integration, first dashboard view) in review (PR #16); part 2 custom widgets and theme done #48; part 3 Agent Framework todo — deadline Oct 23
+### B1 AG Studio dashboard, first pass — size L — done #52 (part 1 #16, part 2 #48, part 3 Agent Framework #52) — deadline Oct 23
 Main sponsor prize. Use the `ag-dev` skill and `ag-mcp` for AG Studio APIs in the installed version. Analytics view:
 disputes by reason and by product, money kept vs refunded, response deadlines, model-vs-final agreement from the
 audit log. Custom widgets and a theme matching `preview/`. New read-only backend endpoints for the aggregates (with
 tests). Split into PRs: data endpoints, Studio layout and theme, custom widgets.
 
-### B2 AG Studio depth — size L — todo — needs B1
+### B2 AG Studio depth — size L — todo [30%] — needs B1
 Studio Agent Framework: plain-English questions over the dispute data ("which products cause most disputes this
-month?"), using Groq free tier, read-only data access only. Saved views. Playwright screenshots of every widget into
+month?"), using Groq free tier, read-only data access only (assistant + read-only proxy done #52; left: one live
+Groq smoke check of the assistant, prompt starters showing, AI module licence note). Saved views. Playwright screenshots of every widget into
 `docs/screenshots/`.
 
 ### B3 More evals — size M — done (holdout2 run Oct 10: final 100%, model alone 80%; this PR)
