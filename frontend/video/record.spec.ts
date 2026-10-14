@@ -1,11 +1,11 @@
 // Records the demo video. One test drives the real dashboard (production build, mock backend, rules reasoner) through
-// the shot list in shots.json, and leaves screen.webm and timeline.json in VIDEO_WORK_DIR. Captions come from
-// overlay.ts, the cards from cards.ts, and the hold times from durations.json in VIDEO_WORK_DIR.
+// the shot list in shots.json, which includes the Analytics tab and the cards from cards.ts. It leaves screen.webm and
+// timeline.json in VIDEO_WORK_DIR. Captions come from overlay.ts and the hold times from durations.json in VIDEO_WORK_DIR.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { setOverlay } from './overlay.ts'
-import { closeCard, evalCard, pipelineCard, terminalCard } from './cards.ts'
+import { closeCard, evalCard, liveProofCard, pipelineCard, terminalCard } from './cards.ts'
 
 interface Shot {
   id: string
@@ -179,10 +179,32 @@ test('record the demo video', async ({ browser }) => {
         await expect(page.getByTestId('audit-trail')).toContainText('Merchant approved with an edited message')
       },
     },
+    analytics: {
+      run: async (page) => {
+        const tab = page.getByTestId('tab-analytics')
+        await moveTo(page, tab)
+        await tab.click()
+        await expect(page).toHaveURL(/#analytics$/)
+        // The AG Studio bundle is lazy-loaded, so the data can take a while to arrive.
+        await expect(page.getByTestId('analytics-status')).toHaveText(/^6 disputes · 1 analyzed · 1 executed$/, { timeout: 30_000 })
+        await expect(page.locator('[data-widget-id="agreement"]').getByTestId('agreement-detail')).toContainText('changed by the guard')
+        await expect(page.locator('.ag-studio-value-widget-content').first()).toBeVisible()
+        await page.waitForTimeout(800)
+        await smoothScroll(page, page.locator('#analytics-title'), 'start')
+        await moveTo(page, page.locator('[data-widget-id="agreement"]'))
+        await moveTo(page, page.locator('[data-widget-id="bar-reason"]'))
+        await moveTo(page, page.locator('[data-widget-id="money-split"]'))
+        const deadlines = page.locator('[data-widget-id="deadlines"]')
+        if (await deadlines.evaluate((el) => el.getBoundingClientRect().bottom > window.innerHeight)) {
+          await smoothScroll(page, deadlines)
+        }
+      },
+    },
     'safety-graph': { card: () => pipelineCard() },
     'safety-tests': { card: () => terminalCard(pytestOutput) },
     'eval-held-out': { card: () => evalCard(1) },
     'eval-main': { card: () => evalCard(2) },
+    'live-proof': { card: () => liveProofCard() },
     'close-pitch': { card: () => closeCard(1) },
     'close-real': { card: () => closeCard(2) },
   }
