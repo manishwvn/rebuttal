@@ -85,6 +85,17 @@ def test_build_payload_offers_ESCALATE_and_APPEAL_only_with_their_facts():
     assert offered["APPEAL"] == RESOLUTIONS["APPEAL"] and "ESCALATE" not in offered
 
 
+def test_the_model_is_asked_for_ESCALATE_and_APPEAL_only_with_their_facts():
+    case = _delivered_case()
+    listed = build_payload(case)["respond_with"]["resolution"]
+    assert "ESCALATE" not in listed and "APPEAL" not in listed
+    assert "SHARE_TRACKING" in listed and "SUBMIT_EVIDENCE" in listed
+
+    case.facts.update(can_escalate=True, can_appeal=True)
+    listed = build_payload(case)["respond_with"]["resolution"]
+    assert "ESCALATE" in listed and "APPEAL" in listed
+
+
 # --------------------------------------------------------------------- rules picks
 def test_rules_pick_ESCALATE_for_a_delivered_inquiry_the_seller_already_answered():
     case = _delivered_case()
@@ -112,6 +123,19 @@ def test_rules_never_escalate_at_a_chargeback():
     case.stage = "CHARGEBACK"
     case.facts.update(can_escalate=True, seller_already_responded=True)
     assert RuleReasoner()._pick(case)[0] == "SUBMIT_EVIDENCE"
+
+
+@pytest.mark.parametrize("stage", ["INQUIRY", "PRE_ARBITRATION", "ARBITRATION", "CHARGEBACK"])
+def test_only_an_inquiry_can_be_escalated(stage):
+    case = _delivered_case()
+    case.stage = stage
+    case.facts.update(can_escalate=True, seller_already_responded=True)
+    only_inquiry = stage == "INQUIRY"
+    assert paypal_allows("ESCALATE", case) is only_inquiry
+    assert (RuleReasoner()._pick(case)[0] == "ESCALATE") is only_inquiry
+    kept = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
+    assert (kept.resolution == "ESCALATE") is only_inquiry
+    assert only_inquiry or any("Proposed escalating" in n for n in kept.guard_notes)
 
 
 def test_rules_pick_APPEAL_when_paypal_offers_one_and_the_order_is_found():
@@ -201,7 +225,7 @@ def test_APPEAL_without_an_evidence_summary_gets_the_evidence_draft():
 @pytest.mark.parametrize("can_escalate", FACT_VALUES)
 @pytest.mark.parametrize("can_appeal", FACT_VALUES)
 @pytest.mark.parametrize("seller_already_responded", [True, False])
-@pytest.mark.parametrize("delivered_address_matches", [True, False])
+@pytest.mark.parametrize("delivered_address_matches", [True, False, 1, "yes", None])
 def test_the_fallback_cannot_loop_for_any_combination_of_dispute_facts(
         can_escalate, can_appeal, seller_already_responded, delivered_address_matches):
     """The rules only pick ESCALATE or APPEAL when the guard accepts them, so a fallback never recurses forever."""
