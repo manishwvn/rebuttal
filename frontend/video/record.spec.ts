@@ -38,7 +38,8 @@ const auditSteps = (page: Page) =>
 // Moves the mouse to the middle of an element in 25 steps, so the overlay cursor visibly travels.
 // The element is scrolled into view first, so its middle is on screen and the cursor stays in the frame.
 async function moveTo(page: Page, target: Locator): Promise<void> {
-  await target.scrollIntoViewIfNeeded()
+  // A timeout keeps a hidden target from stalling until the 15 min test timeout, so the error below fires within 10 s.
+  await target.scrollIntoViewIfNeeded({ timeout: 10_000 })
   const box = await target.boundingBox()
   if (!box) throw new Error('element has no bounding box, so the cursor cannot move to it')
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 25 })
