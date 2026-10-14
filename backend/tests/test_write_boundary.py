@@ -1,20 +1,23 @@
 """PayPal writes happen in one place. These checks fail if a change opens another path."""
 
 import ast
+import json
+import uuid
+from email.parser import BytesParser
 from pathlib import Path
 
 import pytest
 
 from rebuttal.approval import ApprovalError, make_execute_node, route_after_approval
 from rebuttal.audit import AuditLog
-from rebuttal.paypal.client import PayPalClient, permit_writes
+from rebuttal.paypal.client import PayPalClient, WriteNotPermitted, permit_writes
 from rebuttal.runtime import Runtime
 
 PACKAGE = Path(__file__).resolve().parents[1] / "rebuttal"
 BACKEND = PACKAGE.parent
 # Every PayPalClient method that changes something at PayPal, and the private ways to reach one.
-WRITE_METHODS = {"send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "require_evidence",
-                 "adjudicate", "create_order", "capture_order", "add_order_tracking", "create_dispute"}
+WRITE_METHODS = {"send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "appeal",
+                 "require_evidence", "adjudicate", "create_order", "capture_order", "add_order_tracking", "create_dispute"}
 PRIVATE = {"_request", "_http", "_init"}
 ALLOWED = {"approval.py"}  # the gate; paypal/client.py defines the methods, paypal/mock.py is the fake server
 # Manual tools that talk to the PayPal sandbox on purpose. They are not part of the agent and run only when a person starts them.
@@ -134,6 +137,76 @@ def test_the_paypal_client_gives_every_post_an_idempotency_key():
     assert all(seen) and len(set(seen[:2])) == 2 and seen[2] == "fixed"
 
 
+APPEAL_EVIDENCES = [{"evidence_type": "PROOF_OF_DELIVERY", "notes": "Delivered 3 Oct, signed for by the buyer"}]
+DISPUTE_WRITES = [  # (call, the path it must POST to)
+    pytest.param(lambda c, **kw: c.escalate("D1", "more facts", **kw),
+                 "/v1/customer/disputes/D1/escalate", id="escalate"),
+    pytest.param(lambda c, **kw: c.appeal("D1", APPEAL_EVIDENCES, **kw),
+                 "/v1/customer/disputes/D1/appeal", id="appeal"),
+]
+
+
+def _recording_client():
+    """A client over a mock PayPal that records every request except the OAuth token call."""
+    import httpx
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
+        request.read()
+        seen.append(request)
+        return httpx.Response(200, json={})
+
+    client = PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret", transport=httpx.MockTransport(handler))
+    return client, seen
+
+
+@pytest.mark.parametrize("call,_path", DISPUTE_WRITES)
+def test_escalate_and_appeal_refuse_to_run_outside_the_approval_gate(call, _path):
+    client, seen = _recording_client()
+    with pytest.raises(WriteNotPermitted):
+        call(client)
+    assert seen == []
+
+
+@pytest.mark.parametrize("call,_path", DISPUTE_WRITES)
+def test_the_read_only_clone_refuses_escalate_and_appeal_even_inside_the_permit(call, _path):
+    client, seen = _recording_client()
+    with permit_writes(), pytest.raises(WriteNotPermitted):
+        call(client.read_only())
+    assert seen == []
+
+
+@pytest.mark.parametrize("call,path", DISPUTE_WRITES)
+def test_escalate_and_appeal_send_one_post_each_with_the_caller_or_a_generated_request_id(call, path):
+    client, seen = _recording_client()
+    with permit_writes():
+        call(client, request_id="fixed-id")
+        call(client)
+        call(client)
+    assert [(r.method, r.url.path) for r in seen] == [("POST", path)] * 3
+    assert seen[0].headers["paypal-request-id"] == "fixed-id"
+    generated = [r.headers["paypal-request-id"] for r in seen[1:]]
+    for value in generated:
+        uuid.UUID(value)  # a generated key is a UUID
+    assert generated[0] != generated[1]
+
+
+def test_appeal_is_multipart_with_an_input_json_part():
+    client, seen = _recording_client()
+    with permit_writes():
+        client.appeal("D1", APPEAL_EVIDENCES)
+    (request,) = seen
+    content_type = request.headers["content-type"]
+    assert content_type.startswith("multipart/form-data; boundary=")
+    message = BytesParser().parsebytes(f"Content-Type: {content_type}\r\n\r\n".encode() + request.content)
+    assert message.is_multipart()
+    parts = {part.get_param("name", header="content-disposition"): part for part in message.get_payload()}
+    assert json.loads(parts["input"].get_payload(decode=True)) == {"evidences": APPEAL_EVIDENCES}
+
+
 EVASIONS = {
     "alias": "f = client.make_offer\nf('D', note='x', offer_type='REFUND')",
     "getattr": "getattr(client, 'send_message')('D', 'hi')",
@@ -143,6 +216,7 @@ EVASIONS = {
     "http": "client._http.post('/x')",
     "keyword": "client._request(method='POST', path='/x')",
     "permit": "from rebuttal.paypal.client import permit_writes",
+    "appeal": "client.appeal('D', [])",
 }
 
 
@@ -183,14 +257,14 @@ def test_render_blueprint_holds_no_secret_values_and_keeps_groq_live():
 
 def test_make_test_order_only_creates_orders_and_never_touches_a_dispute():
     source = (BACKEND / "scripts" / "make_test_order.py").read_text()
-    for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate",
+    for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "appeal",
                    "require_evidence", "adjudicate", "get_dispute"):
         assert method not in source, method
 
 
 def test_make_sandbox_dispute_never_acts_as_the_merchant_on_a_dispute():
     source = (BACKEND / "scripts" / "make_sandbox_dispute.py").read_text()
-    for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate",
+    for method in ("send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "appeal",
                    "require_evidence", "adjudicate"):
         assert method not in source, method
 
