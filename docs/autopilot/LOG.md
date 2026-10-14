@@ -7,6 +7,10 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 18:10 CDT | W 56→56+ % | F 77→79+ % | R10 part 1 | PR #71
+F was 77 %, so no team workflow: one Sonnet builder for items (a) approve logged once per proposal and (e) no in-memory audit copy in Postgres mode, then an Opus reviewer (approval.py is a strict path): no blockers, write boundary and guard intact. Lead applied the two nits (test asserts the INSERT; comment on file-mode for_dispute).
+R10 (b), (c), (d) stay queued; (d) touches paypal/client.py, so it needs a strict review too.
+
 ## 2026-10-14 16:45 CDT | W 46→55+ % | F 2→72+ % | S2, B2, B4 part 2 | merged #68, #70, #69
 One team-cycle workflow (99 agents, 81 min). S2 (strict, Opus principal: write boundary intact): ESCALATE and APPEAL plus PROOF_OF_FULFILLMENT and PROOF_OF_RETURN, only via `execute`, gated on dispute links; mock-only shapes are VERIFY and queued as S3. Lead fixed the four low review nits (ADR 0001 write list, count, wraps); Sonnet re-review ok.
 B2: saved views, starters e2e, licence note, widget screenshots, live Groq smoke pass. B4 part 2: Analytics segment + live-proof card, 2:50; USER item U3 added, USER alert sent.
