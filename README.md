@@ -139,6 +139,8 @@ AG Studio (dashboard and agent), APIMatic Context Plugin (used while building th
 see [docs/apimatic-log.md](docs/apimatic-log.md)), PayPal Agent Toolkit (tool format used read-only, see above), Render
 (hosting), Bryntum Scheduler (backup), Elastic (optional retrieval).
 
+The Analytics tab has an optional natural-language assistant built on the AG Studio Agent Framework, which calls a read-only, token-protected backend proxy to Groq with the key kept server-side. The assistant is hidden when no Groq key is set ([docs/ag-studio.md section 7](docs/ag-studio.md#7-studio-agent-framework-built-in-b1-part-3)).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

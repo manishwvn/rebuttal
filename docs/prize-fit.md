@@ -34,7 +34,7 @@ Devpost rules page before submitting; they can change.
 | Best Use of Agentic Commerce | Strong: disputes caused by AI shopping assistants are our hero case | Show the assistant-mandate evidence clearly; agent acting on PayPal after approval |
 | Most Impactful | Good: small merchants lose money and time to disputes | One sourced number on dispute cost; before/after time per dispute |
 | Best Demo Delivery | Depends on the video | Human narration, crisp 2:45, hero case live |
-| AG Grid 1st | Main sponsor target | AG Studio dashboard with custom widgets, theming, Studio Agent Framework; Oct 12 webinar "Build a payments dashboard without building a dashboard" |
+| AG Grid 1st | Main sponsor target | AG Studio dashboard with custom widgets, theming; Studio Agent Framework built (adapter plus backend proxy), live use unverified; Oct 12 webinar "Build a payments dashboard without building a dashboard" |
 | APIMatic | Backup sponsor (only one sponsor prize counts) | Real use of the PayPal Server SDK context plugin, logged in `docs/apimatic-log.md` (empty today) |
 
 ## Competition seen on Discord
