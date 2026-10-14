@@ -7,9 +7,10 @@ Two graph nodes live here, side by side so the rule is easy to audit:
   a restart, because the paused state is in the checkpointer.
 - `execute` makes the PayPal write call. The graph only routes to it after an approve or edit decision, and it
   refuses to run without one. Every call carries a deterministic idempotency key, and before sending it reads the
-  dispute to see whether this very action already landed (a retry after a crash). Escalate and appeal are not
-  recognised by `already_applied`: they fall back to `not_allowed_now`, which fails closed once the dispute's stage or
-  links have moved on.
+  dispute to see whether this very action already landed (a retry after a crash). `already_applied` recognises
+  messages, offers, and an escalate whose dispute has moved from INQUIRY to CHARGEBACK. Appeal is not recognised:
+  escalate and appeal otherwise fall back to `not_allowed_now`, which fails closed once the dispute's stage or links
+  have moved on.
 
 Two rules for node code, both learned from review:
 
@@ -87,22 +88,31 @@ def with_edited_text(state: dict, message: str) -> tuple[list[dict], dict]:
     return actions, {**state["decision"], "message_to_buyer": message}
 
 
-def already_applied(dispute: dict, action: dict, baseline: dict) -> bool:
+def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     """Did this action already reach PayPal since the analysis? Reads the dispute; sends nothing.
 
-    `baseline` is what the seller side had already said or offered when the case was gathered
-    (`facts.seller_activity`): the action has landed if the dispute now holds more of the same message or offer
-    type than it did then. Best effort, for a retry after a crash between the PayPal call and the checkpoint:
+    `case` is the gathered case the proposal was made from. Its `seller_activity` is what the seller side had already
+    said or offered (`facts.seller_activity`): the action has landed if the dispute now holds more of the same message
+    or offer type than it did then. Best effort, for a retry after a crash between the PayPal call and the checkpoint:
     PayPal documents `PayPal-Request-Id` for Orders and Payments but not for the Disputes API, so the key alone
     cannot be relied on here. Messages and offers are recognised; evidence and accept-claim are not (they fall back
-    to `not_allowed_now`, the key, and PayPal's own refusal of a repeated action). Escalate and appeal are not
-    recognised either: `not_allowed_now` fails them closed once the stage or links have moved on."""
+    to `not_allowed_now`, the key, and PayPal's own refusal of a repeated action).
+    Escalate counts as landed only when the case was at INQUIRY and the dispute is now a CHARGEBACK with no escalate
+    link. VERIFY: that stage move is the expected result of an escalate; confirm it on the sandbox. A buyer-side
+    escalation makes the same move without this action, so the record can then say reconciled for a send that did
+    not happen. Appeal is not recognised: `not_allowed_now` fails it closed once the links have moved on.
+    VERIFY: retry safety for escalate and appeal also depends on PayPal removing the link after a successful send."""
     now = seller_activity(dispute)
+    baseline = case.get("seller_activity", {})
     kind, params = action["kind"], action["params"]
     if kind == "send_message":
         return now["messages"].count(params["message"]) > baseline.get("messages", []).count(params["message"])
     if kind == "make_offer":
         return now["offers"].count(params["offer_type"]) > baseline.get("offers", []).count(params["offer_type"])
+    if kind == "escalate":
+        escalate_offered = any(link.get("rel") == "escalate" for link in dispute.get("links") or [])
+        return (case.get("stage") == "INQUIRY" and dispute.get("dispute_life_cycle_stage") == "CHARGEBACK"
+                and not escalate_offered)
     return False
 
 
@@ -112,11 +122,13 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     the proposal waited, or after a crash that did send). None = go ahead."""
     kind, params = action["kind"], action["params"]
     # Escalate and appeal do not depend on allowed_response_options, so they are checked before the options logic.
+    # The refusal does not say whether an earlier attempt landed: the dispute changed, and it may have been this action.
     if kind == "escalate" and not dispute_actions(dispute)["can_escalate"]:
-        return ("PayPal no longer allows escalating this dispute to a claim "
-                "(the dispute has changed since the proposal was made)")
+        return ("PayPal no longer allows escalating this dispute to a claim (the dispute has changed since the proposal "
+                "was made, so an earlier attempt may already have been sent)")
     if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:
-        return "PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made)"
+        return ("PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made, "
+                "so an earlier attempt may already have been sent)")
     options, _ = effective_options(dispute.get("allowed_response_options"), dispute.get("reason", ""),
                                    dispute.get("dispute_life_cycle_stage", ""))  # none listed: the proven fallback
     if options is None:
@@ -201,10 +213,14 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
         with permit_writes():
             for index, action in enumerate(actions):
                 key = idempotency_key(proposal_id, index, action["kind"])
-                if already_applied(current, action, state["case"].get("seller_activity", {})):
+                if already_applied(current, action, state["case"]):
                     results.append({"action": action["kind"], "ok": True, "reconciled": True,
                                     "idempotency_key": key})
                     continue
+                # VERIFY: for escalate and appeal this refusal can follow a send that landed (a crash, then a retry).
+                # Retry safety for them rests on PayPal removing the link after success; confirm on the sandbox
+                # (send, then re-GET the dispute) before the planner ever emits either kind. `sent` means this attempt
+                # sent nothing; the reason says an earlier attempt may have.
                 if reason := not_allowed_now(current, action):
                     results.append({"action": action["kind"], "ok": False, "error": reason, "sent": False,
                                     "idempotency_key": key})

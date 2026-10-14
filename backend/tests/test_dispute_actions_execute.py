@@ -1,17 +1,26 @@
 """Escalate and appeal: the facts that gate them, and the approval gate's paths for them.
 
-The execute tests use a stub client that records calls and hand-made disputes, never the mock. The gather defaults
-read the seeded mock dispute, as the other gather tests do.
+The execute tests use a stub client that records calls and hand-made disputes, never the mock. The execute state is
+built from a real analysis of the seeded case, so its shape is the graph's own. The gather defaults read the seeded
+mock dispute, as the other gather tests do.
 """
+
+from types import SimpleNamespace
 
 import pytest
 
 from rebuttal import approval
 from rebuttal.agent import facts
-from rebuttal.agent.facts import CaseFile, dispute_actions, gather
-from rebuttal.agent.reasoner import Decision
+from rebuttal.agent.facts import dispute_actions, gather
 from rebuttal.agent.toolkit import ReadOnlyToolkit
-from rebuttal.approval import execute_action, idempotency_key, make_execute_node, not_allowed_now
+from rebuttal.approval import (
+    ApprovalError,
+    already_applied,
+    execute_action,
+    idempotency_key,
+    make_execute_node,
+    not_allowed_now,
+)
 from rebuttal.audit import AuditLog
 from rebuttal.runtime import Runtime
 from rebuttal.scenarios import DEMO_NOW, build_order, load_cases
@@ -53,20 +62,30 @@ class StubClient:
         return [c for c in self.calls if c[0] == method]
 
 
-def approved(*actions: dict) -> dict:
-    """The graph state the execute node gets after a human approved the proposal."""
-    case = CaseFile(
-        dispute_id="PP-D-9", reason="MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED", stage="INQUIRY",
-        status="WAITING_FOR_SELLER_RESPONSE", amount=32.0, currency="USD", due=None, hours_left=None,
-        buyer_messages=["It arrived broken."], order=None, trackers=None, transactions=None, policies=[], facts={},
-    )
-    decision = Decision("SUBMIT_EVIDENCE", 0.9, ["buyer reports damage"], "refund", "We are looking into it.",
-                        "summary", source="rules")
-    return {
-        "dispute_id": "PP-D-9", "proposal_id": "PROP-1", "actions": list(actions),
-        "decision": decision.to_dict(), "case": case.to_dict(),
-        "approval": {"status": "approved", "by": "t", "reason": "", "edited_message": None},
-    }
+@pytest.fixture
+def analyzed_rt():
+    rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True)
+    rt.analyze("PP-D-2000")
+    return rt
+
+
+def approved(rt: Runtime, *actions: dict, stage: str | None = None) -> dict:
+    """The graph state the execute node gets after a human approved the real proposal for PP-D-2000."""
+    base = rt.agent.snapshot("PP-D-2000").values
+    case = base["case"] if stage is None else {**base["case"], "stage": stage}
+    return {**base, "case": case, "actions": list(actions),
+            "approval": {"status": "approved", "by": "t", "reason": "", "edited_message": None}}
+
+
+def without_links(monkeypatch) -> None:
+    """Strip the HATEOAS links from the seeded dispute as the toolkit reads it."""
+    read = ReadOnlyToolkit.call
+
+    def strip(self, method, params):
+        result = read(self, method, params)
+        return {k: v for k, v in result.items() if k != "links"} if method == "get_dispute" else result
+
+    monkeypatch.setattr(ReadOnlyToolkit, "call", strip)
 
 
 # ------------------------------------------------------------------------------------------ dispute_actions
@@ -98,7 +117,8 @@ def rt():
     return Runtime(seed_cases=["inr_delivered"], force_rules=True)
 
 
-def test_a_seeded_dispute_offers_neither_action_and_has_no_seller_reply(rt):
+def test_a_seeded_dispute_offers_neither_action_and_has_no_seller_reply(rt, monkeypatch):
+    without_links(monkeypatch)  # the mock's own links are not what this test is about
     case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
     assert case.facts["can_escalate"] is False
     assert case.facts["can_appeal"] is False
@@ -180,29 +200,50 @@ def test_not_allowed_now_still_checks_offers_and_claims_against_allowed_response
     assert not_allowed_now({"dispute_life_cycle_stage": "INQUIRY"}, accept) is None
 
 
+# ------------------------------------------------------------------------------------------ already_applied
+def test_already_applied_counts_an_escalate_only_for_the_inquiry_to_chargeback_move():
+    moved = {"dispute_life_cycle_stage": "CHARGEBACK", "links": [link("self")]}
+    assert already_applied(moved, ESCALATE, {"stage": "INQUIRY"}) is True
+    assert already_applied(moved, ESCALATE, {"stage": "CHARGEBACK"}) is False  # it was not at INQUIRY
+    assert already_applied(with_links("INQUIRY", "escalate"), ESCALATE, {"stage": "INQUIRY"}) is False
+    assert already_applied(moved, APPEAL, {"stage": "INQUIRY"}) is False  # appeal is not recognised
+
+
 # ------------------------------------------------------------------------------------------ execute node
-def test_execute_sends_an_approved_escalate_once_under_its_idempotency_key():
+def test_execute_sends_an_approved_escalate_once_under_its_idempotency_key(analyzed_rt):
     client = StubClient(with_links("INQUIRY", "escalate"))
-    out = make_execute_node(client, AuditLog())(approved(ESCALATE))
-    key = idempotency_key("PROP-1", 0, "escalate")
+    state = approved(analyzed_rt, ESCALATE, stage="INQUIRY")
+    out = make_execute_node(client, AuditLog())(state)
+    key = idempotency_key(state["proposal_id"], 0, "escalate")
     assert out["status"] == "EXECUTED"
     assert out["result"] == [{"action": "escalate", "ok": True, "response": {"escalated": True},
                               "idempotency_key": key}]
-    assert client.calls_to("escalate") == [("escalate", "PP-D-9", "Please review.", key)]
+    assert client.calls_to("escalate") == [("escalate", "PP-D-2000", "Please review.", key)]
 
 
-def test_execute_fails_without_sending_when_the_dispute_has_no_escalate_link():
+def test_execute_fails_without_sending_when_the_dispute_has_no_escalate_link(analyzed_rt):
     client = StubClient({"dispute_life_cycle_stage": "INQUIRY"})
-    out = make_execute_node(client, AuditLog())(approved(ESCALATE))
+    state = approved(analyzed_rt, ESCALATE, stage="INQUIRY")
+    out = make_execute_node(client, AuditLog())(state)
     result = out["result"][0]
     assert out["status"] == "FAILED"
     assert result["ok"] is False and result["sent"] is False
-    assert result["idempotency_key"] == idempotency_key("PROP-1", 0, "escalate")
-    assert "escalating" in result["error"]
+    assert result["idempotency_key"] == idempotency_key(state["proposal_id"], 0, "escalate")
+    assert "escalating" in result["error"] and "may already have been sent" in result["error"]
     assert client.calls_to("escalate") == []
 
 
-def test_execute_builds_the_evidence_pdf_for_an_appeal_and_attaches_it(monkeypatch):
+def test_execute_reconciles_an_escalate_that_already_moved_the_dispute_to_chargeback(analyzed_rt):
+    client = StubClient({"dispute_life_cycle_stage": "CHARGEBACK", "links": [link("self")]})
+    state = approved(analyzed_rt, ESCALATE, stage="INQUIRY")
+    out = make_execute_node(client, AuditLog())(state)
+    assert out["status"] == "EXECUTED"
+    assert out["result"] == [{"action": "escalate", "ok": True, "reconciled": True,
+                              "idempotency_key": idempotency_key(state["proposal_id"], 0, "escalate")}]
+    assert client.calls_to("escalate") == []
+
+
+def test_execute_builds_the_evidence_pdf_for_an_appeal_and_attaches_it(analyzed_rt, monkeypatch):
     built = []
 
     def fake_pdf(case, decision):
@@ -211,8 +252,23 @@ def test_execute_builds_the_evidence_pdf_for_an_appeal_and_attaches_it(monkeypat
 
     monkeypatch.setattr(approval, "build_evidence_pdf", fake_pdf)
     client = StubClient(with_links("CHARGEBACK", "appeal"))
-    out = make_execute_node(client, AuditLog())(approved(APPEAL))
-    key = idempotency_key("PROP-1", 0, "appeal")
-    assert built == ["PP-D-9"] and out["status"] == "EXECUTED"
+    state = approved(analyzed_rt, APPEAL)
+    out = make_execute_node(client, AuditLog())(state)
+    key = idempotency_key(state["proposal_id"], 0, "appeal")
+    assert built == ["PP-D-2000"] and out["status"] == "EXECUTED"
     assert client.calls_to("appeal") == [
-        ("appeal", "PP-D-9", EVIDENCES, [("appeal.pdf", b"%PDF-appeal", "application/pdf")], key)]
+        ("appeal", "PP-D-2000", EVIDENCES, [("appeal.pdf", b"%PDF-appeal", "application/pdf")], key)]
+
+
+def test_an_edit_on_an_appeal_proposal_is_refused_before_it_resumes(analyzed_rt, monkeypatch):
+    """An appeal has no buyer-facing text, so an edit cannot apply to it. The refusal happens before the graph
+    resumes, so the paused proposal stays paused and nothing is sent."""
+    real = analyzed_rt.agent.proposal("PP-D-2000")
+    appeal_only = SimpleNamespace(id=real.id, status="PENDING",
+                                  actions=[SimpleNamespace(kind="appeal", params=APPEAL["params"])])
+    monkeypatch.setattr(analyzed_rt.agent, "proposal", lambda *args, **kwargs: appeal_only)
+    resumed = []
+    monkeypatch.setattr(analyzed_rt.agent.graph, "invoke", lambda *args, **kwargs: resumed.append(args))
+    with pytest.raises(ApprovalError, match="no buyer-facing message"):
+        analyzed_rt.approvals.approve(real.id, edited_message="Please look again.")
+    assert resumed == [] and analyzed_rt.mock.write_calls() == []
