@@ -8,7 +8,10 @@
 #   3. Writes the narration and runs the real pytest checks for the terminal card. A failing test fails the take.
 #   4. Builds the frontend against the local backend and serves it with vite preview.
 #   5. Starts a fresh backend in mock mode with the rules reasoner and no secrets, then checks its health.
-#   6. Records the browser walkthrough with Playwright and assembles media/rebuttal-demo.mp4 with ffmpeg.
+#      This local mock backend runs with REBUTTAL_ALLOW_OPEN_API=1 and an empty REBUTTAL_API_TOKEN, which is
+#      why the signed-in dashboard (and its Analytics tab) opens with no sign-in and no key.
+#   6. Records the browser walkthrough (Inbox, case, Analytics tab) and the static cards with Playwright, and
+#      assembles media/rebuttal-demo.mp4 with ffmpeg.
 #   7. Prints the output path and duration, and fails if the video is 3 minutes or longer.
 #   Both servers are stopped on exit, including after a failure, so the ports are free for the next take.
 #
