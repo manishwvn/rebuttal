@@ -18,6 +18,12 @@ refund exists or whether an AI assistant ordered the wrong variant. Those are ch
 - `guard()` in `reasoner.py` then rejects or converts choices the facts do not support (for example sharing tracking
   when there is none, or refund proof when no refund exists) and records `guard_notes`. The `guard` node also
   re-reads the dispute and checks PayPal's current `allowed_response_options`.
+- When `guard()` falls back to the rules, the rules' decision is passed through `guard()` again, so it also meets
+  the PayPal-allowed and policy checks. With no merchant order record (`order_found` false) the rules propose only
+  `SUBMIT_EVIDENCE` at low confidence, and `guard()` caps any refund or offer at 0.3. At a chargeback where PayPal gave
+  no option list, offers are treated as not possible (unverified; see the VERIFY note in `reasoner.py`).
+  In `facts.py`, damage words match only at the start of a word (so "student" is not damage), and
+  `refund_without_return_eligible` is sized by the disputed amount, not by the first order line.
 
 ## Consequences
 

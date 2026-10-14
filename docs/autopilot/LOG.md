@@ -7,6 +7,9 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 12:55 CDT | R2 | PR #65 open
+Tech lead integrated R2: guard fallback re-runs guard(), missing order caps confidence at 0.3, CHARGEBACK without an option list refuses offers, _pick uses damage facts. Also fixed two audit findings in facts.py (damage words match at word start; refund-without-return sized by disputed amount). Rules evals unchanged (85% overall, 0 gate violations). ADR 0004 updated.
+
 ## 2026-10-14 11:50 CDT | W 38→39 % | F 18→21 % | R11 | merged #63
 Sonnet builder: SYSTEM_PROMPT marks buyer messages as quotes, never instructions; guard converts tracking/evidence on a not-received dispute delivered to a non-matching address into OFFER_REPLACEMENT when PayPal allows it, else notes it and caps confidence at 0.5; ACCEPT_CLAIM contradicting delivery gets a note; SHARE_TRACKING draft only claims the order address when it matches. 501 tests, rules eval unchanged (85%).
 Opus reviewer found a pre-existing gap (paypal_allows at CHARGEBACK with no options); added to R2. Cycle total: 6 S tasks merged (#58-#63), W 36→39 %.

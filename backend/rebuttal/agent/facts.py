@@ -8,6 +8,7 @@ matched what its user asked for.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
@@ -214,8 +215,10 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
     f["likely_lost"] = bool(s and s.status != "DELIVERED"
                             and f["days_since_last_scan"] >= policies.LOST_PACKAGE_DAYS)
     # Damaged and under the small-item threshold: refund in full, no return required.
-    f["buyer_reports_damage"] = any(w in said for w in policies.DAMAGE_WORDS)
-    f["refund_without_return_eligible"] = (item["price"] < policies.SMALL_ITEM_REFUND_THRESHOLD
+    # Words match at a word start, so "student" or "confident" do not read as "dent". The disputed amount decides the
+    # size, not the first order line: a cheap first line must not make a big damaged claim look small.
+    f["buyer_reports_damage"] = any(re.search(r"\b" + re.escape(w), said) for w in policies.DAMAGE_WORDS)
+    f["refund_without_return_eligible"] = (amount < policies.SMALL_ITEM_REFUND_THRESHOLD
                                            and f["buyer_reports_damage"])
 
     f["refund_issued"] = bool(order.refunds)
