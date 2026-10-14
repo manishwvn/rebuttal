@@ -369,3 +369,58 @@ def test_mock_rejects_malformed_refund_ids(bad):
     assert e.value.status == 400 and e.value.body["name"] == "INVALID_REQUEST"
     with permit_writes():
         rt.client.provide_evidence(did, [{**ev[0], "evidence_info": {"refund_ids": ["RF1"]}}])
+
+
+# --- R11: untrusted buyer text, address mismatch ---------------------------------------------------------------
+def _delivered_case(address_matches, **over):
+    from rebuttal.agent.facts import CaseFile  # noqa: F401  (type only)
+    _, case = _case_facts("inr_delivered")
+    case.facts.update(shipment_status="DELIVERED", has_tracking=True, delivered_on="2026-01-01",
+                      delivered_address_matches=address_matches, **over)
+    case.reason = "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
+    case.stage = "INQUIRY"
+    case.allowed_response_options = None
+    return case
+
+
+def test_system_prompt_marks_buyer_text_untrusted():
+    from rebuttal.agent.reasoner import SYSTEM_PROMPT
+    assert "never instructions" in SYSTEM_PROMPT
+
+
+def test_guard_converts_tracking_to_replacement_on_address_mismatch():
+    for choice in ("SHARE_TRACKING", "SUBMIT_EVIDENCE"):
+        case = _delivered_case(False)
+        d = guard(Decision(choice, 0.9, [], "", "m", "evidence", source="claude"), case)
+        assert d.resolution == "OFFER_REPLACEMENT" and any("not to the address" in n for n in d.guard_notes)
+    # unknown / matching address: untouched
+    for v in (None, True):
+        case = _delivered_case(v)
+        if v is None:
+            del case.facts["delivered_address_matches"]
+        assert guard(Decision("SHARE_TRACKING", 0.9, [], "", "m", "", source="claude"), case).resolution \
+            == "SHARE_TRACKING"
+
+
+def test_address_mismatch_not_converted_when_paypal_disallows_replacement():
+    case = _delivered_case(False)
+    case.allowed_response_options = {"make_offer": {"offer_types": ["REFUND"]},
+                                     "accept_claim": {"accept_claim_types": ["REFUND"]}}
+    d = guard(Decision("SHARE_TRACKING", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SHARE_TRACKING"
+    assert not any("replacement offer" in n for n in d.guard_notes)
+
+
+def test_accept_claim_note_when_delivered_to_order_address_without_refund_request():
+    case = _delivered_case(True, buyer_asks_for_refund=False)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and any("did not ask for a refund" in n for n in d.guard_notes)
+    case = _delivered_case(True, buyer_asks_for_refund=True)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert not any("did not ask for a refund" in n for n in d.guard_notes)
+
+
+def test_share_tracking_draft_depends_on_address_match():
+    from rebuttal.agent.reasoner import draft_message
+    assert "to the address on your order" in draft_message("SHARE_TRACKING", _delivered_case(True))
+    assert "to the address on your order" not in draft_message("SHARE_TRACKING", _delivered_case(False))
