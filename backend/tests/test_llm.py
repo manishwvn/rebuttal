@@ -195,6 +195,67 @@ def test_token_budget_books_capacity_at_reserve_time_and_is_thread_safe():
     assert order == ["second"] and first is not None
 
 
+def test_try_reserve_books_only_when_the_keep_margins_stay_free():
+    now, clock, sleep = fake_clock()
+    b = TokenBudget(tpm=8000, rpm=30, otpm=1000, clock=clock, sleep=sleep)
+    keep = dict(keep_tokens=3000, keep_output=500, keep_requests=2)
+    first, _ = b.try_reserve(2000, 200, **keep)
+    assert first is not None
+    first.settle(1500)
+    second, _ = b.try_reserve(2000, 200, **keep)
+    assert second is not None  # 1,500 + 2,000 + 3,000 kept <= 8,000, and 400 + 500 kept <= 1,000 output
+    third, wait = b.try_reserve(1600, 200, **keep)
+    assert third is None and wait >= 1  # 3,500 + 1,600 + 3,000 > 8,000, and 600 + 500 > 1,000
+    assert len(b._events) == 2  # a refusal books nothing
+    now[0] += 61
+    assert b.try_reserve(1600, 200, **keep)[0] is not None
+
+
+def test_try_reserve_keeps_requests_free():
+    _, clock, sleep = fake_clock()
+    b = TokenBudget(tpm=10**6, rpm=4, clock=clock, sleep=sleep)
+    assert b.try_reserve(1, keep_requests=2)[0] is not None
+    assert b.try_reserve(1, keep_requests=2)[0] is not None
+    assert b.try_reserve(1, keep_requests=2)[0] is None  # a third would leave one request, not two
+    b.reserve(1)  # the dispute agent still gets the kept room
+
+
+def test_try_reserve_refuses_while_a_reserve_is_waiting_and_never_blocks():
+    import threading
+    import time
+
+    gate = threading.Event()
+    b = TokenBudget(tpm=1000, rpm=30, sleep=lambda secs: gate.wait(5))
+    b.reserve(900)
+    waiter = threading.Thread(target=lambda: b.reserve(900))
+    waiter.start()
+    deadline = time.monotonic() + 5
+    while not b._waiting and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert b._waiting
+    started = time.monotonic()
+    assert b.try_reserve(1)[0] is None  # refused at once although 1 token would fit
+    b._events[0].__setitem__(1, 10)  # a settle from another thread is not blocked by the waiting reserve either
+    assert time.monotonic() - started < 1
+    b._events[0][0] -= 61
+    gate.set()
+    waiter.join(timeout=5)
+    assert not waiter.is_alive()
+    assert not b._waiting
+
+
+def test_reserve_still_works_after_try_reserve_and_cancel():
+    now, clock, sleep = fake_clock()
+    b = TokenBudget(tpm=1000, rpm=30, otpm=500, clock=clock, sleep=sleep)
+    held, _ = b.try_reserve(900, 400)
+    assert held is not None
+    held.cancel()
+    b.reserve(900, 400).settle(800)  # the cancelled tokens and output are free again: no wait
+    assert now[0] == 0
+    b.reserve(900, 400)  # now it must wait out the window
+    assert now[0] >= 60
+
+
 def test_strict_reasoner_raises_instead_of_using_the_rules(case):
     from rebuttal.agent.llm import ModelCallFailed
 

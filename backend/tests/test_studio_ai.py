@@ -6,6 +6,8 @@ import inspect
 import json
 import logging
 import sys
+import threading
+import time
 from pathlib import Path
 
 import httpx
@@ -46,11 +48,16 @@ class FakeClock:
         return self.now
 
 
+def roomy_budget() -> TokenBudget:
+    """A shared Groq budget no test fills, for the tests that exercise other limits."""
+    return TokenBudget(tpm=ROOM, rpm=ROOM, otpm=None)
+
+
 def make_client(handler, *, api_key: str | None = API_KEY, clock: FakeClock | None = None):
     clock = clock or FakeClock()
     app = FastAPI()
     upstream = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    app.include_router(make_studio_ai_router(api_key, "m", client=upstream, clock=clock))
+    app.include_router(make_studio_ai_router(api_key, "m", client=upstream, clock=clock, budget=roomy_budget()))
     return TestClient(app), clock
 
 
@@ -120,7 +127,7 @@ def test_an_oversized_body_without_a_length_is_refused_before_it_is_all_read():
     handler, calls = answer()
     upstream = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     app = FastAPI()
-    app.include_router(make_studio_ai_router(API_KEY, "m", client=upstream, clock=FakeClock()))
+    app.include_router(make_studio_ai_router(API_KEY, "m", client=upstream, clock=FakeClock(), budget=roomy_budget()))
     chunk = b"x" * 8192
     consumed: list[int] = []
 
@@ -161,7 +168,7 @@ def test_without_an_injected_client_each_call_opens_one_with_the_upstream_timeou
 
     monkeypatch.setattr(studio_ai.httpx, "AsyncClient", opened_client)
     app = FastAPI()
-    app.include_router(make_studio_ai_router(API_KEY, "m", clock=FakeClock()))
+    app.include_router(make_studio_ai_router(API_KEY, "m", clock=FakeClock(), budget=roomy_budget()))
     client = TestClient(app)
     assert client.post(URL, json=VALID_TURN).status_code == 200
     assert client.post(URL, json=VALID_TURN).status_code == 200
@@ -340,7 +347,7 @@ def make_budget_client(handler, budget: TokenBudget, clock: FakeClock):
     return TestClient(app)
 
 
-def test_a_studio_call_draws_from_the_shared_groq_budget():
+def test_a_studio_call_draws_from_the_sharedgroq_budget():
     clock = FakeClock()
     budget = make_budget(clock)
     handler, calls = answer()
@@ -376,17 +383,70 @@ def test_the_studio_is_refused_before_the_dispute_agent_would_be():
     assert post(client, "10.3.0.2").status_code == 200
 
 
-def test_a_busy_budget_refuses_the_studio_without_waiting():
+def test_a_waiting_dispute_call_makes_the_studio_refuse_without_waiting():
     clock = FakeClock()
     budget = make_budget(clock)
     handler, calls = answer()
     client = make_budget_client(handler, budget, clock)
-    assert budget._lock.acquire(blocking=False)  # a dispute call is waiting inside reserve()
-    try:
-        assert post(client, "10.3.0.1").status_code == 429
-    finally:
-        budget._lock.release()
+    budget._waiting = True  # a dispute call is sleeping inside reserve()
+    assert post(client, "10.3.0.1").status_code == 429
     assert calls == []
+
+
+def test_a_studio_reply_completes_while_a_dispute_call_sleeps_in_reserve():
+    """settle must not wait for the budget lock that reserve() used to hold across its sleep: that stalled the loop."""
+    clock = FakeClock()
+    gate = threading.Event()
+    budget = TokenBudget(**GROQ_LIMITS, clock=clock, sleep=lambda secs: gate.wait(10) and None)
+    sleeper = threading.Thread(target=lambda: budget.reserve(8000, 0))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # The upstream call is in flight: now a dispute call that does not fit goes to sleep inside reserve().
+        sleeper.start()
+        deadline = time.monotonic() + 5
+        while not budget._waiting and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert budget._waiting
+        return httpx.Response(200, json=reply_body("hello"))
+
+    client = make_budget_client(handler, budget, clock)
+    results: list[int] = []
+    worker = threading.Thread(target=lambda: results.append(post(client, "10.3.0.1").status_code))
+    worker.start()
+    worker.join(timeout=5)
+    try:
+        assert not worker.is_alive(), "the studio reply blocked on the budget lock"
+        assert results == [200]
+        assert budget._events[0][1] == 15  # settled with the real usage
+    finally:
+        clock.now += SHORT_WINDOW + 1
+        gate.set()
+        sleeper.join(timeout=5)
+
+
+@pytest.mark.parametrize("failure", ["500", "503", "timeout", "connect"])
+def test_an_upstream_failure_that_charged_no_tokens_gives_the_reservation_back(failure):
+    clock = FakeClock()
+    budget = make_budget(clock)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if failure == "timeout":
+            raise httpx.ReadTimeout("slow")
+        if failure == "connect":
+            raise httpx.ConnectError("down")
+        return httpx.Response(int(failure), json={"error": "x"})
+
+    client = make_budget_client(handler, budget, clock)
+    assert post(client, "10.3.6.1").status_code in (502, 504)
+    assert sum(e[1] + e[2] for e in budget._events) == 0
+
+
+def test_an_upstream_429_keeps_the_reservation():
+    clock = FakeClock()
+    budget = make_budget(clock)
+    client = make_budget_client(lambda request: httpx.Response(429, json={"error": "x"}), budget, clock)
+    assert post(client, "10.3.6.2").status_code == 429
+    assert sum(e[2] for e in budget._events) == MAX_OUTPUT_TOKENS
 
 
 def test_a_turn_larger_than_the_studio_share_of_the_budget_is_413_and_never_reaches_upstream():
@@ -427,13 +487,13 @@ def test_the_token_estimate_is_three_bytes_to_a_token():
     assert studio_ai.BYTES_PER_TOKEN == 3
 
 
-def test_app_gives_the_proxy_the_process_wide_groq_budget():
-    from rebuttal.agent.llm import _groq_budget
+def test_app_gives_the_proxy_the_process_widegroq_budget():
+    from rebuttal.agent.llm import groq_budget
 
-    # app.py passes _groq_budget() to the router, the same object build_reasoner gives the dispute agent.
+    # app.py passes groq_budget() to the router, the same object build_reasoner gives the dispute agent.
     source = (Path(studio_ai.__file__).parent / "app.py").read_text(encoding="utf-8")
-    assert "budget=_groq_budget()" in source
-    assert _groq_budget() is _groq_budget()
+    assert "budget=groq_budget()" in source
+    assert groq_budget() is groq_budget()
 
 
 def test_a_refused_client_leaves_no_entry_behind():
@@ -589,5 +649,7 @@ def test_the_module_imports_only_stdlib_httpx_fastapi_and_pydantic_and_no_relati
             assert module.split(".")[0] in ALLOWED_TOP_LEVEL_IMPORTS, f"{module} on line {node.lineno}"
 
 
-def test_the_factory_takes_only_the_key_model_client_clock_and_budget():
-    assert list(inspect.signature(make_studio_ai_router).parameters) == ["api_key", "model", "client", "clock", "budget"]
+def test_the_factory_takes_only_the_key_model_client_clock_and_a_required_budget():
+    params = inspect.signature(make_studio_ai_router).parameters
+    assert list(params) == ["api_key", "model", "client", "clock", "budget"]
+    assert params["budget"].default is inspect.Parameter.empty

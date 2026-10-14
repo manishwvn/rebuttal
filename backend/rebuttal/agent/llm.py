@@ -90,48 +90,54 @@ class TokenBudget:
     reserved output tokens (providers count a request's max_tokens against the output limit up front).
 
     Thread-safe. `reserve()` blocks until the call fits and books its estimate straight away, so two threads cannot
-    both think there is room; `Reservation.settle()` swaps the estimate for the tokens the call really used."""
+    both think there is room; `Reservation.settle()` swaps the estimate for the tokens the call really used.
+
+    Two locks: `_queue` is held by a `reserve()` for its whole wait, which queues dispute callers behind each other.
+    `_lock` guards the events and is only ever held briefly, never across a sleep, so `settle`, `cancel` and
+    `try_reserve` never block for long (the Studio proxy calls them from the event loop)."""
 
     def __init__(self, tpm: int, rpm: int, otpm: int | None = None, clock=time.monotonic, sleep=time.sleep):
         self.tpm, self.rpm, self.otpm, self._clock, self._sleep = tpm, rpm, otpm, clock, sleep
         self._events: list[list] = []  # [time, tokens, reserved output]
         self._lock = threading.Lock()
+        self._queue = threading.Lock()
+        self._waiting = False  # a reserve() is sleeping for room
+
+    def _fits(self, now: float, estimate: int, output: int, keep_tokens=0, keep_output=0, keep_requests=0) -> bool:
+        self._events = [e for e in self._events if now - e[0] < 60]
+        used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
+        return (len(self._events) + keep_requests < self.rpm and used + estimate + keep_tokens <= self.tpm
+                and (self.otpm is None or reserved + output + keep_output <= self.otpm))
 
     def reserve(self, estimate: int, output: int = 0) -> Reservation:
-        with self._lock:  # held while waiting, which queues other callers behind this one
+        with self._queue:  # held while waiting, which queues other callers behind this one
             while True:
-                now = self._clock()
-                self._events = [e for e in self._events if now - e[0] < 60]
-                used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
-                fits = (len(self._events) < self.rpm and used + estimate <= self.tpm
-                        and (self.otpm is None or reserved + output <= self.otpm))
-                if fits or not self._events:
-                    event = [now, estimate, output]
-                    self._events.append(event)
-                    return Reservation(event, self._lock)
-                self._sleep(max(0.5, 60 - (now - self._events[0][0])))
+                with self._lock:
+                    now = self._clock()
+                    if self._fits(now, estimate, output) or not self._events:
+                        event = [now, estimate, output]
+                        self._events.append(event)
+                        self._waiting = False
+                        return Reservation(event, self._lock)
+                    self._waiting = True
+                    wait = max(0.5, 60 - (now - self._events[0][0]))
+                self._sleep(wait)
 
     def try_reserve(self, estimate: int, output: int = 0, *, keep_tokens: int = 0, keep_output: int = 0,
                     keep_requests: int = 0) -> tuple[Reservation | None, float]:
         """Non-blocking `reserve` for a lower-priority caller (the Studio assistant proxy). It books the estimate only
         if the window would still have `keep_*` room left over for the dispute agent, else returns (None, seconds to
-        wait). A busy budget (a dispute call is waiting on it) counts as full."""
-        if not self._lock.acquire(blocking=False):
-            return None, 1.0
-        try:
+        wait). A budget that a dispute call is waiting on counts as full."""
+        with self._lock:
             now = self._clock()
-            self._events = [e for e in self._events if now - e[0] < 60]
-            used, reserved = sum(e[1] for e in self._events), sum(e[2] for e in self._events)
-            fits = (len(self._events) + keep_requests < self.rpm and used + estimate + keep_tokens <= self.tpm
-                    and (self.otpm is None or reserved + output + keep_output <= self.otpm))
-            if fits:
+            if self._waiting:
+                return None, 1.0
+            if self._fits(now, estimate, output, keep_tokens, keep_output, keep_requests):
                 event = [now, estimate, output]
                 self._events.append(event)
                 return Reservation(event, self._lock), 0.0
             wait = 60 - (now - self._events[0][0]) if self._events else 1.0
             return None, max(1.0, wait)
-        finally:
-            self._lock.release()
 
 
 class Reservation:
@@ -218,7 +224,7 @@ GROQ_LIMITS = {"tpm": 8000, "rpm": 30, "otpm": 1000}
 GROQ_MAX_TOKENS = 500
 
 
-def _groq_budget() -> TokenBudget:
+def groq_budget() -> TokenBudget:
     global _GROQ_BUDGET
     if _GROQ_BUDGET is None:
         _GROQ_BUDGET = TokenBudget(**GROQ_LIMITS)
@@ -272,7 +278,7 @@ def _build(settings: Settings, want) -> ModelReasoner | None:
         chat = ChatGroq(model=settings.groq_model, api_key=settings.groq_api_key, temperature=TEMPERATURE,
                         max_tokens=GROQ_MAX_TOKENS, reasoning_format="hidden", timeout=60, max_retries=2)
         return ModelReasoner(name="groq", model_name=settings.groq_model, max_output_tokens=GROQ_MAX_TOKENS,
-                             chat_model=chat, throttle=_groq_budget(),
+                             chat_model=chat, throttle=groq_budget(),
                              structured=chat.with_structured_output(DecisionOut, method="json_schema",
                                                                     include_raw=True))
     if want("nvidia") and settings.nvidia_api_key:

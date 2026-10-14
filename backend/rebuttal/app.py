@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from . import analytics
 from .agent.graph import DisputeAgent
-from .agent.llm import _groq_budget
+from .agent.llm import groq_budget
 from .approval import ApprovalError
 from .demo import DemoManager
 from .demo_api import make_demo_router
@@ -73,7 +73,7 @@ protected = [Depends(require_token)]
 # AG Studio's AI chat proxy to Groq. Behind the API token like every dashboard route; it never receives `rt` or `rt.client`,
 # only the Groq key, model name and shared Groq budget, so it cannot reach PayPal. Demo mode has no Analytics tab and no AI.
 app.include_router(
-    make_studio_ai_router(rt.settings.groq_api_key, rt.settings.groq_model, budget=_groq_budget()),
+    make_studio_ai_router(rt.settings.groq_api_key, rt.settings.groq_model, budget=groq_budget()),
     dependencies=protected,
 )
 # The demo router is deliberately NOT behind the token: it can only reach its own DemoManager, an isolated mock

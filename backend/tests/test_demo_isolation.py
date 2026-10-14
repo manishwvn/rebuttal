@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from rebuttal import app as app_module
 from rebuttal import runtime as runtime_module
+from rebuttal.agent.llm import TokenBudget
 from rebuttal.demo import DemoManager
 from rebuttal.demo_api import make_demo_router
 from rebuttal.runtime import Runtime
@@ -164,7 +165,7 @@ def test_studio_ai_chat_with_the_token_but_no_groq_key_is_503_never_500(monkeypa
     # must never reach api.groq.com.
     monkeypatch.setattr(app_module, "API_TOKEN", "s3cret")
     app = FastAPI()
-    app.include_router(make_studio_ai_router(None, "m"), dependencies=app_module.protected)
+    app.include_router(make_studio_ai_router(None, "m", budget=TokenBudget(tpm=1000, rpm=10)), dependencies=app_module.protected)
     client = BoundedClient(TestClient(app))
     body = {"messages": [{"role": "user", "content": "hi"}]}
     response = client.post("/api/studio/ai", json=body, headers={"Authorization": "Bearer s3cret"})

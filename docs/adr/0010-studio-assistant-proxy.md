@@ -32,6 +32,6 @@ Alternatives rejected:
 
 ## Consequences
 
-- A busy Studio assistant can make itself unavailable, never the dispute agent (the reverse is expected).
+- A busy Studio assistant can make itself unavailable, never the dispute agent (the reverse is expected). The proxy runs on the event loop, so it never waits on the budget: `TokenBudget` keeps its state lock short and never holds it across a sleep (a waiting `reserve()` holds only a separate queue lock), `try_reserve` refuses at once while a dispute call waits, and a failed upstream call (timeout, connect error, 5xx) gives its reservation back.
 - Two model paths exist, so changes to either must keep the other out of PayPal. The import test enforces it here.
 - Not verified against live Groq (`docs/ag-studio.md` section 9).

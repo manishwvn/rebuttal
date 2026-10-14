@@ -272,12 +272,12 @@ def make_studio_ai_router(
     *,
     client: httpx.AsyncClient | None = None,
     clock: Callable[[], float] = time.monotonic,
-    budget: Any = None,
+    budget: Any,
 ) -> APIRouter:
     """The /api/studio/ai routes. No auth here (app.py adds the token dependency); a falsy api_key disables them.
 
-    `budget` is the process-wide Groq TokenBudget shared with the dispute agent (try_reserve, tpm); None skips the
-    shared-budget check, which only tests do."""
+    `budget` is the process-wide Groq TokenBudget shared with the dispute agent (try_reserve, tpm). It is required:
+    settle and cancel only take its short state lock, so they are safe to call from the event loop."""
     limiter = _RateLimiter(
         clock,
         client_limit=CLIENT_LIMIT,
@@ -301,28 +301,30 @@ def make_studio_ai_router(
             payload = StudioAiRequest.model_validate_json(body)
         except ValidationError:
             raise HTTPException(422, "Invalid AI request.") from None  # before any limiter, so it costs no slot
-        reservation = None
-        if budget is not None:
-            estimate = len(body) // BYTES_PER_TOKEN + MAX_OUTPUT_TOKENS
-            if estimate + KEEP_TOKENS > budget.tpm:
-                raise HTTPException(413, "Request too large.")  # more than the whole share: waiting would not help
-            reservation, wait = budget.try_reserve(
-                estimate, MAX_OUTPUT_TOKENS,
-                keep_tokens=KEEP_TOKENS, keep_output=KEEP_OUTPUT_TOKENS, keep_requests=KEEP_REQUESTS,
+        estimate = len(body) // BYTES_PER_TOKEN + MAX_OUTPUT_TOKENS
+        if estimate + KEEP_TOKENS > budget.tpm:
+            raise HTTPException(413, "Request too large.")  # more than the whole share: waiting would not help
+        reservation, wait = budget.try_reserve(
+            estimate, MAX_OUTPUT_TOKENS, keep_tokens=KEEP_TOKENS, keep_output=KEEP_OUTPUT_TOKENS, keep_requests=KEEP_REQUESTS
+        )
+        if reservation is None:
+            raise HTTPException(
+                429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(math.ceil(wait))}
             )
-            if reservation is None:
-                raise HTTPException(
-                    429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(math.ceil(wait))}
-                )
         retry = limiter.acquire(_client_key(request))
         if retry is not None:
-            if reservation is not None:
-                reservation.cancel()
+            reservation.cancel()
             raise HTTPException(429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(retry)})
-        response = await _forward(client, api_key, _upstream_body(payload, model))
+        try:
+            response = await _forward(client, api_key, _upstream_body(payload, model))
+        except HTTPException:
+            reservation.cancel()  # timeout or connection error: Groq never counted the call
+            raise
+        if response.status_code >= 500:
+            reservation.cancel()  # an upstream failure charged no tokens
         reply = _reply(response, model)
         usage = reply["usage"]
-        if reservation is not None and usage:
+        if usage:
             reservation.settle(usage["prompt_tokens"] + usage["completion_tokens"])
         return reply
 
