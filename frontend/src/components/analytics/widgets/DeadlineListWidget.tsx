@@ -8,6 +8,7 @@ const REASON = 1
 const AMOUNT = 2
 const STATUS = 3
 const HOURS_LEFT = 5
+const MIN_FIELDS = HOURS_LEFT + 1
 
 type Row = Record<string, unknown>
 
@@ -71,7 +72,7 @@ function DeadlineRow({ params, fields, row }: DeadlineRowProps) {
 }
 
 export default function DeadlineListWidget(params: AgWidgetParams) {
-  const data = useWidgetRows(params, ['cols'])
+  const data = useWidgetRows(params, ['cols'], MIN_FIELDS)
   return (
     <div data-widget-id={params.widgetId} style={LIST}>
       {data?.rows.map((row) => (

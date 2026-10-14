@@ -6,11 +6,13 @@ export interface WidgetRows {
   rows: Record<string, unknown>[]
 }
 
-export function useWidgetRows(params: AgWidgetParams, slots: string[]): WidgetRows | null {
+export function useWidgetRows(params: AgWidgetParams, slots: string[], minFields = 0): WidgetRows | null {
   const { sort, widgetApi } = params
   const mapping: Partial<Record<string, AgWidgetField[]>> = params.dataMapping
   const [response, setResponse] = useState<WidgetRows | null>(null)
-  const complete = slots.every((slot) => (mapping[slot]?.length ?? 0) > 0)
+  const fieldCount = slots.reduce((n, slot) => n + (mapping[slot]?.length ?? 0), 0)
+  // An edit-mode remap can leave a fieldset with fewer fields than the widget indexes.
+  const complete = slots.every((slot) => (mapping[slot]?.length ?? 0) > 0) && fieldCount >= minFields
 
   useEffect(() => {
     if (!complete) {
