@@ -408,6 +408,18 @@ def test_address_mismatch_not_converted_when_paypal_disallows_replacement():
     d = guard(Decision("SHARE_TRACKING", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "SHARE_TRACKING"
     assert not any("replacement offer" in n for n in d.guard_notes)
+    assert any("different address than the order" in n for n in d.guard_notes)
+    assert d.confidence == 0.5
+
+
+def test_address_mismatch_at_chargeback_without_replacement_keeps_evidence_with_note():
+    case = _delivered_case(False)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = {"make_offer": {"offer_types": ["REFUND"]},
+                                     "accept_claim": {"accept_claim_types": ["REFUND"]}}
+    d = guard(Decision("SUBMIT_EVIDENCE", 0.9, [], "", "m", "evidence", source="claude"), case)
+    assert d.resolution == "SUBMIT_EVIDENCE" and d.confidence == 0.5
+    assert any("different address than the order" in n for n in d.guard_notes)
 
 
 def test_accept_claim_note_when_delivered_to_order_address_without_refund_request():

@@ -329,12 +329,18 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         notes.append("Claim stage: converted 'share tracking' into submitting delivery evidence.")
     if (decision.resolution in ("SHARE_TRACKING", "SUBMIT_EVIDENCE")
             and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
-            and f.get("delivered_address_matches") is False and paypal_allows("OFFER_REPLACEMENT", case)):
-        # Delivered somewhere else: tracking proves nothing about this buyer's package. Only when PayPal allows it.
-        notes.append(f"Delivered, but not to the address on the order; converted '{decision.resolution}' into a "
-                     "replacement offer.")
-        decision.resolution = "OFFER_REPLACEMENT"
-        decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
+            and f.get("delivered_address_matches") is False):
+        # Delivered somewhere else: tracking proves nothing about this buyer's package. Convert only when PayPal
+        # allows a replacement; otherwise keep the decision but flag it and lower confidence.
+        if paypal_allows("OFFER_REPLACEMENT", case):
+            notes.append(f"Delivered, but not to the address on the order; converted '{decision.resolution}' into "
+                         "a replacement offer.")
+            decision.resolution = "OFFER_REPLACEMENT"
+            decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
+        else:
+            notes.append("Delivered to a different address than the order; tracking does not prove this buyer "
+                         "received it.")
+            decision.confidence = min(decision.confidence, 0.5)
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
         instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
