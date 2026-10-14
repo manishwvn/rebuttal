@@ -20,17 +20,20 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 log = logging.getLogger(__name__)
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"  # Groq's OpenAI-compatible chat endpoint
-MAX_OUTPUT_TOKENS = 512  # one reply; the free tier allows 1,000 output tokens a minute for the whole key
-MAX_BODY_BYTES = 131_072  # 128 KiB: caps the bytes read and parsed per request
+MAX_OUTPUT_TOKENS = 512  # one reply; Groq counts this against the key's 1,000 output tokens a minute up front
+MAX_BODY_BYTES = 131_072  # 128 KiB: the body is read in chunks and refused past this, so memory stays bounded
 MAX_MESSAGES = 200  # longest chat history forwarded in one turn
 MAX_TOOLS = 64  # most tool definitions forwarded in one turn
 MAX_TEXT_CHARS = 100_000  # longest content of one message
 UPSTREAM_TIMEOUT = 30.0  # seconds; a slow model fails fast for the browser
-SHORT_WINDOW = 60.0  # seconds, the window of the per-client and global limits
+SHORT_WINDOW = 60.0  # seconds, the window of the per-client, global and output-token limits
 DAY_WINDOW = 86_400.0  # seconds, the window of the daily limit
 CLIENT_LIMIT = 6  # requests per SHORT_WINDOW for one client, so one client cannot drain the shared quota
 GLOBAL_LIMIT = 12  # requests per SHORT_WINDOW for the whole service, under Groq's 30 requests a minute
 DAILY_LIMIT = 150  # requests per DAY_WINDOW, well under the 1K a day that the dispute agent also uses
+# The studio's share of Groq's 1,000 output tokens a minute. agent/llm.py budgets the dispute agent on its own, so the
+# two are not yet pooled: a lead decision is needed (one shared budget, or a second key for the studio).
+STUDIO_OUTPUT_TOKENS_PER_MINUTE = 512
 RETRY_AFTER_DEFAULT = 5  # seconds, when Groq's 429 has no usable Retry-After
 RETRY_AFTER_MAX = 60  # seconds, the longest Retry-After passed on to the browser
 
@@ -90,50 +93,79 @@ class StudioAiRequest(BaseModel):
 
 
 class _RateLimiter:
-    """Sliding windows for one client, the whole service and the day. A request counts only when all three have room."""
+    """Sliding windows for one client, the whole service, the day and the output-token share. A request counts only
+    when every window has room. Each accepted request reserves one output-token slot, as Groq does."""
 
-    def __init__(self, clock: Callable[[], float], *, client_limit: int, global_limit: int, daily_limit: int) -> None:
+    def __init__(
+        self,
+        clock: Callable[[], float],
+        *,
+        client_limit: int,
+        global_limit: int,
+        daily_limit: int,
+        output_limit: int,
+    ) -> None:
         self._clock = clock
         self._client_limit = client_limit
         self._global_limit = global_limit
         self._daily_limit = daily_limit
+        self._output_limit = output_limit
         self._lock = threading.Lock()
         self._clients: dict[str, deque[float]] = {}
         self._global: deque[float] = deque()
         self._daily: deque[float] = deque()
+        self._output: deque[float] = deque()
 
     def acquire(self, client: str) -> int | None:
         """Count one request and return None, or return the whole seconds to wait (at least 1) when a window is full."""
         now = self._clock()
         with self._lock:
+            self._sweep(now)
             hits = self._clients.setdefault(client, deque())
             waits = [
                 _wait(hits, self._client_limit, SHORT_WINDOW, now),
                 _wait(self._global, self._global_limit, SHORT_WINDOW, now),
                 _wait(self._daily, self._daily_limit, DAY_WINDOW, now),
+                _wait(self._output, self._output_limit, SHORT_WINDOW, now),
             ]
             blocking = [wait for wait in waits if wait is not None]
             if blocking:
                 if not hits:
                     del self._clients[client]
                 return max(1, math.ceil(max(blocking)))
-            for window in (hits, self._global, self._daily):
+            for window in (hits, self._global, self._daily, self._output):
                 window.append(now)
             return None
+
+    def _sweep(self, now: float) -> None:
+        """Forget clients whose hits have all left the window, so the table holds only clients still being counted."""
+        for client in list(self._clients):
+            hits = self._clients[client]
+            _prune(hits, SHORT_WINDOW, now)
+            if not hits:
+                del self._clients[client]
+
+
+def _prune(hits: deque[float], window: float, now: float) -> None:
+    while hits and now - hits[0] >= window:
+        hits.popleft()
 
 
 def _wait(hits: deque[float], limit: int, window: float, now: float) -> float | None:
     """Drop hits older than the window. None when a slot is free, else the seconds until the oldest hit expires."""
-    while hits and now - hits[0] >= window:
-        hits.popleft()
+    _prune(hits, window, now)
     if len(hits) < limit:
         return None
     return hits[0] + window - now
 
 
 def _client_key(request: Request) -> str:
-    """The first X-Forwarded-For hop (cut to 64 characters), else the socket peer, else ''."""
-    hop = request.headers.get("x-forwarded-for", "").split(",")[0].strip()[:64]
+    """The rightmost X-Forwarded-For hop (cut to 64 characters), else the socket peer, else ''.
+
+    The rightmost hop is the one the edge proxy appends. The first hop is whatever the caller sent, so keying on it
+    would let a caller open a new per-client bucket on every request.
+    """
+    hop = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()[:64]
     if hop:
         return hop
     return request.client.host if request.client else ""
@@ -144,6 +176,16 @@ def _declared_length(request: Request) -> int:
         return int(request.headers.get("content-length", "0"))
     except ValueError:
         return 0  # not a length: the body is still checked once it is read
+
+
+async def _read_body(request: Request) -> bytes:
+    """Read the body chunk by chunk and stop past MAX_BODY_BYTES, so an oversized upload is never held whole."""
+    body = bytearray()
+    async for chunk in request.stream():
+        body += chunk
+        if len(body) > MAX_BODY_BYTES:
+            raise HTTPException(413, "Request too large.")
+    return bytes(body)
 
 
 def _upstream_body(payload: StudioAiRequest, model: str) -> dict[str, Any]:
@@ -163,12 +205,13 @@ async def _forward(http: httpx.AsyncClient | None, api_key: str, body: dict[str,
             async with httpx.AsyncClient(timeout=UPSTREAM_TIMEOUT) as own:
                 return await own.post(GROQ_CHAT_URL, json=body, headers=headers)
         return await http.post(GROQ_CHAT_URL, json=body, headers=headers)
-    except httpx.TimeoutException as exc:
+    except httpx.HTTPError as exc:
         log.warning("Studio AI upstream error=%s", type(exc).__name__)
-        raise HTTPException(504, "The AI model timed out.") from None
-    except httpx.TransportError as exc:
-        log.warning("Studio AI upstream error=%s", type(exc).__name__)
-        raise HTTPException(502, "The AI model could not be reached.") from None
+        if isinstance(exc, httpx.TimeoutException):
+            raise HTTPException(504, "The AI model timed out.") from None
+        if isinstance(exc, httpx.TransportError):
+            raise HTTPException(502, "The AI model could not be reached.") from None
+        raise HTTPException(502, "The AI model request failed.") from None  # e.g. an undecodable reply
 
 
 def _upstream_retry_after(value: str | None) -> int:
@@ -223,7 +266,13 @@ def make_studio_ai_router(
     clock: Callable[[], float] = time.monotonic,
 ) -> APIRouter:
     """The /api/studio/ai routes. No auth here (app.py adds the token dependency); a falsy api_key disables them."""
-    limiter = _RateLimiter(clock, client_limit=CLIENT_LIMIT, global_limit=GLOBAL_LIMIT, daily_limit=DAILY_LIMIT)
+    limiter = _RateLimiter(
+        clock,
+        client_limit=CLIENT_LIMIT,
+        global_limit=GLOBAL_LIMIT,
+        daily_limit=DAILY_LIMIT,
+        output_limit=STUDIO_OUTPUT_TOKENS_PER_MINUTE // MAX_OUTPUT_TOKENS,
+    )
     router = APIRouter(prefix="/api/studio/ai", tags=["studio-ai"])
 
     @router.get("/status")
@@ -236,9 +285,7 @@ def make_studio_ai_router(
             raise HTTPException(503, "The AI assistant is not configured.")
         if _declared_length(request) > MAX_BODY_BYTES:
             raise HTTPException(413, "Request too large.")
-        body = await request.body()
-        if len(body) > MAX_BODY_BYTES:
-            raise HTTPException(413, "Request too large.")
+        body = await _read_body(request)
         retry = limiter.acquire(_client_key(request))
         if retry is not None:
             raise HTTPException(429, "Too many AI requests. Try again shortly.", headers={"Retry-After": str(retry)})
