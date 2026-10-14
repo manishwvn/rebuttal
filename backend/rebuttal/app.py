@@ -124,10 +124,25 @@ def health():
     return {"ok": True, "mode": rt.mode, "auth": bool(API_TOKEN), "database": database}
 
 
+def paypal_read_failed(what: str, exc: PayPalError | httpx.TransportError) -> HTTPException:
+    """A PayPal read failed: 404 when PayPal says the thing does not exist, otherwise a readable 502, never a bare
+    500. The status and debug_id go to the log; the response carries no PayPal body."""
+    status = exc.status if isinstance(exc, PayPalError) else None
+    debug_id = exc.debug_id if isinstance(exc, PayPalError) else None
+    logger.warning("PayPal read failed (%s): %s status=%s debug_id=%s", what, type(exc).__name__, status, debug_id)
+    if status == 404:
+        return HTTPException(404, "PayPal has no such dispute.")
+    return HTTPException(502, f"PayPal could not be read ({what}). Try again shortly.")
+
+
 @app.get("/api/disputes", dependencies=protected)
 def list_disputes():
+    try:
+        listed = rt.client.list_disputes()
+    except (PayPalError, httpx.TransportError) as exc:
+        raise paypal_read_failed("listing the disputes", exc) from exc
     out = []
-    for d in rt.client.list_disputes():
+    for d in listed:
         p = rt.approvals.latest_for(d["dispute_id"])
         out.append({**d, "proposal": p.to_dict() if p else None})
     return out
@@ -135,7 +150,10 @@ def list_disputes():
 
 @app.post("/api/disputes/{dispute_id}/analyze", dependencies=protected)
 def analyze(dispute_id: str):
-    return rt.analyze(dispute_id).to_dict()
+    try:
+        return rt.analyze(dispute_id).to_dict()
+    except (PayPalError, httpx.TransportError) as exc:
+        raise paypal_read_failed("analyzing the dispute", exc) from exc
 
 
 @app.post("/api/proposals/{proposal_id}/approve", dependencies=protected)
@@ -256,7 +274,12 @@ async def paypal_webhook(request: Request, background: BackgroundTasks):
     """PayPal sends CUSTOMER.DISPUTE.* here. Every delivery is verified with PayPal's verify-webhook-signature call
     against PAYPAL_WEBHOOK_ID before anything happens. Without a webhook id only the local mock accepts deliveries
     (fail closed on a real sandbox). Only CUSTOMER.DISPUTE.CREATED starts an analysis, which never writes."""
-    event = await request.json()
+    try:
+        event = await request.json()
+    except ValueError as exc:  # not JSON (also covers bad UTF-8)
+        raise HTTPException(400, "The webhook body is not valid JSON") from exc
+    if not isinstance(event, dict):
+        raise HTTPException(400, "The webhook body must be a JSON object")
     webhook_id = rt.settings.paypal_webhook_id
     if webhook_id:
         try:
@@ -269,7 +292,8 @@ async def paypal_webhook(request: Request, background: BackgroundTasks):
     elif rt.mock is None:
         raise HTTPException(503, "PAYPAL_WEBHOOK_ID is not set; refusing unverified webhooks")
     if event.get("event_type") == "CUSTOMER.DISPUTE.CREATED":
-        dispute_id = event.get("resource", {}).get("dispute_id")
+        resource = event.get("resource") or {}
+        dispute_id = resource.get("dispute_id") if isinstance(resource, dict) else None
         if dispute_id:
             background.add_task(rt.analyze, dispute_id)
     return {"received": True}
@@ -296,9 +320,9 @@ def interrupt_next_write():
 
 @app.post("/api/simulator/dispute/{case_id}", dependencies=protected)
 def simulate(case_id: str):
-    """Judge-facing simulator. Mock mode seeds a labeled case; sandbox mode comes in week 2."""
+    """Judge-facing simulator. Mock mode seeds a labeled case; the real sandbox is not supported."""
     if rt.mock is None:
-        raise HTTPException(501, "Sandbox simulator lands in week 2 (buyer-side dispute creation).")
+        raise HTTPException(501, "The simulator only runs against the mock sandbox.")
     cases = {c["id"]: c for c in load_cases()}
     if case_id not in cases:
         raise HTTPException(404, f"Unknown case {case_id}")

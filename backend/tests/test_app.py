@@ -275,3 +275,74 @@ def test_interrupting_a_write_is_mock_only(client, monkeypatch):
     monkeypatch.setattr(app_module.rt, "mock", None)
     assert client.post("/api/simulator/interrupt-next-write").status_code == 501
     assert mock.interrupt_next_write is False
+
+
+def test_a_malformed_webhook_body_is_a_400_and_a_null_resource_is_not_a_500(client):
+    bad = {"content-type": "application/json"}
+    assert client.post("/api/webhooks/paypal", content=b"not json", headers=bad).status_code == 400
+    assert client.post("/api/webhooks/paypal", content=b"\xff\xfe", headers=bad).status_code == 400
+    assert client.post("/api/webhooks/paypal", json=[1, 2]).status_code == 400
+    null_resource = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": None}
+    assert client.post("/api/webhooks/paypal", json=null_resource).status_code == 200
+    odd_resource = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": "x"}
+    assert client.post("/api/webhooks/paypal", json=odd_resource).status_code == 200
+
+
+def test_analyze_maps_paypal_failures_to_readable_errors(client, monkeypatch):
+    assert client.post("/api/disputes/PP-D-NOPE/analyze").status_code == 404
+    reader = app_module.rt.agent
+
+    def fail(exc):
+        def boom(*a, **k):
+            raise exc
+        monkeypatch.setattr(reader, "analyze", boom)
+
+    fail(PayPalError(503, {"name": "SERVICE_UNAVAILABLE"}, "dbg-1"))
+    down = client.post("/api/disputes/PP-D-2000/analyze")
+    assert down.status_code == 502 and "dbg-1" not in down.json()["detail"]
+    fail(httpx.ConnectError("refused"))
+    assert client.post("/api/disputes/PP-D-2000/analyze").status_code == 502
+
+
+def test_listing_disputes_survives_a_paypal_outage(client, monkeypatch):
+    def boom():
+        raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(app_module.rt.client, "list_disputes", boom)
+    assert client.get("/api/disputes").status_code == 502
+
+
+def test_an_unreachable_paypal_during_verification_is_a_503_and_nothing_is_analysed(client, monkeypatch):
+    from dataclasses import replace
+
+    monkeypatch.setattr(app_module.rt, "settings", replace(app_module.rt.settings, paypal_webhook_id="WH-1"))
+
+    class Reader:
+        def verify_webhook_signature(self, *a, **k):
+            raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(app_module.rt.client, "read_only", lambda: Reader())
+    event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
+    assert client.post("/api/webhooks/paypal", json=event, headers=SIG).status_code == 503
+    assert app_module.rt.approvals.latest_for("PP-D-2001") is None
+
+
+def test_a_dispute_updated_webhook_is_accepted_without_a_new_proposal(client):
+    event = {"event_type": "CUSTOMER.DISPUTE.UPDATED", "resource": {"dispute_id": "PP-D-2001"}}
+    assert client.post("/api/webhooks/paypal", json=event).status_code == 200
+    assert app_module.rt.approvals.latest_for("PP-D-2001") is None
+
+
+def test_health_answers_when_the_database_ping_fails(client, monkeypatch):
+    def boom():
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr(app_module.rt.audit, "ping", boom)
+    body = client.get("/api/health").json()
+    assert body["ok"] is False and body["database"] is False
+
+
+def test_the_sandbox_simulator_says_it_is_mock_only(client, monkeypatch):
+    monkeypatch.setattr(app_module.rt, "mock", None)
+    refused = client.post("/api/simulator/dispute/agent_wrong_size")
+    assert refused.status_code == 501 and refused.json()["detail"] == "The simulator only runs against the mock sandbox."
