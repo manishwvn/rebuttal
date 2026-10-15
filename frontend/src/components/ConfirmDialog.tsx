@@ -1,19 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
-
-// Chrome hands Tab and Shift+Tab at either end of a modal dialog to the browser UI, so the dialog wraps focus itself.
-const wrapTab = (event: KeyboardEvent<HTMLDialogElement>) => {
-  const items = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea, input')
-  const first = items[0]
-  const last = items[items.length - 1]
-  if (!first) return
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault()
-    first.focus()
-  }
-}
+import { useEffect, useRef, type ReactNode } from 'react'
 
 interface Props {
   title: string
@@ -72,7 +57,6 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
         if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof HTMLTextAreaElement)) {
           event.preventDefault()
         }
-        if (event.key === 'Tab') wrapTab(event)
       }}
     >
       <h2 id="confirm-title">{title}</h2>
