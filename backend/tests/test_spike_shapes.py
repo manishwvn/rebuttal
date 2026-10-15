@@ -1,11 +1,17 @@
 """Offline checks for scripts/spike_shapes.py: the redaction that keeps personal data out of the fixtures, the summary
-the findings use, and the refusal to run on the mock. No PayPal call and no model call is made."""
+the findings use, the link prechecks, the audit trail and the refusal to overwrite a record. The PayPal client is a
+fake, and no model call is made."""
 
 import copy
+import json
 
 import httpx
+import pytest
 
+from rebuttal.audit import AuditLog
 from rebuttal.config import load_settings
+from rebuttal.paypal.client import PayPalError
+from scripts import spike_shapes
 from scripts.spike_shapes import main, redact, summarize
 
 SAMPLE = {
@@ -90,3 +96,141 @@ def test_survey_refuses_on_the_mock_without_any_network(monkeypatch):
     monkeypatch.setattr(httpx.Client, "request", no_network)
     assert load_settings().mock is True  # conftest pins REBUTTAL_MOCK=1
     assert main(["survey"]) == 2
+
+
+class FakePP:
+    """Stands in for PayPalClient. Each write is recorded as a tuple, and the queued PayPalErrors are raised, in
+    order, before a write succeeds."""
+
+    def __init__(self, dispute: dict, errors: list[PayPalError] | None = None):
+        self.dispute = dispute
+        self.errors = list(errors or [])
+        self.writes: list[tuple] = []
+
+    def get_dispute(self, dispute_id: str) -> dict:
+        return copy.deepcopy(self.dispute)
+
+    def _write(self, *call):
+        self.writes.append(call)
+        if self.errors:
+            raise self.errors.pop(0)
+        return {"links": []}
+
+    def escalate(self, dispute_id, note, *, request_id=None):
+        return self._write("escalate", dispute_id, request_id)
+
+    def send_message(self, dispute_id, message, *, request_id=None):
+        return self._write("send_message", dispute_id, request_id)
+
+    def provide_evidence(self, dispute_id, evidences, files=(), *, request_id=None):
+        return self._write("provide_evidence", dispute_id, request_id)
+
+    def appeal(self, dispute_id, evidences, files=(), *, request_id=None):
+        return self._write("appeal", dispute_id, request_id)
+
+    def _request(self, method, path, *, request_id=None, **kw):
+        return self._write("_request", method, path, kw, request_id)
+
+
+def dispute_at(stage: str, status: str, *rels: str) -> dict:
+    return {"dispute_id": "PP-R-TEST-1", "dispute_life_cycle_stage": stage, "status": status,
+            "links": [{"rel": "self"}, *({"rel": rel} for rel in rels)]}
+
+
+@pytest.fixture
+def records_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(spike_shapes, "FIXTURES", tmp_path)
+    return tmp_path
+
+
+def test_escalate_sends_nothing_without_an_escalate_link(records_dir, capsys):
+    pp = FakePP(dispute_at("INQUIRY", "WAITING_FOR_SELLER_RESPONSE"))
+    audit = AuditLog()
+    assert spike_shapes.escalate(pp, audit, "PP-R-TEST-1") == 1
+    assert pp.writes == [] and audit.records == []
+    assert "offers no escalate link" in capsys.readouterr().out
+
+
+def test_escalate_sends_nothing_outside_an_inquiry(records_dir):
+    pp = FakePP(dispute_at("CHARGEBACK", "UNDER_REVIEW", "escalate"))
+    assert spike_shapes.escalate(pp, AuditLog(), "PP-R-TEST-1") == 1
+    assert pp.writes == []
+
+
+def test_escalate_refuses_to_overwrite_an_existing_record_before_sending(records_dir):
+    existing = records_dir / "sandbox_escalate_response_PP-R-TEST-1.json"
+    existing.write_text("{}")
+    pp = FakePP(dispute_at("INQUIRY", "UNDER_REVIEW", "escalate"))
+    assert spike_shapes.escalate(pp, AuditLog(), "PP-R-TEST-1") == 1
+    assert pp.writes == [] and existing.read_text() == "{}"
+
+
+def test_escalate_audits_the_request_id_it_sends_and_saves_a_redacted_record(records_dir):
+    pp = FakePP(dispute_at("INQUIRY", "UNDER_REVIEW", "escalate"))
+    audit = AuditLog()
+    assert spike_shapes.escalate(pp, audit, "PP-R-TEST-1") == 0
+    assert [w[0] for w in pp.writes] == ["escalate"]
+    assert [r["step"] for r in audit.records] == ["spike.escalate.request", "spike.escalate.result"]
+    sent_id = pp.writes[0][2]
+    assert sent_id and all(r["detail"]["request_id"] == sent_id for r in audit.records)
+    saved = json.loads((records_dir / "sandbox_escalate_response_PP-R-TEST-1.json").read_text())
+    assert saved["first_attempt"]["ok"] is True
+    assert saved["before"]["link_rels"] == ["escalate", "self"]
+    assert "retry_with_buyer_escalation_reason" not in saved
+    assert (records_dir / "sandbox_dispute_after_escalate_PP-R-TEST-1.json").exists()
+
+
+def test_escalate_retries_once_with_buyer_escalation_reason_when_paypal_asks_for_it(records_dir):
+    body = {"details": [{"field": "buyer_escalation_reason", "issue": "MISSING_REQUIRED_PARAMETER"}]}
+    pp = FakePP(dispute_at("INQUIRY", "UNDER_REVIEW", "escalate"), errors=[PayPalError(400, body)])
+    audit = AuditLog()
+    assert spike_shapes.escalate(pp, audit, "PP-R-TEST-1") == 0
+    assert [w[0] for w in pp.writes] == ["escalate", "_request"]
+    assert pp.writes[1][1:4] == ("POST", "/v1/customer/disputes/PP-R-TEST-1/escalate",
+                                 {"json": {"note": spike_shapes.NOTE, "buyer_escalation_reason": "OTHER"}})
+    assert len(audit.records) == 4  # the first request and result, then the retry's request and result
+    saved = json.loads((records_dir / "sandbox_escalate_response_PP-R-TEST-1.json").read_text())
+    first = saved["first_attempt"]
+    assert (first["ok"], first["http_status"], first["error"]) == (False, 400, body)
+    assert saved["retry_with_buyer_escalation_reason"]["ok"] is True
+
+
+def test_send_message_refuses_to_overwrite_an_existing_record(records_dir):
+    (records_dir / "sandbox_dispute_after_seller_message_PP-R-TEST-1.json").write_text("{}")
+    pp = FakePP(dispute_at("INQUIRY", "WAITING_FOR_SELLER_RESPONSE"))
+    assert spike_shapes.send_message(pp, AuditLog(), "PP-R-TEST-1") == 1
+    assert pp.writes == []
+
+
+def test_proof_of_return_sends_nothing_without_a_provide_evidence_link(records_dir):
+    pp = FakePP(dispute_at("INQUIRY", "WAITING_FOR_SELLER_RESPONSE", "escalate"))
+    assert spike_shapes.proof_of_return(pp, AuditLog(), "PP-R-TEST-1") == 1
+    assert pp.writes == []
+
+
+def test_proof_of_return_records_a_paypal_refusal_with_its_issue_code(records_dir):
+    body = {"details": [{"issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"}]}
+    pp = FakePP(dispute_at("INQUIRY", "UNDER_REVIEW", "provide_evidence"), errors=[PayPalError(400, body)])
+    assert spike_shapes.proof_of_return(pp, AuditLog(), "PP-R-TEST-1") == 0
+    saved = json.loads((records_dir / "sandbox_proof_of_return_response_PP-R-TEST-1.json").read_text())
+    assert saved["result"]["ok"] is False and saved["result"]["http_status"] == 400
+    assert saved["result"]["error"] == body
+    assert saved["before"]["link_rels"] == ["provide_evidence", "self"]
+
+
+def test_appeal_sends_nothing_without_an_appeal_link(records_dir):
+    pp = FakePP(dispute_at("INQUIRY", "UNDER_REVIEW", "escalate"))
+    assert spike_shapes.appeal(pp, AuditLog(), "PP-R-TEST-1") == 1
+    assert pp.writes == []
+
+
+def test_attempt_audits_the_request_even_when_the_call_raises_something_unexpected():
+    audit = AuditLog()
+
+    def dropped(request_id):
+        raise RuntimeError("connection reset")
+
+    with pytest.raises(RuntimeError):
+        spike_shapes.attempt(audit, "PP-R-TEST-1", "send_message", dropped)
+    assert [r["step"] for r in audit.records] == ["spike.send_message.request", "spike.send_message.result"]
+    assert "ok" not in audit.records[1]["detail"]

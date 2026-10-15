@@ -9,7 +9,11 @@
 
 Needs PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (sandbox) in backend/.env. buyer-reply also needs the second sandbox
 business account: PAYPAL_BUYER_CLIENT_ID / PAYPAL_BUYER_CLIENT_SECRET. `survey` only reads. Every other command changes
-the named sandbox dispute for good. Each run saves redacted JSON to backend/tests/fixtures/sandbox_<name>.json.
+the named sandbox dispute for good, and only when the dispute's own links offer that action (escalate and
+proof-of-return check first and send nothing otherwise). Each write uses a fresh PayPal-Request-Id, and its request and
+result go to the audit log (REBUTTAL_AUDIT_PATH, and the audit table when DATABASE_URL is set). A write command saves its
+redacted record to backend/tests/fixtures/sandbox_<name>_<dispute id>.json. It refuses, before sending anything, when
+that file exists: a write record is never overwritten. `survey` replaces its sandbox_dispute_<category>.json snapshots.
 Refuses to run on the mock. Findings: docs/sandbox-findings.md.
 """
 
@@ -19,10 +23,12 @@ import argparse
 import json
 import os
 import re
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from rebuttal.audit import AuditLog
 from rebuttal.config import load_settings
 from rebuttal.paypal.client import PayPalClient, PayPalError, permit_writes
 
@@ -102,13 +108,29 @@ def save_fixture(name: str, obj: Any) -> Path:
     return path
 
 
-def attempt(call: Callable[[], Any]) -> dict:
-    """Run one PayPal write inside the write permit. A PayPal refusal is recorded, not raised."""
-    with permit_writes():
-        try:
-            return {"ok": True, "response": call()}
-        except PayPalError as exc:
-            return {"ok": False, "http_status": exc.status, "error": exc.body}
+def _fresh(name: str) -> bool:
+    """False, with a message, when the record already exists. Checked before any write, so nothing is sent."""
+    path = FIXTURES / f"sandbox_{name}.json"
+    if path.exists():
+        print(f"refusing: {path.name} already exists; move it aside first. Nothing was sent to PayPal.")
+        return False
+    return True
+
+
+def attempt(audit: AuditLog, dispute_id: str, op: str, call: Callable[[str], Any]) -> dict:
+    """Run one PayPal write inside the write permit, under a fresh PayPal-Request-Id. The request and the result are
+    audited, even when the call raises. A PayPal refusal is recorded, not raised."""
+    request_id = str(uuid.uuid4())
+    audit.log(dispute_id, f"spike.{op}.request", {"request_id": request_id})
+    outcome: dict[str, Any] = {"request_id": request_id}
+    try:
+        with permit_writes():
+            outcome.update(ok=True, response=call(request_id))
+    except PayPalError as exc:
+        outcome.update(ok=False, http_status=exc.status, error=exc.body)
+    finally:
+        audit.log(dispute_id, f"spike.{op}.result", outcome)
+    return outcome
 
 
 def _rels(dispute: dict) -> set[str]:
@@ -159,49 +181,70 @@ def survey(pp: PayPalClient) -> int:
     return 0
 
 
-def escalate(pp: PayPalClient, dispute_id: str) -> int:
+def _offers(dispute: dict, rel: str) -> bool:
+    """True when PayPal's own links for this dispute offer `rel`. A write is sent only when they do."""
+    if rel in _rels(dispute):
+        return True
+    print(f"{dispute.get('dispute_id')} at {dispute.get('dispute_life_cycle_stage')} / {dispute.get('status')} "
+          f"offers no {rel} link: nothing sent")
+    return False
+
+
+def escalate(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
     before = pp.get_dispute(dispute_id)
     if before.get("dispute_life_cycle_stage") != "INQUIRY":
         print(f"{dispute_id} is at stage {before.get('dispute_life_cycle_stage')}, not INQUIRY: escalate does not apply")
         return 1
-    record: dict[str, Any] = {"before": summarize(before),
-                              "first_attempt": attempt(lambda: pp.escalate(dispute_id, NOTE))}
+    if not _offers(before, "escalate"):
+        return 1
+    names = (f"escalate_response_{dispute_id}", f"dispute_after_escalate_{dispute_id}")
+    if not all(_fresh(name) for name in names):
+        return 1
+    record: dict[str, Any] = {"before": summarize(before), "first_attempt": attempt(
+        audit, dispute_id, "escalate", lambda rid: pp.escalate(dispute_id, NOTE, request_id=rid))}
     first = record["first_attempt"]
     if not first["ok"] and "buyer_escalation_reason" in json.dumps(first["error"]):
         # The first refusal names the field, so retry once with it: the record shows the field is required.
-        record["retry_with_buyer_escalation_reason"] = attempt(lambda: pp._request(
+        record["retry_with_buyer_escalation_reason"] = attempt(audit, dispute_id, "escalate_retry", lambda rid: pp._request(
             "POST", f"/v1/customer/disputes/{dispute_id}/escalate",
-            json={"note": NOTE, "buyer_escalation_reason": ESCALATE_REASON}))
+            json={"note": NOTE, "buyer_escalation_reason": ESCALATE_REASON}, request_id=rid))
     after = pp.get_dispute(dispute_id)
     record["after"] = summarize(after)
     print(json.dumps(redact(record), indent=2, default=str))
-    save_fixture("escalate_response", record)
-    save_fixture("dispute_after_escalate", after)
+    save_fixture(names[0], record)
+    save_fixture(names[1], after)
     return 0
 
 
-def send_message(pp: PayPalClient, dispute_id: str) -> int:
-    result = attempt(lambda: pp.send_message(dispute_id, MESSAGE))
+def send_message(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
+    name = f"dispute_after_seller_message_{dispute_id}"
+    if not _fresh(name):
+        return 1
+    result = attempt(audit, dispute_id, "send_message", lambda rid: pp.send_message(dispute_id, MESSAGE, request_id=rid))
     after = pp.get_dispute(dispute_id)
     print(json.dumps(redact({"send_message": result, "after": summarize(after)}), indent=2, default=str))
-    save_fixture("dispute_after_seller_message", after)
+    save_fixture(name, after)
     return 0
 
 
-def buyer_reply(pp: PayPalClient, base_url: str, dispute_id: str) -> int:
+def buyer_reply(pp: PayPalClient, base_url: str, audit: AuditLog, dispute_id: str) -> int:
     buyer_id = os.getenv("PAYPAL_BUYER_CLIENT_ID", "")
     buyer_secret = os.getenv("PAYPAL_BUYER_CLIENT_SECRET", "")
     if not (buyer_id and buyer_secret):
         print("Set PAYPAL_BUYER_CLIENT_ID and PAYPAL_BUYER_CLIENT_SECRET (second sandbox business account) in backend/.env")
         return 2
+    name = f"dispute_after_buyer_reply_{dispute_id}"
+    if not _fresh(name):
+        return 1
     buyer = PayPalClient(base_url, buyer_id, buyer_secret)
     try:
-        result = attempt(lambda: buyer.send_message(dispute_id, BUYER_MESSAGE))
+        result = attempt(audit, dispute_id, "buyer_reply",
+                         lambda rid: buyer.send_message(dispute_id, BUYER_MESSAGE, request_id=rid))
     finally:
         buyer.close()
     after = pp.get_dispute(dispute_id)
     print(json.dumps(redact({"buyer_send_message": result, "after": summarize(after)}), indent=2, default=str))
-    save_fixture("dispute_after_buyer_reply", after)
+    save_fixture(name, after)
     return 0
 
 
@@ -213,28 +256,37 @@ def _return_evidence(dispute_id: str) -> tuple[list[dict], list[tuple[str, bytes
     return evidences, [(f"proof-of-return-{dispute_id}.pdf", PDF, "application/pdf")]
 
 
-def proof_of_return(pp: PayPalClient, dispute_id: str) -> int:
+def proof_of_return(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
+    before = pp.get_dispute(dispute_id)
+    if not _offers(before, "provide_evidence"):
+        return 1
+    name = f"proof_of_return_response_{dispute_id}"
+    if not _fresh(name):
+        return 1
     evidences, files = _return_evidence(dispute_id)
-    result = attempt(lambda: pp.provide_evidence(dispute_id, evidences, files))
+    result = attempt(audit, dispute_id, "proof_of_return",
+                     lambda rid: pp.provide_evidence(dispute_id, evidences, files, request_id=rid))
     after = pp.get_dispute(dispute_id)
-    record = {"evidence_type": "PROOF_OF_RETURN", "result": result, "after": summarize(after)}
+    record = {"before": summarize(before), "evidence_type": "PROOF_OF_RETURN", "result": result,
+              "after": summarize(after)}
     print(json.dumps(redact(record), indent=2, default=str))
-    save_fixture("proof_of_return_response", record)
+    save_fixture(name, record)
     return 0
 
 
-def appeal(pp: PayPalClient, dispute_id: str) -> int:
+def appeal(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
     before = pp.get_dispute(dispute_id)
-    if "appeal" not in _rels(before):
-        print(f"{dispute_id}: no appeal link at stage {before.get('dispute_life_cycle_stage')} / "
-              f"{before.get('status')}; appeal not tried")
+    if not _offers(before, "appeal"):
+        return 1
+    name = f"appeal_response_{dispute_id}"
+    if not _fresh(name):
         return 1
     evidences, files = _return_evidence(dispute_id)
-    result = attempt(lambda: pp.appeal(dispute_id, evidences, files))
+    result = attempt(audit, dispute_id, "appeal", lambda rid: pp.appeal(dispute_id, evidences, files, request_id=rid))
     after = pp.get_dispute(dispute_id)
     record = {"before": summarize(before), "result": result, "after": summarize(after)}
     print(json.dumps(redact(record), indent=2, default=str))
-    save_fixture("appeal_response", record)
+    save_fixture(name, record)
     return 0
 
 
@@ -258,14 +310,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET (sandbox) to backend/.env first.")
         return 2
     pp = PayPalClient(s.base_url, s.client_id, s.client_secret)
+    audit = AuditLog(s.audit_path, s.database_url)
     try:
         if args.command == "survey":
             return survey(pp)
         if args.command == "buyer-reply":
-            return buyer_reply(pp, s.base_url, args.dispute_id)
+            return buyer_reply(pp, s.base_url, audit, args.dispute_id)
         handlers = {"escalate": escalate, "send-message": send_message,
                     "proof-of-return": proof_of_return, "appeal": appeal}
-        return handlers[args.command](pp, args.dispute_id)
+        return handlers[args.command](pp, audit, args.dispute_id)
     finally:
         pp.close()
 

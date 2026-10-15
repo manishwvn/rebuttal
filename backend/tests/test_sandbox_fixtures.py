@@ -3,7 +3,8 @@
 Every sandbox_dispute_*.json is a dispute as the real sandbox returned it, redacted. The generic checks hold for each
 one: it parses, no personal string is left, and the facts the agent reads from it still compute. The targeted checks
 pin what each confirmed item in docs/sandbox-findings.md observed. The fixtures are a snapshot: a rerun of `survey`
-or of a write command replaces them, and these targeted checks then need updating with the findings.
+replaces its category snapshots, and a write command never overwrites its record (it refuses), so each rerun on a
+dispute adds a file named for that dispute. The targeted checks then need updating with the new findings.
 """
 
 import json
@@ -75,29 +76,34 @@ def test_item_1_the_escalate_link_is_offered_on_an_inquiry_waiting_for_the_selle
     assert dispute_actions(d) == {"can_escalate": True, "can_appeal": False}
 
 
-def test_item_2_escalate_is_accepted_and_the_stage_stays_inquiry():
-    # This record is the second escalate run (PP-R-HDU-10190454, already UNDER_REVIEW). The first run on
-    # PP-R-GFH-10190453 while WAITING_FOR_SELLER_RESPONSE was saved to the same name and overwritten; see the findings.
-    record = load("sandbox_escalate_response.json")
+def test_item_2_escalate_is_accepted_on_an_inquiry_under_review():
+    # CONFIRMED on UNDER_REVIEW only. The run on PP-R-GFH-10190453 (WAITING_FOR_SELLER_RESPONSE) saved to the same
+    # name and was overwritten, so its acceptance has no fixture. The escalate link was already absent here.
+    record = load("sandbox_escalate_response_PP-R-HDU-10190454.json")
     assert record["before"]["stage"] == "INQUIRY" and record["before"]["status"] == "UNDER_REVIEW"
+    assert "escalate" not in record["before"]["link_rels"]
     assert record["first_attempt"]["ok"] is True
     assert record["after"]["stage"] == "INQUIRY" and record["after"]["status"] == "UNDER_REVIEW"
 
 
-def test_item_6_escalate_needed_no_buyer_escalation_reason():
-    record = load("sandbox_escalate_response.json")
+def test_item_6_escalate_was_accepted_without_buyer_escalation_reason():
+    # CONFIRMED on this UNDER_REVIEW dispute only: the retry with buyer_escalation_reason never ran.
+    record = load("sandbox_escalate_response_PP-R-HDU-10190454.json")
     assert record["first_attempt"]["ok"] is True
     assert "retry_with_buyer_escalation_reason" not in record
 
 
-def test_item_7_the_escalate_link_is_gone_after_a_successful_escalate():
-    d = load("sandbox_dispute_after_escalate.json")
-    assert d["status"] == "UNDER_REVIEW" and "escalate" not in rels(d)
-    assert dispute_actions(d)["can_escalate"] is False
+def test_item_7_no_fixture_shows_escalate_removing_the_link():
+    # STILL UNVERIFIED for removal by escalate. On HDU the link was already absent before the escalate, so the record
+    # cannot show removal. The GFH post-state has no escalate link, but it is a later read, not a before/after pair.
+    record = load("sandbox_escalate_response_PP-R-HDU-10190454.json")
+    assert "escalate" not in record["before"]["link_rels"] and "escalate" not in record["after"]["link_rels"]
+    gfh = load("sandbox_proof_of_return_response_PP-R-GFH-10190453.json")
+    assert "escalate" not in gfh["after"]["link_rels"] and "provide_evidence" in gfh["after"]["link_rels"]
 
 
 def test_item_5_a_seller_message_moves_the_inquiry_to_under_review_without_escalate():
-    d = load("sandbox_dispute_after_seller_message.json")
+    d = load("sandbox_dispute_after_seller_message_PP-R-HDU-10190454.json")
     assert d["dispute_life_cycle_stage"] == "INQUIRY" and d["status"] == "UNDER_REVIEW"
     assert "escalate" not in rels(d)
     assert seller_activity(d)["messages"] == [SELLER_MESSAGE]
@@ -115,14 +121,14 @@ def test_item_9_an_inquiry_waiting_for_the_seller_shows_the_seller_response_due_
 
 
 def test_item_5_a_buyer_reply_fixture_is_still_waiting_for_buyer_and_the_offer_has_a_seller_actor():
-    d = load("sandbox_dispute_after_buyer_reply.json")
+    d = load("sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json")
     assert d["dispute_life_cycle_stage"] == "INQUIRY" and d["status"] == "WAITING_FOR_BUYER_RESPONSE"
     assert seller_activity(d)["offers"] == ["REFUND_WITH_RETURN"]
     assert "seller_response_due_date" not in d and "allowed_response_options" in d
 
 
 def test_item_4_proof_of_return_was_refused_with_the_exact_issue_codes():
-    record = load("sandbox_proof_of_return_response.json")
+    record = load("sandbox_proof_of_return_response_PP-R-GFH-10190453.json")
     assert record["evidence_type"] == "PROOF_OF_RETURN" and record["result"]["ok"] is False
     assert record["result"]["http_status"] == 400
     assert record["result"]["error"]["details"] == [{"issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"}]
