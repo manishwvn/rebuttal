@@ -49,7 +49,10 @@ export function FactsList({ facts }: { facts: Facts }) {
           <span className={`mark ${row.mark === null ? 'info' : row.mark ? 'yes' : 'no'}`} aria-hidden="true">
             {row.mark === null ? 'i' : row.mark ? '✓' : '✕'}
           </span>
-          <span>{row.text}</span>
+          <span>
+            <span className="sr-only">{row.mark === null ? 'Note: ' : row.mark ? 'Good for you: ' : 'Against you: '}</span>
+            {row.text}
+          </span>
         </li>
       ))}
     </ul>
