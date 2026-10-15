@@ -136,6 +136,9 @@ WAITING_FOR_SELLER_RESPONSE is STILL UNVERIFIED.**
 - Seller `send-message` on an INQUIRY waiting for the seller: accepted. Status became UNDER_REVIEW (not WAITING_FOR_BUYER_RESPONSE).
   The `escalate` rel disappeared (links `[self]`), and `allowed_response_options` and `seller_response_due_date` disappeared
   too. The message is posted as `posted_by: SELLER`. (fixture)
+- Rule consequence: a seller offer leaves the INQUIRY in WAITING_FOR_BUYER_RESPONSE with the `escalate` link still present
+  (`sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json`). The agent proposes ESCALATE only in
+  WAITING_FOR_SELLER_RESPONSE (its turn), so it never asks PayPal to decide while the buyer is still considering our offer.
 - Escalate on that same dispute, UNDER_REVIEW and without an escalate link: accepted. Stage stayed INQUIRY, status UNDER_REVIEW,
   and an OTHER evidence entry was added. The client's VERIFY note said PayPal refused escalate on an INQUIRY in UNDER_REVIEW.
   That refusal was not reproduced here. (fixture)

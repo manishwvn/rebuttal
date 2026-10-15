@@ -18,6 +18,7 @@ from rebuttal.agent.reasoner import (
     guard,
     paypal_allows,
 )
+from rebuttal.paypal.client import permit_writes
 from rebuttal.runtime import Runtime
 from rebuttal.scenarios import DEMO_NOW
 
@@ -120,6 +121,30 @@ def test_rules_still_share_tracking_without_both_escalation_facts(facts):
     assert RuleReasoner()._pick(case)[0] == "SHARE_TRACKING"
 
 
+@pytest.mark.parametrize("status", ["WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW", "RESOLVED"])
+def test_nobody_escalates_while_it_is_not_our_turn(status):
+    """After our own offer the live sandbox keeps the escalate link but waits for the buyer (2026-10-14)."""
+    case = _delivered_case()
+    case.status = status
+    case.facts.update(can_escalate=True, seller_already_responded=True)
+    assert not paypal_allows("ESCALATE", case)
+    assert RuleReasoner()._pick(case)[0] == "SHARE_TRACKING"
+    d = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SHARE_TRACKING" and d.source == "claude+guard"
+    assert any("it is not our turn to respond" in n for n in d.guard_notes)
+
+
+def test_a_seller_offer_does_not_make_the_agent_escalate():
+    """inr_delivered, then our refund offer moves the inquiry to WAITING_FOR_BUYER_RESPONSE: do not ask PayPal to decide."""
+    rt = Runtime(seed_cases=["inr_delivered"], force_rules=True)
+    with permit_writes():
+        rt.client.make_offer("PP-D-2000", note="Refund on its way.", offer_type="REFUND")
+    case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
+    assert case.status == "WAITING_FOR_BUYER_RESPONSE"
+    assert case.facts["can_escalate"] is True and case.facts["seller_already_responded"] is True
+    assert RuleReasoner().decide(case).resolution != "ESCALATE"
+
+
 def test_rules_never_escalate_at_a_chargeback():
     case = _delivered_case()
     case.stage = "CHARGEBACK"
@@ -167,8 +192,9 @@ def test_guard_turns_an_unsupported_ESCALATE_into_the_rules_pick():
     case.facts["seller_already_responded"] = True  # can_escalate is missing
     d = guard(Decision("ESCALATE", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "SHARE_TRACKING" and d.source == "claude+guard"
-    assert any(n.startswith("Proposed escalating, but PayPal does not offer escalation here, delivery to the order "
-                            "address is not proven, or we have not answered the buyer yet.") for n in d.guard_notes)
+    assert any(n.startswith("Proposed escalating, but PayPal does not offer escalation here, it is not our turn "
+                            "to respond, delivery to the order address is not proven, or we have not answered the "
+                            "buyer yet.") for n in d.guard_notes)
     assert any("Fell back to rules: SHARE_TRACKING." in n for n in d.guard_notes)
 
 
