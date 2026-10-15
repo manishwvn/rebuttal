@@ -7,8 +7,11 @@ guards back that rule up:
 - a write (POST/PATCH/PUT/DELETE, except the OAuth token call) raises `WriteNotPermitted` unless the calling
   context is inside `permit_writes()`, which only the approval gate's `execute` node (and manual sandbox scripts)
   enter;
-- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET, so analysis steps
-  hold a handle that cannot write even if someone reaches for its private attributes.
+- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET. The clone shares
+  the parent's access token through a getter and holds no client secret, so analysis steps hold a handle that cannot
+  write even if someone reaches for its private attributes.
+
+The constructor accepts only the PayPal sandbox hosts or an in-process mock transport; any other host raises.
 
 Endpoint shapes follow developer.paypal.com (Disputes API v1, Orders v2).
 Items marked VERIFY should be confirmed against the live sandbox in the
@@ -20,7 +23,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Any
@@ -88,6 +91,13 @@ class ReadOnlyTransport(httpx.BaseTransport):
         self._inner.close()
 
 
+def _is_in_process_mock(transport: httpx.BaseTransport | None) -> bool:
+    """True for an httpx.MockTransport, looking through the read-only and write-gate wrappers."""
+    while isinstance(transport, (ReadOnlyTransport, WriteGateTransport)):
+        transport = transport._inner
+    return isinstance(transport, httpx.MockTransport)
+
+
 class PayPalError(RuntimeError):
     def __init__(self, status: int, body: Any, debug_id: str | None = None):
         self.status = status
@@ -114,30 +124,37 @@ class PayPalClient:
         client_secret: str,
         transport: httpx.BaseTransport | None = None,
         timeout: float = 30.0,
+        *,
+        token_getter: Callable[[], str] | None = None,
     ):
         host = (urlparse(base_url).hostname or "").rstrip(".").lower()
-        if host.endswith("paypal.com") and host not in SANDBOX_HOSTS:
-            raise ValueError(f"Rebuttal only talks to the PayPal sandbox; refusing {host}")
+        if host not in SANDBOX_HOSTS and not _is_in_process_mock(transport):
+            raise ValueError(f"Rebuttal only talks to the PayPal sandbox; refusing {host or base_url}")
         self._init = (base_url, client_id, client_secret, transport, timeout)
         self._client_id = client_id
         self._client_secret = client_secret
+        self._token_getter = token_getter
         self._http = httpx.Client(base_url=base_url, timeout=timeout,
                                   transport=WriteGateTransport(transport or httpx.HTTPTransport()))
         self._token: str | None = None
         self._token_expiry = 0.0
 
     def read_only(self) -> PayPalClient:
-        """A clone for analysis steps: same credentials and endpoint, but its transport refuses any write."""
+        """A clone for analysis steps: same endpoint, but no client secret (it takes the parent's access token through
+        `token_getter`) and a transport that refuses any write."""
         if self._init is None:  # already a read-only clone
             return self
-        base_url, client_id, client_secret, transport, timeout = self._init
-        clone = PayPalClient(base_url, client_id, client_secret, timeout=timeout,
-                             transport=ReadOnlyTransport(transport or httpx.HTTPTransport()))
+        base_url, client_id, _, transport, timeout = self._init
+        clone = PayPalClient(base_url, client_id, "", timeout=timeout,
+                             transport=ReadOnlyTransport(transport or httpx.HTTPTransport()),
+                             token_getter=self._access_token)
         clone._init = None  # a read-only handle keeps no recipe for building a writable one
         return clone
 
     # ------------------------------------------------------------------ core
     def _access_token(self) -> str:
+        if self._token_getter:
+            return self._token_getter()
         if self._token and time.time() < self._token_expiry - 60:
             return self._token
         resp = self._http.post(

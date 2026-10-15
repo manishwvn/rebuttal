@@ -286,3 +286,58 @@ def test_approval_never_creates_disputes_or_orders():
     source = (PACKAGE / "approval.py").read_text()
     for method in ("create_dispute", "create_order", "capture_order"):
         assert method not in source, method
+
+
+@pytest.mark.parametrize("base_url", [
+    "https://example.com",
+    "https://api-m.sandbox.paypal.com.evil.com",
+    "http://localhost:8000",
+    "https://api-m.paypal.com",
+])
+@pytest.mark.parametrize("real_transport", [False, True])
+def test_the_client_refuses_a_host_that_is_not_the_paypal_sandbox(base_url, real_transport):
+    import httpx
+
+    transport = httpx.HTTPTransport() if real_transport else None
+    with pytest.raises(ValueError, match="sandbox"):
+        PayPalClient(base_url, "id", "secret", transport=transport)
+
+
+def test_the_client_accepts_the_sandbox_hosts_and_an_in_process_mock_on_any_host():
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret")
+    PayPalClient("https://api.sandbox.paypal.com", "id", "secret")
+    PayPalClient("http://mock.test", "id", "secret", transport=httpx.MockTransport(handler))
+
+
+def test_the_read_only_clone_holds_no_client_secret_but_can_still_read():
+    import httpx
+
+    token_posts = 0
+    requests_seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal token_posts
+        if request.url.path == "/v1/oauth2/token":
+            token_posts += 1
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
+        requests_seen.append(request)
+        return httpx.Response(200, json={"dispute_id": "D1"} if request.method == "GET" else {})
+
+    client = PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret", transport=httpx.MockTransport(handler))
+    ro = client.read_only()
+
+    assert ro._client_secret == "" and ro._init is None
+    values = list(vars(ro).values())
+    assert not any("secret" in v for v in values if isinstance(v, str))
+    assert not any("secret" in item for v in values if isinstance(v, (tuple, list))
+                   for item in v if isinstance(item, str))
+    assert ro.get_dispute("D1") == {"dispute_id": "D1"}
+    with permit_writes(), pytest.raises(WriteNotPermitted):
+        ro.send_message("D1", "hi")
+    assert token_posts == 1
+    assert [(r.method, r.headers["authorization"]) for r in requests_seen] == [("GET", "Bearer t")]
