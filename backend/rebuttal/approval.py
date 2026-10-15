@@ -121,7 +121,10 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     kind, params = action["kind"], action["params"]
     # Escalate and appeal do not depend on allowed_response_options, so they are checked before the options logic.
     # The refusal does not say whether an earlier attempt landed: the dispute changed, and it may have been this action.
-    if kind == "escalate" and not dispute_actions(dispute)["can_escalate"]:
+    # Same rule as the analysis side (reasoner._escalation_offered): the escalate link is also offered while the
+    # buyer is to respond, but we only escalate on the seller's turn.
+    if kind == "escalate" and (not dispute_actions(dispute)["can_escalate"]
+                               or dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE"):
         return ("PayPal no longer allows escalating this dispute to a claim (the dispute has changed since the proposal "
                 "was made, so an earlier attempt may already have been sent)")
     if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:

@@ -35,8 +35,8 @@ def link(rel: str) -> dict:
             "method": "POST"}
 
 
-def with_links(stage: str, *rels: str) -> dict:
-    return {"dispute_life_cycle_stage": stage, "links": [link(rel) for rel in rels]}
+def with_links(stage: str, *rels: str, status: str = "WAITING_FOR_SELLER_RESPONSE") -> dict:
+    return {"dispute_life_cycle_stage": stage, "status": status, "links": [link(rel) for rel in rels]}
 
 
 class StubClient:
@@ -177,6 +177,9 @@ def test_not_allowed_now_refuses_escalate_once_the_inquiry_escalate_link_is_gone
     assert not_allowed_now(with_links("INQUIRY", "escalate"), ESCALATE) is None
     assert "escalating" in not_allowed_now(with_links("CHARGEBACK", "escalate"), ESCALATE)
     assert "escalating" in not_allowed_now({"dispute_life_cycle_stage": "INQUIRY"}, ESCALATE)
+    # the link is also offered while the buyer is to respond, but escalate is only for the seller's turn
+    waiting_buyer = with_links("INQUIRY", "escalate", status="WAITING_FOR_BUYER_RESPONSE")
+    assert "escalating" in not_allowed_now(waiting_buyer, ESCALATE)
     # PayPal's options list does not stand in for the escalate link
     options = {"dispute_life_cycle_stage": "INQUIRY", "allowed_response_options": {"accept_claim": {}}}
     assert "escalating" in not_allowed_now(options, ESCALATE)
@@ -231,6 +234,16 @@ def test_execute_fails_without_sending_when_the_dispute_has_no_escalate_link(ana
     assert result["ok"] is False and result["sent"] is False
     assert result["idempotency_key"] == idempotency_key(state["proposal_id"], 0, "escalate")
     assert "escalating" in result["error"] and "may already have been sent" in result["error"]
+    assert client.calls_to("escalate") == []
+
+
+def test_execute_refuses_an_escalate_once_the_dispute_waits_for_the_buyer(analyzed_rt):
+    client = StubClient(with_links("INQUIRY", "escalate", status="WAITING_FOR_BUYER_RESPONSE"))
+    state = approved(analyzed_rt, ESCALATE, stage="INQUIRY")
+    out = make_execute_node(client, AuditLog())(state)
+    result = out["result"][0]
+    assert out["status"] == "FAILED"
+    assert result["ok"] is False and result["sent"] is False and "escalating" in result["error"]
     assert client.calls_to("escalate") == []
 
 

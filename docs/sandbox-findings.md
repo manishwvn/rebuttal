@@ -197,7 +197,7 @@ Runs 2026-10-14, disputes PP-R-SVN-10190455 (survey), PP-R-HDU-10190454 and PP-R
 ## Other observations
 
 - `allowed_response_options` is listed on INQUIRY / WAITING_FOR_BUYER_RESPONSE too (PP-R-GBK-10190434, fixture: it lists
-  `accept_claim` REFUND only). PP-R-AFT-10190433 showed the same in survey (run log only). The mock lists them only while the seller is to respond.
+  `accept_claim` REFUND only). PP-R-AFT-10190433 showed the same in survey (run log only). The mock mirrors this: full options while the seller is to respond, `accept_claim` REFUND only while the buyer is.
 - The `escalate` rel is also offered on INQUIRY / WAITING_FOR_BUYER_RESPONSE (PP-R-GBK-10190434, fixture
   `sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json`). PP-R-AFT-10190433 showed it in survey (run log only).
   The mock offers it only for the seller turn.
@@ -237,5 +237,5 @@ The first column is the item above. "Kept" means the VERIFY note stays because t
 | 9 | `scenarios.py`, `mock.py` | Note updated. The mock drops `seller_response_due_date` once the dispute leaves WAITING_FOR_SELLER_RESPONSE. |
 | all | `tests/test_write_boundary.py` | `spike_shapes.py` added to the named manual scripts (it enters `permit_writes()` explicitly). |
 
-Observed but not mirrored in the mock: `allowed_response_options` listing `accept_claim` REFUND on INQUIRY /
-WAITING_FOR_BUYER_RESPONSE (the mock lists none), and `provide_evidence` offered in UNDER_REVIEW.
+Observed but not mirrored in the mock: `provide_evidence` offered in UNDER_REVIEW. The mock does mirror
+`allowed_response_options` listing `accept_claim` REFUND on INQUIRY / WAITING_FOR_BUYER_RESPONSE.

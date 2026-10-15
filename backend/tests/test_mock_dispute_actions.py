@@ -6,6 +6,7 @@ evidence_info rules come from the Disputes v1 OpenAPI spec only. VERIFY: not yet
 """
 
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -258,12 +259,23 @@ def test_a_second_offer_is_refused_once_the_first_left_the_dispute_waiting_for_t
     with permit_writes():
         client.make_offer(DISPUTE, note="x", offer_type="REFUND")
         assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_BUYER_RESPONSE"
-        assert "allowed_response_options" not in sandbox.disputes[DISPUTE]
         with pytest.raises(PayPalError) as err:
             client.make_offer(DISPUTE, note="again", offer_type="REFUND")
     assert err.value.status == 400
     assert {"issue": "INVALID_OFFER_TYPE"} in err.value.body["details"]
     assert len(sandbox.disputes[DISPUTE]["offer"]["history"]) == 1
+
+
+def test_waiting_for_the_buyer_lists_accept_claim_refund_only_as_the_live_fixture_does(sandbox, client):
+    # Live (PP-R-GBK-10190434): in WAITING_FOR_BUYER_RESPONSE the options were {accept_claim: {accept_claim_types: [REFUND]}}.
+    live = json.loads((Path(__file__).parent / "fixtures" / "sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json").read_text())
+    sandbox.add_dispute({**_dispute(), "seller_response_due_date": "2026-10-11T00:00:00.000Z"})
+    with permit_writes():
+        client.make_offer(DISPUTE, note="x", offer_type="REFUND")
+    got = client.get_dispute(DISPUTE)
+    assert got["status"] == live["status"] == "WAITING_FOR_BUYER_RESPONSE"
+    assert got["allowed_response_options"] == live["allowed_response_options"]
+    assert "seller_response_due_date" not in got
 
 
 def test_options_return_when_the_sandbox_hands_the_dispute_back_to_the_seller(sandbox, client):

@@ -407,13 +407,17 @@ class MockPayPal:
         else:
             return _error(404, "RESOURCE_NOT_FOUND", f"Unknown action {action}")
 
-        # The real sandbox lists options only while it waits for the seller, so a second make_offer in
-        # WAITING_FOR_BUYER_RESPONSE is refused (INVALID_OFFER_TYPE, via the existing offer_type check above).
+        # Live: waiting for the seller lists the full options. Waiting for the buyer lists accept_claim REFUND only, with
+        # no make_offer, so a second offer is refused (INVALID_OFFER_TYPE, via the existing offer_type check above)
+        # (sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json). VERIFY: other statuses are assumed to list none.
         if dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
             dispute.setdefault("allowed_response_options",
                                allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
+        elif dispute["status"] == "WAITING_FOR_BUYER_RESPONSE":
+            dispute["allowed_response_options"] = {"accept_claim": {"accept_claim_types": ["REFUND"]}}
         else:
             dispute.pop("allowed_response_options", None)
+        if dispute["status"] != "WAITING_FOR_SELLER_RESPONSE":
             # Like the options, the seller's deadline is only shown while the seller is to respond (live, 2026-10-14).
             dispute.pop("seller_response_due_date", None)
         event = "CUSTOMER.DISPUTE.RESOLVED" if dispute["status"] == "RESOLVED" else "CUSTOMER.DISPUTE.UPDATED"
