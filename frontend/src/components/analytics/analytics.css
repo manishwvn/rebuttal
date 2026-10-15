@@ -19,6 +19,18 @@
 }
 .tab:hover {
   color: var(--ink);
+  background: var(--raised);
+}
+/* Inside the tab strip the default focus outline sits past the strip's edge and is clipped, so the ring is drawn inset. */
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tab {
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
 }
 .tab[aria-selected='true'] {
   color: var(--ink);
@@ -44,6 +56,14 @@
   min-width: 0;
   overflow: auto;
 }
+/* While the AI status loads, the frame is a shorter placeholder so the page does not jump a long way when Studio mounts. */
+.analytics-frame--loading {
+  display: grid;
+  place-items: center;
+  height: 320px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+}
 
 .studio-ai-toggle {
   margin: 0 0 8px;
@@ -56,6 +76,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 8px;
+  margin-bottom: 4px;
 }
 
 /* Saved views: labels, the view list, the name box and the buttons. The status line takes a row of its own. */
@@ -69,6 +90,9 @@
 }
 .saved-views select {
   flex: 0 1 auto;
+}
+.saved-views .label {
+  white-space: nowrap;
 }
 .saved-views input {
   font: inherit;
