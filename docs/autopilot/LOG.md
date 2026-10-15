@@ -7,6 +7,9 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 | R10 part 2 | PR #72
+Team workflow: three Haiku pieces (mock offer options; VERIFY notes and whitespace-normalised seller message match; sandbox host allowlist and read-only clone without the client secret), audited, integrated by a Sonnet lead. Strict PR (approval.py, paypal/client.py, facts.py). Backend 887 passed, ruff clean. R10 complete.
+
 ## 2026-10-14 18:10 CDT | W 56→56+ % | F 77→79+ % | R10 part 1 | PR #71
 F was 77 %, so no team workflow: one Sonnet builder for items (a) approve logged once per proposal and (e) no in-memory audit copy in Postgres mode, then an Opus reviewer (approval.py is a strict path): no blockers, write boundary and guard intact. Lead applied the two nits (test asserts the INSERT; comment on file-mode for_dispute).
 R10 (b), (c), (d) stay queued; (d) touches paypal/client.py, so it needs a strict review too.

@@ -93,11 +93,22 @@ def buyer_statements(dispute: dict) -> list[str]:
     return out
 
 
+def normalize_text(text: str | None) -> str:
+    """Collapse every run of whitespace to one space and strip the ends, so a re-wrapped copy compares equal."""
+    return " ".join((text or "").split())
+
+
 def seller_activity(dispute: dict) -> dict:
     """What the seller side already did on this dispute. `execute` compares against it, not against clocks, to tell
-    whether its own message or offer has already landed."""
+    whether its own message or offer has already landed. Messages are whitespace-normalised (`normalize_text`) so a
+    copy PayPal re-wraps still matches.
+    VERIFY: the `messages[].posted_by == 'SELLER'` and `offer.history[].actor == 'SELLER'` shapes, and the offer note
+    showing up as a SELLER message, are seen only in the mock; confirm them against a real post-offer sandbox dispute
+    (queue task S3). `buyer_statements` reads `posted_by == 'BUYER'` the same way, so that shape is equally unconfirmed
+    for post-offer disputes."""
     return {
-        "messages": [m.get("content") for m in dispute.get("messages", []) if m.get("posted_by") == "SELLER"],
+        "messages": [normalize_text(m.get("content")) for m in dispute.get("messages", [])
+                     if m.get("posted_by") == "SELLER"],
         "offers": [h.get("offer_type") for h in (dispute.get("offer") or {}).get("history", [])
                    if h.get("actor") == "SELLER"],
     }

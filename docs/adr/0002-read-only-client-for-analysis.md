@@ -11,9 +11,10 @@ variable were ever set around it, or if someone reached for the client's private
 ## Decision
 
 `PayPalClient.read_only()` ([`paypal/client.py`](../../backend/rebuttal/paypal/client.py)) returns a clone with the
-same credentials and endpoint, whose transport is `ReadOnlyTransport`: it passes GET and HEAD (plus the OAuth token
-and webhook-verify POSTs) and raises `WriteNotPermitted` for everything else. The clone discards its build recipe
-(`_init = None`), so it cannot be turned back into a writable client. `build_graph` in
+same endpoint, whose transport is `ReadOnlyTransport`: it passes GET and HEAD (plus the OAuth token
+and webhook-verify POSTs) and raises `WriteNotPermitted` for everything else. The clone holds no client secret and discards its build recipe
+(`_init = None`), so it cannot be turned back into a writable client; it takes its access token through a getter bound to
+the parent client, so the parent and its secret stay reachable in-process and the transport remains the boundary. `build_graph` in
 [`agent/graph.py`](../../backend/rebuttal/agent/graph.py) takes `reader = client.read_only()` and gives that to every
 node except `execute`, which receives the full client.
 

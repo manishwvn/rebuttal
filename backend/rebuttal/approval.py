@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Literal
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
-from .agent.facts import CaseFile, dispute_actions, seller_activity
+from .agent.facts import CaseFile, dispute_actions, normalize_text, seller_activity
 from .agent.pipeline import EVIDENCE_KINDS, Proposal, build_evidence_pdf
 from .agent.reasoner import Decision, effective_options
 from .audit import AuditLog
@@ -98,12 +98,15 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     INQUIRY to CHARGEBACK also happens when the buyer escalates, so it cannot prove this action landed. They fall back
     to `not_allowed_now`, which refuses once the dispute's stage or links have moved on, so a retry after a send that
     landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim fall back the same way.
-    VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send."""
+    VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send.
+    VERIFY: the seller message and offer shapes read here (`posted_by`, `actor`, the offer note as a SELLER message) are
+    unconfirmed on a real post-offer sandbox dispute (queue task S3)."""
     now = seller_activity(dispute)
     baseline = case.get("seller_activity", {})
     kind, params = action["kind"], action["params"]
     if kind == "send_message":
-        return now["messages"].count(params["message"]) > baseline.get("messages", []).count(params["message"])
+        message = normalize_text(params["message"])
+        return now["messages"].count(message) > [normalize_text(m) for m in baseline.get("messages", [])].count(message)
     if kind == "make_offer":
         return now["offers"].count(params["offer_type"]) > baseline.get("offers", []).count(params["offer_type"])
     return False
