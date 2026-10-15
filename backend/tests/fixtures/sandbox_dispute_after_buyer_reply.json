@@ -1,0 +1,170 @@
+{
+  "allowed_response_options": {
+    "accept_claim": {
+      "accept_claim_types": [
+        "REFUND"
+      ]
+    }
+  },
+  "buyer_response_due_date": "2026-10-26T22:19:09.202Z",
+  "create_time": "2026-10-06T22:19:09.202Z",
+  "dispute_amount": {
+    "currency_code": "USD",
+    "value": "48.00"
+  },
+  "dispute_channel": "INTERNAL",
+  "dispute_id": "PP-R-GBK-10190434",
+  "dispute_life_cycle_stage": "INQUIRY",
+  "dispute_state": "REQUIRED_OTHER_PARTY_ACTION",
+  "disputed_transactions": [
+    {
+      "buyer": {
+        "email": "redacted@example.com",
+        "name": "REDACTED",
+        "payer_id": "REDACTED"
+      },
+      "buyer_transaction_id": "8TA513884C3536638",
+      "create_time": "2026-10-06T22:14:05.000Z",
+      "custom": "JO-SPIKE-1791324761",
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "48.00"
+      },
+      "invoice_number": "JO-SPIKE-1791324761",
+      "items": [
+        {
+          "item_description": "Linen shirt (Navy / Size L)",
+          "item_name": "Linen shirt (Navy / Size L)",
+          "item_quantity": "1",
+          "item_type": "PRODUCT",
+          "notes": "I asked for a medium. This is a large. My shopping asistant placed this order or my brother. He needs a edium navy linen shirt, bu the package had a large. lease help me exchange it.",
+          "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+        }
+      ],
+      "seller": {
+        "email": "redacted@example.com",
+        "merchant_id": "REDACTED",
+        "name": "REDACTED"
+      },
+      "seller_protection_eligible": true,
+      "seller_protection_type": "EXPANDED_SELLER_PROTECTION",
+      "seller_transaction_id": "2TT31122US1853026",
+      "transaction_status": "HELD"
+    }
+  ],
+  "evidences": [
+    {
+      "date": "2026-10-06T22:19:09.202Z",
+      "dispute_life_cycle_stage": "INQUIRY",
+      "evidence_type": "CREATE",
+      "notes": "The order was for a navy linen shirt in size medium, but I received size large. I would like an exchange for the correct size or a refund.",
+      "source": "SUBMITTED_BY_BUYER"
+    }
+  ],
+  "extensions": {
+    "buyer_contacted_time": "2026-10-06T22:19:08.358Z",
+    "merchandize_dispute_properties": {
+      "return_shipping_address": {
+        "redacted": true
+      }
+    }
+  },
+  "fund_movements": [
+    {
+      "amount": {
+        "currency_code": "USD",
+        "value": "45.83"
+      },
+      "initiated_time": "2026-10-06T22:22:34.000Z",
+      "party": "RECEIVER",
+      "reason": "HOLD_PLACED",
+      "type": "DEBIT"
+    },
+    {
+      "amount": {
+        "currency_code": "USD",
+        "value": "45.83"
+      },
+      "initiated_time": "2026-10-06T22:30:03.000Z",
+      "party": "RECEIVER",
+      "reason": "HOLD_RELEASED",
+      "type": "CREDIT"
+    },
+    {
+      "amount": {
+        "currency_code": "USD",
+        "value": "45.83"
+      },
+      "initiated_time": "2026-10-06T22:30:04.000Z",
+      "party": "RECEIVER",
+      "reason": "HOLD_PLACED",
+      "type": "DEBIT"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-GBK-10190434",
+      "method": "GET",
+      "rel": "self"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-GBK-10190434/accept-claim",
+      "method": "POST",
+      "rel": "accept_claim"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-GBK-10190434/send-message",
+      "method": "POST",
+      "rel": "send_message"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-GBK-10190434/escalate",
+      "method": "POST",
+      "rel": "escalate"
+    }
+  ],
+  "messages": [
+    {
+      "content": "The order was for a navy linen shirt in size medium, but I received size large. I would like an exchange for the correct size or a refund.",
+      "posted_by": "BUYER",
+      "time_posted": "2026-10-06T22:19:09.202Z"
+    },
+    {
+      "content": "Sorry for the mix-up. Send the shirt back and we'll ship the medium as soon as the return is scanned.",
+      "posted_by": "SELLER",
+      "time_posted": "2026-10-06T22:29:44.806Z"
+    }
+  ],
+  "offer": {
+    "buyer_requested_amount": {
+      "currency_code": "USD",
+      "value": "48.00"
+    },
+    "history": [
+      {
+        "actor": "SELLER",
+        "event_type": "PROPOSED",
+        "offer_amount": {
+          "currency_code": "USD",
+          "value": "48.00"
+        },
+        "offer_time": "2026-10-06T22:29:44.806Z",
+        "offer_type": "REFUND_WITH_RETURN"
+      }
+    ],
+    "offer_type": "REFUND_WITH_RETURN",
+    "seller_offered_amount": {
+      "currency_code": "USD",
+      "value": "48.00"
+    }
+  },
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "refund_details": {
+    "allowed_refund_amount": {
+      "currency_code": "USD",
+      "value": "48.00"
+    }
+  },
+  "status": "WAITING_FOR_BUYER_RESPONSE",
+  "update_time": "2026-10-06T22:30:03.645Z"
+}

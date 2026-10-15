@@ -1,0 +1,39 @@
+{
+  "after": {
+    "dispute_id": "PP-R-GFH-10190453",
+    "evidence_types": [
+      "CREATE",
+      "OTHER",
+      "PROOF_OF_FULFILLMENT"
+    ],
+    "has_allowed_response_options": false,
+    "has_seller_response_due_date": false,
+    "link_rels": [
+      "provide_evidence",
+      "self"
+    ],
+    "message_posted_by": [
+      "BUYER"
+    ],
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "INQUIRY",
+    "status": "UNDER_REVIEW"
+  },
+  "evidence_type": "PROOF_OF_RETURN",
+  "result": {
+    "error": {
+      "debug_id": "f201119653905",
+      "details": [
+        {
+          "issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"
+        }
+      ],
+      "information_link": "https://developer.paypal.com/docs/api/customer-disputes/v1/#errors",
+      "links": [],
+      "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
+      "name": "INVALID_REQUEST"
+    },
+    "http_status": 400,
+    "ok": false
+  }
+}
