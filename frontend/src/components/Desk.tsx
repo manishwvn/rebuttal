@@ -108,6 +108,7 @@ export function Desk({ simulator }: { simulator: boolean }) {
         <Inbox
           disputes={disputes ?? []}
           loading={disputes === null && error === null}
+          failed={disputes === null && error !== null}
           selectedId={selectedId}
           onSelect={select}
         />

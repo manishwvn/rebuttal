@@ -62,6 +62,32 @@ test('an empty inbox says no disputes yet and gives the next step', async ({ pag
   }
 })
 
+test('a failed first inbox load shows the error, not the grid No disputes yet overlay', async ({ page }) => {
+  let gets = 0
+  await page.route(DISPUTES, (route) => {
+    if (route.request().method() === 'OPTIONS') return route.continue()
+    gets += 1
+    if (gets === 1) {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ detail: 'inbox down in this test' }),
+      })
+    }
+    return route.continue()
+  })
+  try {
+    await page.goto('/')
+    await expect(page.getByTestId('app-error')).toContainText('inbox down in this test')
+    await expect(page.getByTestId('inbox')).not.toContainText('No disputes yet.')
+    await expect(page.getByTestId('inbox')).not.toContainText('Loading disputes…')
+    await expect(page.getByTestId('inbox-retry')).toBeVisible()
+  } finally {
+    await page.unroute(DISPUTES)
+  }
+})
+
 test('the inbox grid is a named region', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('region', { name: 'Disputes inbox' })).toBeVisible()

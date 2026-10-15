@@ -14,6 +14,7 @@ import {
   type GridApi,
   type GridReadyEvent,
   type GridState,
+  type OverlayType,
   type RowSelectionOptions,
   type ValueFormatterParams,
 } from 'ag-grid-community'
@@ -116,6 +117,10 @@ const getRowId = (p: GetRowIdParams<InboxRow>) => p.data.id
 // The loading overlay (grid option `loading`) shows this text while the first load is in flight.
 const overlayComponentParams = { loading: { overlayText: 'Loading disputes…' } }
 
+// A failed load shows the error banner and Retry instead, so the grid must not claim the inbox is empty.
+const suppressNoRows: OverlayType[] = ['noRows']
+const suppressNone: OverlayType[] = []
+
 function toRows(disputes: Dispute[]): InboxRow[] {
   const now = Date.now()
   return disputes.map((d) => ({
@@ -132,11 +137,13 @@ interface Props {
   disputes: Dispute[]
   // True while the first load is in flight: the grid shows the loading overlay instead of 'No disputes yet.'.
   loading?: boolean
+  // True when the first load failed: the desk shows the error and Retry, so the grid shows no 'No disputes yet.'.
+  failed?: boolean
   selectedId: string | null
   onSelect: (disputeId: string) => void
 }
 
-export function Inbox({ disputes, loading = false, selectedId, onSelect }: Props) {
+export function Inbox({ disputes, loading = false, failed = false, selectedId, onSelect }: Props) {
   const apiRef = useRef<GridApi<InboxRow> | null>(null)
   const rowData = useMemo(() => toRows(disputes), [disputes])
 
@@ -181,6 +188,7 @@ export function Inbox({ disputes, loading = false, selectedId, onSelect }: Props
           }}
           initialState={initialState}
           loading={loading}
+          suppressOverlays={failed ? suppressNoRows : suppressNone}
           overlayComponentParams={overlayComponentParams}
           overlayNoRowsTemplate="No disputes yet. Create one with the simulator, or wait for a PayPal webhook."
         />
