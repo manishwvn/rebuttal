@@ -249,8 +249,9 @@ class PayPalClient:
         *, request_id: str | None = None,
     ) -> dict:
         """Appeal is only possible when the dispute shows an `appeal` HATEOAS link.
-        VERIFY: body shape (multipart with an 'input' JSON part, same as provide-evidence) is from the OpenAPI spec
-        only, not yet confirmed on the live sandbox."""
+        VERIFY: the `appeal` link rel, the body shape (multipart with an 'input' JSON part, same as provide-evidence)
+        and the stage it moves to are from the OpenAPI spec only: the sandbox held no appealable dispute on
+        2026-10-14 (docs/sandbox-findings.md item 3)."""
         return self._request(
             "POST", f"/v1/customer/disputes/{dispute_id}/appeal",
             files=_evidence_parts(evidences, files), request_id=request_id,
@@ -265,10 +266,13 @@ class PayPalClient:
                              request_id=request_id)
 
     def escalate(self, dispute_id: str, note: str, *, request_id: str | None = None) -> dict:
-        """Valid only at stage INQUIRY (PayPal Disputes v1); body {note}. buyer_escalation_reason is omitted.
-        VERIFY: whether buyer_escalation_reason is optional on the sandbox.
-        VERIFY: the real sandbox refused escalate on an INQUIRY in UNDER_REVIEW
-        (ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE); allowed case not yet confirmed."""
+        """Valid only at stage INQUIRY (PayPal Disputes v1); body {note}. The `escalate` link rel is confirmed on the live
+        sandbox. buyer_escalation_reason is omitted: the sandbox accepted the body without it (2026-10-14,
+        docs/sandbox-findings.md item 6); how it validates a value, if one is sent, is untested.
+        Live, the stage stayed INQUIRY, the status became UNDER_REVIEW and an OTHER evidence entry appeared.
+        VERIFY: acceptance while the INQUIRY waits for the seller has no saved record (the run was not kept). The
+        sandbox accepted escalate on an INQUIRY in UNDER_REVIEW that listed no escalate link, while an earlier run saw
+        that state refuse it (ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE); callers still require the link."""
         return self._request(
             "POST", f"/v1/customer/disputes/{dispute_id}/escalate", json={"note": note}, request_id=request_id
         )

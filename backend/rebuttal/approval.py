@@ -98,9 +98,11 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     INQUIRY to CHARGEBACK also happens when the buyer escalates, so it cannot prove this action landed. They fall back
     to `not_allowed_now`, which refuses once the dispute's stage or links have moved on, so a retry after a send that
     landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim fall back the same way.
-    VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send.
-    VERIFY: the seller message and offer shapes read here (`posted_by`, `actor`, the offer note as a SELLER message) are
-    unconfirmed on a real post-offer sandbox dispute (queue task S3)."""
+    VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send. The live
+    sandbox showed no before and after pair for escalate (docs/sandbox-findings.md item 7), and it accepted an escalate
+    on a dispute with no link, so this check is our own fail-closed guard, not a rule PayPal was seen to apply.
+    The seller message and offer shapes read here (`posted_by`, `actor`, the offer note as a SELLER message) were
+    seen on the live sandbox (2026-10-14)."""
     now = seller_activity(dispute)
     baseline = case.get("seller_activity", {})
     kind, params = action["kind"], action["params"]
@@ -217,8 +219,8 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
                                     "idempotency_key": key})
                     continue
                 # VERIFY: for escalate and appeal this refusal can follow a send that landed (a crash, then a retry).
-                # Retry safety for them rests on PayPal removing the link after success; confirm on the sandbox
-                # (S3: send, then re-GET the dispute) that PayPal removes the link after a successful send.
+                # Retry safety for them rests on PayPal removing the link after success. S3 could not confirm that:
+                # no sandbox escalate was recorded with the link present before and absent after.
                 # `sent` False means this attempt sent nothing; the reason says an earlier attempt may have.
                 if reason := not_allowed_now(current, action):
                     results.append({"action": action["kind"], "ok": False, "error": reason, "sent": False,

@@ -101,11 +101,9 @@ def normalize_text(text: str | None) -> str:
 def seller_activity(dispute: dict) -> dict:
     """What the seller side already did on this dispute. `execute` compares against it, not against clocks, to tell
     whether its own message or offer has already landed. Messages are whitespace-normalised (`normalize_text`) so a
-    copy PayPal re-wraps still matches.
-    VERIFY: the `messages[].posted_by == 'SELLER'` and `offer.history[].actor == 'SELLER'` shapes, and the offer note
-    showing up as a SELLER message, are seen only in the mock; confirm them against a real post-offer sandbox dispute
-    (queue task S3). `buyer_statements` reads `posted_by == 'BUYER'` the same way, so that shape is equally unconfirmed
-    for post-offer disputes."""
+    copy PayPal re-wraps still matches. The `messages[].posted_by` (BUYER, SELLER) and `offer.history[].actor == 'SELLER'`
+    shapes, and the offer note appearing as a SELLER message, were seen on the live sandbox (2026-10-14,
+    tests/fixtures/sandbox_dispute_after_buyer_reply_*.json and sandbox_dispute_after_seller_message_*.json)."""
     return {
         "messages": [normalize_text(m.get("content")) for m in dispute.get("messages", [])
                      if m.get("posted_by") == "SELLER"],
@@ -117,8 +115,9 @@ def seller_activity(dispute: dict) -> dict:
 def dispute_actions(dispute: dict) -> dict[str, bool]:
     """Whether the seller may escalate or appeal this dispute now, read from PayPal's HATEOAS links. Fails closed:
     no links, or no matching link, means False.
-    VERIFY: rel names 'escalate'/'appeal' are from the Disputes v1 docs, not yet seen on the real sandbox; if they
-    differ these facts stay False and the agent simply never proposes the action."""
+    The 'escalate' rel was seen on the live sandbox (2026-10-14). VERIFY: the 'appeal' rel is from the Disputes v1 docs
+    only, because the sandbox held no appealable dispute; if it differs, can_appeal stays False and the agent never
+    proposes an appeal."""
     rels = {link.get("rel") for link in dispute.get("links") or []}
     return {
         "can_escalate": "escalate" in rels and dispute.get("dispute_life_cycle_stage") == "INQUIRY",

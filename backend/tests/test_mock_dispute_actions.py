@@ -1,7 +1,8 @@
 """Mock sandbox: dispute links, escalate, appeal and the evidence checks behind them (queue S2, piece p1-mock).
 
-The link rel names, the appeal stage transition, the appeal multipart body and the evidence_info rules come from the
-Disputes v1 OpenAPI spec only. VERIFY: not yet confirmed on the live sandbox.
+The escalate link and escalate behaviour are pinned to the live sandbox runs of 2026-10-14 (queue S3,
+docs/sandbox-findings.md). The appeal link rel, the appeal stage transition, the appeal multipart body and the
+evidence_info rules come from the Disputes v1 OpenAPI spec only. VERIFY: not yet confirmed on the live sandbox.
 """
 
 import json
@@ -63,7 +64,8 @@ def _post_appeal(sandbox: MockPayPal, evidences, request_id: str = "req-appeal-1
 
 @pytest.mark.parametrize(("dispute", "rels"), [
     (_dispute(), ["self", "escalate"]),
-    (_dispute(status="WAITING_FOR_BUYER_RESPONSE"), ["self"]),
+    (_dispute(status="WAITING_FOR_BUYER_RESPONSE"), ["self", "escalate"]),  # seen live on a dispute with a seller offer
+    (_dispute(status="UNDER_REVIEW"), ["self"]),
     (_dispute(stage="CHARGEBACK", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self", "appeal"]),
     (_dispute(stage="PRE_ARBITRATION", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self", "appeal"]),
     (_dispute(stage="ARBITRATION", status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR"), ["self"]),
@@ -84,13 +86,28 @@ def test_escalate_link_points_at_the_escalate_path(sandbox, client):
     assert escalate == {"href": f"/v1/customer/disputes/{DISPUTE}/escalate", "rel": "escalate", "method": "POST"}
 
 
-def test_escalate_from_inquiry_moves_to_chargeback(sandbox, client):
+def test_escalate_keeps_the_inquiry_stage_and_records_the_note_as_other_evidence(sandbox, client):
+    # Live (PP-R-HDU-10190454): stage INQUIRY, status UNDER_REVIEW, an OTHER entry from the seller, no escalate link.
     sandbox.add_dispute(_dispute())
     with permit_writes():
         client.escalate(DISPUTE, "Buyer wants a refund, we disagree")
     dispute = client.get_dispute(DISPUTE)
-    assert dispute["dispute_life_cycle_stage"] == "CHARGEBACK"
+    assert dispute["dispute_life_cycle_stage"] == "INQUIRY"
     assert dispute["status"] == "UNDER_REVIEW"
+    assert [(e["evidence_type"], e["source"], e["notes"]) for e in dispute["evidences"]] == [
+        ("OTHER", "SUBMITTED_BY_SELLER", "Buyer wants a refund, we disagree")]
+    assert [link["rel"] for link in dispute["links"]] == ["self"]
+    assert "seller_response_due_date" not in dispute
+
+
+@pytest.mark.parametrize("status", ["WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW"])
+def test_escalate_is_accepted_on_an_inquiry_in_those_statuses_too(sandbox, client, status):
+    # Live: accepted in UNDER_REVIEW with the link absent, and offered while waiting for the buyer.
+    sandbox.add_dispute(_dispute(status=status))
+    with permit_writes():
+        client.escalate(DISPUTE, "Please review")
+    assert sandbox.disputes[DISPUTE]["status"] == "UNDER_REVIEW"
+    assert sandbox.disputes[DISPUTE]["dispute_life_cycle_stage"] == "INQUIRY"
 
 
 def test_escalate_refused_once_past_inquiry(sandbox, client):
@@ -101,13 +118,12 @@ def test_escalate_refused_once_past_inquiry(sandbox, client):
     assert err.value.body["details"] == NOT_ALLOWED
 
 
-def test_escalate_refused_while_waiting_for_the_buyer(sandbox, client):
-    sandbox.add_dispute(_dispute(status="WAITING_FOR_BUYER_RESPONSE"))
+def test_escalate_refused_on_a_resolved_inquiry(sandbox, client):
+    sandbox.add_dispute(_dispute(status="RESOLVED", outcome="RESOLVED_SELLER_FAVOUR"))
     with permit_writes(), pytest.raises(PayPalError) as err:
-        client.escalate(DISPUTE, "Buyer has not answered")
+        client.escalate(DISPUTE, "Too late")
     assert err.value.status == 422
-    assert err.value.body["details"] == NOT_ALLOWED
-    assert sandbox.disputes[DISPUTE]["dispute_life_cycle_stage"] == "INQUIRY"
+    assert "evidences" not in sandbox.disputes[DISPUTE]
 
 
 @pytest.mark.parametrize("note", ["", "x" * 2001])
@@ -265,3 +281,39 @@ def test_options_return_when_the_sandbox_hands_the_dispute_back_to_the_seller(sa
     with permit_writes():
         client.make_offer(DISPUTE, note="x", offer_type="REFUND")
     assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_BUYER_RESPONSE"
+
+
+def test_a_message_leaves_the_inquiry_under_review_and_drops_the_seller_deadline_and_options(sandbox, client):
+    # Live (PP-R-HDU-10190454): after a seller message the status was UNDER_REVIEW, and the escalate link,
+    # allowed_response_options and seller_response_due_date were gone.
+    sandbox.add_dispute({**_dispute(), "seller_response_due_date": "2026-10-11T00:00:00.000Z"})
+    with permit_writes():
+        client.send_message(DISPUTE, "Your tracking: TRK-1")
+    got = client.get_dispute(DISPUTE)
+    assert got["status"] == "UNDER_REVIEW"
+    assert [link["rel"] for link in got["links"]] == ["self"]
+    assert "allowed_response_options" not in got and "seller_response_due_date" not in got
+    assert got["messages"][-1]["posted_by"] == "SELLER"
+
+
+def test_proof_of_return_is_refused_on_a_not_received_inquiry_with_the_live_issue_code(sandbox, client):
+    # Live (PP-R-GFH-10190453): HTTP 400 INVALID_REQUEST / EVIDENCE_TYPE_IS_NOT_ALLOWED, nothing changed.
+    sandbox.add_dispute({**_dispute(), "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"})
+    evidence = {"evidence_type": "PROOF_OF_RETURN",
+                "evidence_info": {"tracking_info": [{"carrier_name": "USPS", "tracking_number": "TRK-1"}]}}
+    with permit_writes(), pytest.raises(PayPalError) as err:
+        client.provide_evidence(DISPUTE, [evidence])
+    assert err.value.status == 400
+    assert err.value.body["name"] == "INVALID_REQUEST"
+    assert err.value.body["details"] == [{"issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"}]
+    assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_SELLER_RESPONSE"
+    assert DISPUTE not in sandbox.evidence_files
+
+
+def test_proof_of_return_is_still_accepted_on_a_not_as_described_inquiry(sandbox, client):
+    sandbox.add_dispute(_dispute())
+    evidence = {"evidence_type": "PROOF_OF_RETURN",
+                "evidence_info": {"tracking_info": [{"carrier_name": "USPS", "tracking_number": "TRK-1"}]}}
+    with permit_writes():
+        client.provide_evidence(DISPUTE, [evidence])
+    assert sandbox.disputes[DISPUTE]["status"] == "UNDER_REVIEW"

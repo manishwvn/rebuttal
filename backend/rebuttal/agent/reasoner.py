@@ -83,6 +83,7 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
     if options is None:
         # Offers are not possible at a chargeback. PayPal sending no list there is unverified.
         # VERIFY: confirm the sandbox omits allowed_response_options at CHARGEBACK; mock.py returns the full list.
+        # S3 (2026-10-14) found no CHARGEBACK dispute to check, so this stays open and R12 stays blocked on it.
         return not (case.stage == "CHARGEBACK" and action == "make_offer")
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
     return kind in options.get(action, {}).get(key, [])
@@ -144,8 +145,9 @@ class RuleReasoner:
                     return "OFFER_REPLACEMENT", 0.75, ["Delivered, but not to the address on the order."]
                 if case.stage == "CHARGEBACK":
                     return "SUBMIT_EVIDENCE", 0.85, ["Claim stage; delivered to the order address."]
-                # VERIFY: after our own message the real sandbox showed UNDER_REVIEW, where escalate was refused, so this
-                # rule fires live only if a buyer reply returns the INQUIRY to the seller (S3 in QUEUE.md).
+                # VERIFY: after our own message the live sandbox shows UNDER_REVIEW with no escalate link (confirmed
+                # 2026-10-14), so this rule fires live only if a buyer reply returns the INQUIRY to the seller. S3 could
+                # not send a buyer reply (docs/sandbox-findings.md item 5).
                 if (_escalation_offered(case) and f.get("delivered_address_matches") is True
                         and f.get("seller_already_responded")):
                     return "ESCALATE", 0.7, ["Delivered to the order address and we already answered the buyer, "

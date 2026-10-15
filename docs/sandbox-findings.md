@@ -214,32 +214,25 @@ Runs 2026-10-14, disputes PP-R-SVN-10190455 (survey), PP-R-HDU-10190454 and PP-R
 - Item 7: removal of the escalate link by escalate has no before/after fixture pair.
 - The `buyer_escalation_reason` retry branch of `escalate` did not run.
 - `send-message` and `buyer-reply` do not check a link before sending (the escalate and proof-of-return prechecks do).
-- The write-boundary test `tests/test_write_boundary.py::test_scripts_and_evals_do_not_write_to_paypal_except_the_named_manual_tools`
-  fails until `spike_shapes.py` is added to its `MANUAL_SCRIPTS` (and to the name tuple in
-  `test_the_manual_sandbox_tools_use_the_write_permit_explicitly`). That file is outside S3's allowed edits, so it is not changed
-  here. The lead must approve the one-line change before merge.
 
-## Code changes this implies
+## Code changes this implies (applied in the S3 PR unless marked "kept")
 
-Nothing in `rebuttal/` was changed by S3. Each row names the note to change and what the mock should do.
+The first column is the item above. "Kept" means the VERIFY note stays because the item is STILL UNVERIFIED.
 
-| Item | File and note | Change |
+| Item | File and note | What the PR did |
 | --- | --- | --- |
-| 1 | `paypal/client.py` `escalate` docstring | Keep the rel name. Drop the VERIFY on the rel. |
-| 1 | `agent/facts.py` `dispute_actions` VERIFY | `escalate` confirmed. Keep the VERIFY for `appeal` only. |
-| 1 | `paypal/mock.py` `dispute_links` | Offer `escalate` on INQUIRY in WAITING_FOR_BUYER_RESPONSE too (seen in survey on GBK and AFT). |
-| 2 | `paypal/mock.py` `escalate` branch | Keep stage INQUIRY (the mock sets CHARGEBACK). Set status UNDER_REVIEW. Add an OTHER evidence entry (SUBMITTED_BY_SELLER) with the note. |
-| 2 | `paypal/client.py` `escalate` VERIFY "refused in UNDER_REVIEW" | Replace with: accepted on PP-R-HDU-10190454 in UNDER_REVIEW (fixture), with the link absent. Keep "accepted while WAITING_FOR_SELLER_RESPONSE" as unverified until a fixture exists. |
-| 2 | `paypal/mock.py` `_dispatch` escalate gate | Accept escalate in UNDER_REVIEW without the link, since PayPal did. Decide with the lead whether the link stays a gate on our side (see approval.py). |
-| 3 | `paypal/mock.py` appeal VERIFY (lines near 27 and 368) | No change. Still unverified. |
-| 4 | `paypal/mock.py` `_EVIDENCE_INFO_REQUIRED` and provide-evidence | Refuse PROOF_OF_RETURN on NOT_RECEIVED with 400 `EVIDENCE_TYPE_IS_NOT_ALLOWED` (fixture). Refuse provide-evidence with no `provide_evidence` link with 422 `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE` (run log only; add only with a fixture). |
-| 4 | `agent/pipeline.py` `_return_entries` | Do not send PROOF_OF_RETURN for NOT_RECEIVED. Keep the NOT_AS_DESCRIBED path as unconfirmed. |
-| 5 | `agent/facts.py` `seller_activity` VERIFY | Confirmed for `messages` (posted_by SELLER, fixture) and `offers` (actor SELLER, fixture). Remove the VERIFY. Keep the unconfirmed buyer-after-offer part until a buyer reply works. |
-| 5 | `approval.py` `already_applied` VERIFY (seller message and offer shapes) | Confirmed as above. Remove that VERIFY. |
-| 5 | `paypal/mock.py` `send-message` VERIFY (lines near 342) | Status after a seller message is UNDER_REVIEW, which the mock already does. Keep the buyer-reply VERIFY. |
-| 5 | `agent/reasoner.py` rule VERIFY near line 147 | Escalate was accepted in UNDER_REVIEW without the link. Decide whether the ESCALATE rule should keep requiring the link. Keep the buyer-reply premise unverified. |
-| 6 | `paypal/client.py` `escalate` VERIFY "is buyer_escalation_reason optional" | Confirmed not required on PP-R-HDU-10190454 (fixture). Remove the VERIFY, and note the field's value validation is untested. |
-| 7 | `approval.py` VERIFY on retry safety (`already_applied` docstring and near line 219) | Keep. Removal of the link by escalate has no before/after fixture pair. The link check is a fail-closed guard. A second escalate is still untested. |
-| 8 | `agent/reasoner.py` `effective_options` VERIFY near line 85 | Keep. Still unverified. |
-| 9 | `scenarios.py` `INQUIRY_RESPONSE_DAYS` VERIFY (line 20) | Confirmed: `seller_response_due_date` is absent in UNDER_REVIEW and WAITING_FOR_BUYER_RESPONSE, present in WAITING_FOR_SELLER_RESPONSE. Update the note. `scenarios.py` line 166 sets it on every INQUIRY, so the mock should set it only while the seller responds. |
-| all | `tests/test_write_boundary.py` `MANUAL_SCRIPTS` | Add `spike_shapes.py` to the named manual scripts. Not done in S3 (see Not run). |
+| 1 | `client.py` `escalate` docstring, `facts.py` `dispute_actions` | Escalate rel marked confirmed. `appeal` rel VERIFY kept. |
+| 1 | `mock.py` `dispute_links` | `escalate` offered on INQUIRY in WAITING_FOR_BUYER_RESPONSE too. Not offered in UNDER_REVIEW. |
+| 2 | `mock.py` escalate | Stage stays INQUIRY, status UNDER_REVIEW, an OTHER evidence entry (SUBMITTED_BY_SELLER) carries the note. Accepted at any open INQUIRY, link or not, as PayPal did. A conflicting earlier refusal is noted as a VERIFY. Acceptance while waiting for the seller: kept as unverified in the `client.py` docstring. |
+| 3 | `mock.py`, `client.py` appeal | Kept. |
+| 4 | `mock.py` provide-evidence | PROOF_OF_RETURN on a NOT_RECEIVED inquiry is refused with 400 `EVIDENCE_TYPE_IS_NOT_ALLOWED`. The PROOF_OF_RETURN acceptance VERIFY is kept. `pipeline.py` unchanged: it sends PROOF_OF_RETURN only with a received return on file. The 422 `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE` on a dispute with no `provide_evidence` link has no fixture, so the mock was not changed for it (it also differs: the live GFH dispute offered `provide_evidence` in UNDER_REVIEW, which the mock never does). |
+| 5 | `facts.py` `seller_activity`, `approval.py` `already_applied` | Message and offer shape VERIFY removed. |
+| 5 | `mock.py` send-message, `reasoner.py` ESCALATE rule | Status UNDER_REVIEW confirmed. Buyer-reply VERIFY kept in both. |
+| 6 | `client.py` `escalate` | `buyer_escalation_reason` VERIFY removed. The client still omits the field. |
+| 7 | `approval.py` retry safety | Kept, now saying the link check is our own fail-closed guard. |
+| 8 | `reasoner.py` `effective_options` | Kept. R12 stays blocked. |
+| 9 | `scenarios.py`, `mock.py` | Note updated. The mock drops `seller_response_due_date` once the dispute leaves WAITING_FOR_SELLER_RESPONSE. |
+| all | `tests/test_write_boundary.py` | `spike_shapes.py` added to the named manual scripts (it enters `permit_writes()` explicitly). |
+
+Observed but not mirrored in the mock: `allowed_response_options` listing `accept_claim` REFUND on INQUIRY /
+WAITING_FOR_BUYER_RESPONSE (the mock lists none), and `provide_evidence` offered in UNDER_REVIEW.

@@ -17,7 +17,9 @@ from .store import MerchantOrder, MerchantStore, Shipment
 
 DEMO_NOW = datetime(2026, 10, 6, 15, 0, tzinfo=UTC)
 CASES_PATH = Path(__file__).resolve().parents[1] / "evals" / "cases.json"
-INQUIRY_RESPONSE_DAYS = 10  # VERIFY: real sandbox omitted seller_response_due_date on an INQUIRY in UNDER_REVIEW
+# Seeded disputes wait for the seller, where the live sandbox shows seller_response_due_date. It omits it in UNDER_REVIEW
+# and WAITING_FOR_BUYER_RESPONSE (confirmed 2026-10-14), and the mock drops it once the seller has acted.
+INQUIRY_RESPONSE_DAYS = 10
 
 BUYERS = [
     ("Priya Shah", "priya.s@example.com"), ("Marcus Lee", "marcus.l@example.com"),
