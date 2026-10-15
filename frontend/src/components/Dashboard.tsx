@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from 'react'
 import { api, API_BASE } from '../api'
 import type { Health } from '../types'
 import { Desk } from './Desk'
@@ -7,6 +7,26 @@ import { Desk } from './Desk'
 const AnalyticsView = lazy(() => import('./analytics/AnalyticsView').then((m) => ({ default: m.AnalyticsView })))
 
 type View = 'desk' | 'analytics'
+
+const TABS: View[] = ['desk', 'analytics']
+
+// The tab that an arrow key, Home or End moves to (WAI-ARIA tabs). The arrows wrap around the ends.
+const tabAfterKey = (key: string, current: View): View | undefined => {
+  const index = TABS.indexOf(current)
+  const last = TABS.length - 1
+  switch (key) {
+    case 'ArrowRight':
+      return TABS[index === last ? 0 : index + 1]
+    case 'ArrowLeft':
+      return TABS[index === 0 ? last : index - 1]
+    case 'Home':
+      return TABS[0]
+    case 'End':
+      return TABS[last]
+    default:
+      return undefined
+  }
+}
 
 // The open tab lives in the URL hash: it survives a reload, and #analytics opens that tab directly.
 const viewFromHash = (): View => (window.location.hash === '#analytics' ? 'analytics' : 'desk')
@@ -40,17 +60,26 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
     setView(next)
   }
 
+  // The tab bar is one tab stop: arrow keys, Home and End select the tab they reach and move focus to it.
+  const onTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const next = tabAfterKey(event.key, view)
+    if (next === undefined) return
+    event.preventDefault()
+    showView(next)
+    document.getElementById(`tab-${next}`)?.focus()
+  }
+
   const isMock = health?.mode.startsWith('mock') ?? false
 
   return (
-    <div className="wrap">
+    <main className="wrap">
       <header className="bar">
         <div className="brand">
           <h1>Rebuttal</h1>
           <span>PayPal dispute desk</span>
         </div>
         <div className="actions">
-          <span className="badge" data-testid="mode-badge" title={API_BASE}>
+          <span className="badge" data-testid="mode-badge" title={API_BASE} aria-live="polite" aria-atomic="true">
             {health ? `${health.mode}${health.auth ? ' · token' : ''}` : 'connecting…'}
           </span>
           <a href="#demo" className="demo-link" data-testid="try-demo">
@@ -64,7 +93,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
         </div>
       </header>
 
-      <div className="tabs" role="tablist" aria-label="Sections">
+      <div className="tabs" role="tablist" aria-label="Sections" onKeyDown={onTabKeyDown}>
         <button
           type="button"
           role="tab"
@@ -73,6 +102,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
           className="tab"
           aria-selected={view === 'desk'}
           aria-controls="panel-desk"
+          tabIndex={view === 'desk' ? 0 : -1}
           onClick={() => showView('desk')}
         >
           Desk
@@ -85,6 +115,7 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
           className="tab"
           aria-selected={view === 'analytics'}
           aria-controls="panel-analytics"
+          tabIndex={view === 'analytics' ? 0 : -1}
           onClick={() => showView('analytics')}
         >
           Analytics
@@ -108,6 +139,6 @@ export function Dashboard({ onSignOut }: { onSignOut?: () => void } = {}) {
           </Suspense>
         )}
       </div>
-    </div>
+    </main>
   )
 }

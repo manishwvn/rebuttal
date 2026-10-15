@@ -29,7 +29,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
   }
 
   return (
-    <div className="wrap signin">
+    <main className="wrap signin">
       <header className="bar">
         <div className="brand">
           <h1>Rebuttal</h1>
@@ -38,19 +38,26 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
       </header>
       <form className="case signin-card" onSubmit={submit} data-testid="signin">
         <h2>Sign in</h2>
-        <p className="note">Paste the API token of this deployment. It stays in this tab only.</p>
-        <label htmlFor="api-token">API token</label>
+        <p className="note" id="signin-help">
+          Paste the API token of this deployment. It stays in this tab only.
+        </p>
+        <label className="label" htmlFor="api-token">
+          API token
+        </label>
         <input
           id="api-token"
           type="password"
           autoComplete="off"
+          autoFocus
           spellCheck={false}
           value={token}
           onChange={(e) => setValue(e.target.value)}
+          aria-invalid={error !== null}
+          aria-describedby={error !== null ? 'signin-error-text' : 'signin-help'}
           data-testid="signin-token"
         />
         {error !== null && (
-          <p role="alert" className="error" data-testid="signin-error">
+          <p role="alert" className="error" id="signin-error-text" data-testid="signin-error">
             {error}
           </p>
         )}
@@ -63,6 +70,6 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
           </a>
         </div>
       </form>
-    </div>
+    </main>
   )
 }

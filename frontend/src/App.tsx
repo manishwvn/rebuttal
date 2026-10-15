@@ -58,7 +58,15 @@ function Gate() {
     setState('signin')
   }
 
-  if (state === 'checking') return <p className="note wrap">Connecting…</p>
+  if (state === 'checking') {
+    return (
+      <main className="wrap">
+        <p className="note empty loading" role="status">
+          Connecting…
+        </p>
+      </main>
+    )
+  }
   if (state === 'signin') return <SignIn onSignedIn={() => setState('open')} />
   return <Dashboard onSignOut={signOut} />
 }

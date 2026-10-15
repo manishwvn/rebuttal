@@ -3,7 +3,7 @@ import { api } from '../../api'
 import type { AnalyticsReport } from '../../types'
 import { DashboardErrorBoundary } from './DashboardErrorBoundary'
 import { StudioDashboard } from './StudioDashboard'
-import { useAgThemeMode } from './useAgThemeMode'
+import { useAgThemeMode } from '../useAgThemeMode'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -53,9 +53,11 @@ export function AnalyticsView() {
     <section className="block analytics" aria-labelledby="analytics-title">
       <div className="block-head">
         <h2 id="analytics-title">Overview</h2>
-        <p data-testid="analytics-status">{status}</p>
-        <button type="button" className="ghost" onClick={refresh} disabled={loading}>
-          Refresh
+        <p data-testid="analytics-status" aria-live="polite">
+          {status}
+        </p>
+        <button type="button" className="ghost" onClick={refresh} disabled={loading} aria-busy={loading}>
+          {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
       {error && (
@@ -63,12 +65,21 @@ export function AnalyticsView() {
           {error}
         </p>
       )}
+      {error && !report && (
+        <button type="button" className="ghost" onClick={refresh} data-testid="analytics-retry">
+          Retry
+        </button>
+      )}
       {report ? (
         <DashboardErrorBoundary key={loadedAt}>
           <StudioDashboard rows={report.rows} deadlines={report.deadlines} summary={report.summary} />
         </DashboardErrorBoundary>
       ) : (
-        !error && <p className="note">Loading analytics…</p>
+        !error && (
+          <p className="note empty loading" role="status">
+            Loading analytics…
+          </p>
+        )
       )}
     </section>
   )

@@ -14,6 +14,7 @@ import {
   type GridApi,
   type GridReadyEvent,
   type GridState,
+  type OverlayType,
   type RowSelectionOptions,
   type ValueFormatterParams,
 } from 'ag-grid-community'
@@ -29,6 +30,7 @@ import {
   STATUS_TONE,
   type DisplayStatus,
 } from '../labels'
+import { useAgThemeMode } from './useAgThemeMode'
 
 // Only the grid features the inbox uses. A column or option whose module is missing here is silently inert (the
 // dev build logs "error #200" naming the module), so add the module when you add the feature.
@@ -38,6 +40,7 @@ const modules = [
   RowApiModule, // api.forEachNode
   CellStyleModule, // colDef.cellClass
   GridStateModule, // initialState (the default sort)
+  // The loading overlay (`loading`) and the no-rows overlay come with the grid core, so they need no entry here.
 ]
 
 if (import.meta.env.DEV) enableDevValidations()
@@ -112,6 +115,13 @@ const defaultColDef: ColDef = { sortable: true, resizable: true }
 const initialState: GridState = { sort: { sortModel: [{ colId: 'ageHours', sort: 'asc' }] } }
 const getRowId = (p: GetRowIdParams<InboxRow>) => p.data.id
 
+// The loading overlay (grid option `loading`) shows this text while the first load is in flight.
+const overlayComponentParams = { loading: { overlayText: 'Loading disputes…' } }
+
+// A failed load shows the error banner and Retry instead, so the grid must not claim the inbox is empty.
+const suppressNoRows: OverlayType[] = ['noRows']
+const suppressNone: OverlayType[] = []
+
 function toRows(disputes: Dispute[]): InboxRow[] {
   const now = Date.now()
   return disputes.map((d) => ({
@@ -126,24 +136,19 @@ function toRows(disputes: Dispute[]): InboxRow[] {
 
 interface Props {
   disputes: Dispute[]
+  // True while the first load is in flight: the grid shows the loading overlay instead of 'No disputes yet.'.
+  loading?: boolean
+  // True when the first load failed: the desk shows the error and Retry, so the grid shows no 'No disputes yet.'.
+  failed?: boolean
   selectedId: string | null
   onSelect: (disputeId: string) => void
 }
 
-export function Inbox({ disputes, selectedId, onSelect }: Props) {
+export function Inbox({ disputes, loading = false, failed = false, selectedId, onSelect }: Props) {
   const apiRef = useRef<GridApi<InboxRow> | null>(null)
   const rowData = useMemo(() => toRows(disputes), [disputes])
 
-  // Light or dark grid follows the page (the page's CSS follows prefers-color-scheme).
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)')
-    const apply = () => {
-      document.documentElement.dataset.agThemeMode = query.matches ? 'dark' : 'light'
-    }
-    apply()
-    query.addEventListener('change', apply)
-    return () => query.removeEventListener('change', apply)
-  }, [])
+  useAgThemeMode() // light or dark grid follows the page
 
   // The open case is the selected row; this also covers a case opened from outside the grid (a new simulated dispute).
   useEffect(() => {
@@ -156,7 +161,7 @@ export function Inbox({ disputes, selectedId, onSelect }: Props) {
   }
 
   return (
-    <div className="inbox-grid" data-testid="inbox">
+    <div className="inbox-grid" data-testid="inbox" role="region" aria-label="Disputes inbox">
       <AgGridProvider modules={modules}>
         <AgGridReact<InboxRow>
           theme={theme}
@@ -168,10 +173,16 @@ export function Inbox({ disputes, selectedId, onSelect }: Props) {
           onGridReady={onGridReady}
           onRowClicked={(e) => e.data && onSelect(e.data.id)}
           onCellKeyDown={(e) => {
-            if ((e.event as KeyboardEvent | null)?.key === 'Enter' && e.data) onSelect(e.data.id)
+            const key = (e.event as KeyboardEvent | null)?.key
+            if (key !== 'Enter' && key !== ' ') return
+            if (key === ' ') e.event?.preventDefault() // Space scrolls the page by default
+            if (e.data) onSelect(e.data.id)
           }}
           initialState={initialState}
-          overlayNoRowsTemplate="No disputes yet."
+          loading={loading}
+          suppressOverlays={failed ? suppressNoRows : suppressNone}
+          overlayComponentParams={overlayComponentParams}
+          overlayNoRowsTemplate="No disputes yet. Create one with the simulator, or wait for a PayPal webhook."
         />
       </AgGridProvider>
     </div>

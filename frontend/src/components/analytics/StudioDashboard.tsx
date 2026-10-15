@@ -59,7 +59,13 @@ export function StudioDashboard({ rows, deadlines, summary }: Props) {
     ({ api: readyApi }: AgStudioApiReadyEvent) => setStudioApi(readyApi as AgStudioApi<RebuttalRegistry>),
     [],
   )
-  if (aiEnabled === null) return <div className="analytics-frame" />
+  if (aiEnabled === null) {
+    return (
+      <div className="analytics-frame analytics-frame--loading" role="status" aria-label="Loading dashboard">
+        <p className="note loading">Loading dashboard…</p>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -72,23 +78,23 @@ export function StudioDashboard({ rows, deadlines, summary }: Props) {
         <SavedViews api={studioApi} />
       </div>
       <div className="analytics-frame">
-      <AgStudioProvider modules={aiEnabled ? STUDIO_AI_MODULES : []}>
-        <AgStudio<RebuttalRegistry>
-          style={STUDIO_STYLE}
-          data={data}
-          initialState={DASHBOARD_STATE}
-          theme={DASHBOARD_THEME}
-          widgets={RB_WIDGETS}
-          mode={asking ? 'edit' : 'view'}
-          ai={
-            aiEnabled
-              ? ({ api: aiStudioApi }) =>
-                  createAiHarness(aiStudioApi, { adapter: STUDIO_AI_ADAPTER, promptStarters: PROMPT_STARTERS })
-              : undefined
-          }
-          onApiReady={onApiReady}
-        />
-      </AgStudioProvider>
+        <AgStudioProvider modules={aiEnabled ? STUDIO_AI_MODULES : []}>
+          <AgStudio<RebuttalRegistry>
+            style={STUDIO_STYLE}
+            data={data}
+            initialState={DASHBOARD_STATE}
+            theme={DASHBOARD_THEME}
+            widgets={RB_WIDGETS}
+            mode={asking ? 'edit' : 'view'}
+            ai={
+              aiEnabled
+                ? ({ api: aiStudioApi }) =>
+                    createAiHarness(aiStudioApi, { adapter: STUDIO_AI_ADAPTER, promptStarters: PROMPT_STARTERS })
+                : undefined
+            }
+            onApiReady={onApiReady}
+          />
+        </AgStudioProvider>
       </div>
     </>
   )

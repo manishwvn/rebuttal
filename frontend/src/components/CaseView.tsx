@@ -31,7 +31,7 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 export function CaseView({ dispute, audit, onChanged }: Props) {
   const proposal = dispute.proposal
   return (
-    <article className="case" data-testid="case-view" aria-live="polite">
+    <article className="case" data-testid="case-view" aria-label={`Dispute ${dispute.dispute_id}`}>
       {proposal ? (
         <ProposalCase key={proposal.id} dispute={dispute} proposal={proposal} audit={audit} onChanged={onChanged} />
       ) : (
@@ -75,7 +75,7 @@ function UnanalyzedCase({ dispute, audit, onChanged }: Omit<Props, 'dispute'> & 
         </p>
       )}
       <div className="actions">
-        <button type="button" className="primary" onClick={analyze} disabled={busy}>
+        <button type="button" className="primary" onClick={analyze} disabled={busy} aria-busy={busy}>
           {busy ? 'Analyzing…' : 'Analyze dispute'}
         </button>
       </div>
@@ -109,6 +109,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
   const edited = originalText !== null && trimmed !== originalText.trim()
   const messageToSend = edited ? trimmed : (originalText ?? '')
   const canApprove = originalText === null || trimmed !== ''
+  const pct = Math.round(decision.confidence * 100)
 
   // The reasoner's own pick comes from the audit log; the proposal only holds the final, guarded decision.
   const picked = [...audit].reverse().find((e) => e.step === 'decide')?.detail.resolution
@@ -167,7 +168,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
         </div>
         <div className="pills">
           {summary.hours_left != null && <span className={`pill ${urgency(summary.hours_left)}`} data-testid="deadline-pill">{deadlineLabel(summary.hours_left)}</span>}
-          <span className={`pill ${STATUS_TONE[status]}`} data-testid="case-status">
+          <span className={`pill ${STATUS_TONE[status]}`} data-testid="case-status" role="status">
             {STATUS_LABEL[status]}
           </span>
         </div>
@@ -217,11 +218,19 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
             </dd>
             <dt>Confidence</dt>
             <dd>
-              <span className="conf" title={`${Math.round(decision.confidence * 100)}%`}>
-                <span className="track">
-                  <span className="fill" style={{ width: `${Math.round(decision.confidence * 100)}%` }} />
+              <span className="conf" title={`${pct}%`}>
+                <span
+                  className="track"
+                  role="meter"
+                  aria-label="Confidence"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={pct}
+                  aria-valuetext={`${pct}%`}
+                >
+                  <span className="fill" style={{ width: `${pct}%` }} />
                 </span>
-                <span className="num">{Math.round(decision.confidence * 100)}%</span>
+                <span className="num">{pct}%</span>
               </span>
             </dd>
           </dl>
@@ -261,7 +270,20 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
             <label htmlFor="draft" className="label">
               {labels.draft} {pending ? '(you can edit it)' : ''}
             </label>
-            <textarea id="draft" value={draft} readOnly={!pending} onChange={(e) => setDraft(e.target.value)} rows={5} maxLength={2000} />
+            <textarea
+              id="draft"
+              value={draft}
+              readOnly={!pending}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={5}
+              maxLength={2000}
+              aria-describedby={pending ? 'draft-hint' : undefined}
+            />
+            {pending && (
+              <span id="draft-hint" className="muted">
+                {trimmed.length}/2000 characters
+              </span>
+            )}
           </>
         ) : (
           <>
@@ -274,13 +296,23 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
 
         {pending && (
           <div className="actions">
-            <button type="button" className="primary" onClick={() => openConfirm('approve')} disabled={!canApprove}>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => openConfirm('approve')}
+              disabled={!canApprove}
+              aria-describedby={canApprove ? undefined : 'empty-hint'}
+            >
               {edited ? 'Approve with my edits' : 'Approve'}
             </button>
             <button type="button" className="ghost" onClick={() => openConfirm('reject')}>
               Reject
             </button>
-            {!canApprove && <span className="muted">The message can’t be empty.</span>}
+            {!canApprove && (
+              <span id="empty-hint" className="muted">
+                The message can’t be empty.
+              </span>
+            )}
           </div>
         )}
 
