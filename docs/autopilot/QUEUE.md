@@ -222,7 +222,7 @@ Evidence: reasoner.py SYSTEM_PROMPT (line 223) passes buyer_messages verbatim wi
 ### R12 Return-needed rule at CHARGEBACK with no option list — size S — blocked on sandbox confirmation — from the PR #65 review
 Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows` now refuses offers (R2), so a not-as-described dispute that needs the item back can fall through to ACCEPT_CLAIM, a full refund without a return. R2 first capped it, but the cap rested on an unverified assumption about what the sandbox returns at CHARGEBACK (see the VERIFY note in `reasoner.py`) and fired on every case without damage. Fix: once a real sandbox CHARGEBACK shows whether the option list is omitted, add a guard rule for ACCEPT_CLAIM when the item needs its return, scoped to that evidence. Acceptance: a test built from the captured payload.
 
-### S3 Confirm the S2 Disputes shapes on the real sandbox — size M — todo — after S2 merges
+### S3 Confirm the S2 Disputes shapes on the real sandbox — size M — in-progress (cycle 2026-10-14T23:10:16-05:00) — after S2 merges
 S2 shipped escalate, appeal and the richer evidence types against the mock only. Using the existing named manual
 scripts (`spike_sandbox.py`, `make_sandbox_dispute.py`; `require-evidence` stays confined to them), confirm: the link
 rel names `escalate` and `appeal` on a shown dispute; that escalate is accepted on an INQUIRY waiting for the seller;
