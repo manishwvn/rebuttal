@@ -30,6 +30,7 @@ import {
   STATUS_TONE,
   type DisplayStatus,
 } from '../labels'
+import { useAgThemeMode } from './useAgThemeMode'
 
 // Only the grid features the inbox uses. A column or option whose module is missing here is silently inert (the
 // dev build logs "error #200" naming the module), so add the module when you add the feature.
@@ -147,16 +148,7 @@ export function Inbox({ disputes, loading = false, failed = false, selectedId, o
   const apiRef = useRef<GridApi<InboxRow> | null>(null)
   const rowData = useMemo(() => toRows(disputes), [disputes])
 
-  // Light or dark grid follows the page (the page's CSS follows prefers-color-scheme).
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)')
-    const apply = () => {
-      document.documentElement.dataset.agThemeMode = query.matches ? 'dark' : 'light'
-    }
-    apply()
-    query.addEventListener('change', apply)
-    return () => query.removeEventListener('change', apply)
-  }, [])
+  useAgThemeMode() // light or dark grid follows the page
 
   // The open case is the selected row; this also covers a case opened from outside the grid (a new simulated dispute).
   useEffect(() => {

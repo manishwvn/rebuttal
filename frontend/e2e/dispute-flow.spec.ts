@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { inboxCell } from './inbox-rows.js'
 
 const EDITED = 'Hi Lena, sorry about the mix-up. Send the shirt back and we will ship a medium right away. Juniper & Oak'
 
@@ -122,7 +123,7 @@ test('cancelling the confirm dialog sends nothing', async ({ page }) => {
   await dialog.getByRole('button', { name: 'Cancel' }).click()
 
   await expect(page.getByTestId('case-status')).toHaveText('Pending')
-  await expect(statusCell(page, disputeId)).toHaveText('Pending')
+  await expect(await inboxCell(page, disputeId, 'status')).toHaveText('Pending')
   const steps = await auditSteps(page)
   expect(steps).toContain('propose')
   expect(steps).not.toContain('approve')

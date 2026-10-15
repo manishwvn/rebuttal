@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { inboxCell } from './inbox-rows.js'
 
 // The inbox says what it is doing: while the first load is in flight it shows 'Loading disputes…' (never 'No disputes
 // yet.'), an empty inbox gives the next step, the grid is a named region, and Enter or Space opens the focused row.
@@ -113,7 +114,7 @@ test('Enter on a focused inbox row opens its case', async ({ page }) => {
   // A reload opens no case, so the keyboard is the only way to open this one.
   await page.reload()
   await expect(page.getByText('Pick a dispute in the inbox to see what the agent proposes.')).toBeVisible()
-  await page.locator(`[row-id="${disputeId}"] [col-id="id"]`).focus()
+  await (await inboxCell(page, disputeId, 'id')).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByTestId('case-view')).toBeVisible()
 })
@@ -122,7 +123,26 @@ test('Space on a focused inbox row opens its case', async ({ page }) => {
   const disputeId = await createDispute(page)
   await page.reload()
   await expect(page.getByText('Pick a dispute in the inbox to see what the agent proposes.')).toBeVisible()
-  await page.locator(`[row-id="${disputeId}"] [col-id="id"]`).focus()
+  await (await inboxCell(page, disputeId, 'id')).focus()
   await page.keyboard.press(' ')
   await expect(page.getByTestId('case-view')).toBeVisible()
+})
+
+test('at phone width the simulator card keeps its controls inside the page', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto('/')
+  const create = page.getByRole('button', { name: 'Create dispute' })
+  await expect(create).toBeVisible()
+  const box = await create.boundingBox()
+  expect(box!.x + box!.width).toBeLessThanOrEqual(375)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+})
+
+test('the inbox grid follows the OS colour scheme', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.goto('/')
+  await expect(page.getByTestId('inbox')).toBeVisible()
+  await expect(page.locator('html')).toHaveAttribute('data-ag-theme-mode', 'dark')
+  await page.emulateMedia({ colorScheme: 'light' })
+  await expect(page.locator('html')).toHaveAttribute('data-ag-theme-mode', 'light')
 })

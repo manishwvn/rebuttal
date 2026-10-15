@@ -3,7 +3,7 @@ import { api } from '../../api'
 import type { AnalyticsReport } from '../../types'
 import { DashboardErrorBoundary } from './DashboardErrorBoundary'
 import { StudioDashboard } from './StudioDashboard'
-import { useAgThemeMode } from './useAgThemeMode'
+import { useAgThemeMode } from '../useAgThemeMode'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
