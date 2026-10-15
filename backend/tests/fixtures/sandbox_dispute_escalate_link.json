@@ -1,0 +1,136 @@
+{
+  "allowed_response_options": {
+    "accept_claim": {
+      "accept_claim_types": [
+        "PARTIAL_REFUND",
+        "REFUND_WITH_RETURN",
+        "REFUND"
+      ]
+    },
+    "make_offer": {
+      "offer_types": [
+        "REFUND",
+        "REFUND_WITH_RETURN"
+      ]
+    }
+  },
+  "create_time": "2026-10-07T11:19:33.056Z",
+  "dispute_amount": {
+    "currency_code": "USD",
+    "value": "48.00"
+  },
+  "dispute_channel": "INTERNAL",
+  "dispute_id": "PP-R-SVN-10190455",
+  "dispute_life_cycle_stage": "INQUIRY",
+  "dispute_state": "REQUIRED_ACTION",
+  "disputed_transactions": [
+    {
+      "buyer": {
+        "email": "redacted@example.com",
+        "name": "REDACTED",
+        "payer_id": "REDACTED"
+      },
+      "buyer_transaction_id": "0C471138FS156232V",
+      "create_time": "2026-10-07T11:14:23.000Z",
+      "custom": "RB-agent_wrong_size-1791371534",
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "48.00"
+      },
+      "invoice_number": "RB-agent_wrong_size-1791371534",
+      "items": [
+        {
+          "item_description": "Linen shirt (Navy / Size L)",
+          "item_name": "Linen shirt (Navy / Size L)",
+          "item_quantity": "1",
+          "item_type": "PRODUCT",
+          "notes": "My shopping assistant placed this order for me. I asked for a size medium but the shirt that arrived is a size large and does not fit. I would like a refund.",
+          "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+        }
+      ],
+      "seller": {
+        "email": "redacted@example.com",
+        "merchant_id": "REDACTED",
+        "name": "REDACTED"
+      },
+      "seller_protection_eligible": true,
+      "seller_protection_type": "EXPANDED_SELLER_PROTECTION",
+      "seller_transaction_id": "1B0801030K329364U",
+      "transaction_status": "HELD"
+    }
+  ],
+  "evidences": [
+    {
+      "date": "2026-10-07T11:19:33.056Z",
+      "dispute_life_cycle_stage": "INQUIRY",
+      "evidence_type": "CREATE",
+      "notes": "I used an AI shopping assistant to buy this navy linen shirt and told it to order size medium. The store shipped a size large. The shirt is unworn with tags on and I can send it back. ",
+      "source": "SUBMITTED_BY_BUYER"
+    }
+  ],
+  "extensions": {
+    "buyer_contacted_time": "2026-10-07T11:19:32.167Z"
+  },
+  "fund_movements": [
+    {
+      "amount": {
+        "currency_code": "USD",
+        "value": "45.83"
+      },
+      "initiated_time": "2026-10-07T11:22:34.000Z",
+      "party": "RECEIVER",
+      "reason": "HOLD_PLACED",
+      "type": "DEBIT"
+    }
+  ],
+  "links": [
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-SVN-10190455",
+      "method": "GET",
+      "rel": "self"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-SVN-10190455/accept-claim",
+      "method": "POST",
+      "rel": "accept_claim"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-SVN-10190455/send-message",
+      "method": "POST",
+      "rel": "send_message"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-SVN-10190455/escalate",
+      "method": "POST",
+      "rel": "escalate"
+    },
+    {
+      "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-SVN-10190455/make-offer",
+      "method": "POST",
+      "rel": "make_offer"
+    }
+  ],
+  "messages": [
+    {
+      "content": "I used an AI shopping assistant to buy this navy linen shirt and told it to order size medium. The store shipped a size large. The shirt is unworn with tags on and I can send it back. ",
+      "posted_by": "BUYER",
+      "time_posted": "2026-10-07T11:19:33.056Z"
+    }
+  ],
+  "offer": {
+    "buyer_requested_amount": {
+      "currency_code": "USD",
+      "value": "48.00"
+    }
+  },
+  "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+  "refund_details": {
+    "allowed_refund_amount": {
+      "currency_code": "USD",
+      "value": "48.00"
+    }
+  },
+  "seller_response_due_date": "2026-10-27T11:19:33.056Z",
+  "status": "WAITING_FOR_SELLER_RESPONSE",
+  "update_time": "2026-10-07T11:22:53.845Z"
+}

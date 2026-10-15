@@ -3,8 +3,9 @@
 The real PayPalClient talks to it unchanged, so everything built against the
 mock runs against the sandbox once keys are added. Behaviour mirrors the
 sandbox docs (developer.paypal.com/disputes/test-go-live); anything not yet
-confirmed live is marked VERIFY. The dispute links, escalate and appeal come from the Disputes v1 OpenAPI spec
-only and are VERIFY: not yet confirmed on the live sandbox.
+confirmed live is marked VERIFY. The `escalate` link and escalate itself were confirmed on the live sandbox on
+2026-10-14 (S3, docs/sandbox-findings.md, fixtures in tests/fixtures). The `appeal` link, its multipart body and its
+stage transition come from the Disputes v1 OpenAPI spec only and are VERIFY: no appealable dispute exists in the sandbox.
 """
 
 from __future__ import annotations
@@ -21,9 +22,11 @@ _DISPUTE_PATH = re.compile(r"^/v1/customer/disputes/([^/]+)(?:/([a-z-]+))?$")
 _ORDER_PATH = re.compile(r"^/v2/checkout/orders/([^/]+)$")
 _CAPTURE_PATH = re.compile(r"^/v2/payments/captures/([^/]+)$")
 # Seller actions the real sandbox rejected with ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE
-# on an INQUIRY dispute in UNDER_REVIEW. appeal is from the OpenAPI spec only (VERIFY), and escalate beyond the
-# observed INQUIRY case is too (VERIFY).
-_SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "escalate", "appeal"}
+# on an INQUIRY dispute in UNDER_REVIEW. Escalate is not in this set: on 2026-10-14 the live sandbox accepted it on an
+# INQUIRY in UNDER_REVIEW that listed no escalate link (sandbox_escalate_response_PP-R-HDU-10190454.json).
+# VERIFY: an earlier, unrecorded run saw the same state refuse escalate, so the two observations conflict; our own
+# code only sends escalate when the link is present, whatever the mock accepts.
+_SELLER_ACTIONS = {"send-message", "make-offer", "provide-evidence", "accept-claim", "appeal"}
 # Where a successful appeal sends a lost chargeback. VERIFY: the appeal stage transition is from the OpenAPI spec only.
 _APPEAL_NEXT_STAGE = {"CHARGEBACK": "PRE_ARBITRATION", "PRE_ARBITRATION": "ARBITRATION"}
 # Evidence types whose evidence_info the Disputes v1 schema expects. VERIFY: from the spec only, not yet seen live.
@@ -77,14 +80,15 @@ def _invalid_request(details: list[dict]) -> httpx.Response:
 
 
 def dispute_links(dispute: dict) -> list[dict]:
-    """HATEOAS links that show-dispute returns. Rel names, the escalate and appeal conditions, and the appeal body are
-    from the Disputes v1 OpenAPI spec only; VERIFY: not yet confirmed on the live sandbox.
-    escalate: only while the INQUIRY waits for the seller. appeal: only after a buyer-favour loss at CHARGEBACK or
-    PRE_ARBITRATION."""
+    """HATEOAS links that show-dispute returns. The `escalate` rel is confirmed live: an INQUIRY offers it while it waits
+    for the seller or for the buyer (sandbox_dispute_escalate_link.json, sandbox_dispute_after_buyer_reply_*.json), and
+    not in UNDER_REVIEW (sandbox_dispute_inquiry_under_review.json). appeal: only after a buyer-favour loss at
+    CHARGEBACK or PRE_ARBITRATION. VERIFY: the `appeal` rel name and that condition are from the Disputes v1 OpenAPI
+    spec only; no appealable dispute exists in the sandbox."""
     base = f"/v1/customer/disputes/{dispute['dispute_id']}"
     links = [{"href": base, "rel": "self", "method": "GET"}]
     stage = dispute["dispute_life_cycle_stage"]
-    if stage == "INQUIRY" and dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
+    if stage == "INQUIRY" and dispute["status"] in ("WAITING_FOR_SELLER_RESPONSE", "WAITING_FOR_BUYER_RESPONSE"):
         links.append({"href": f"{base}/escalate", "rel": "escalate", "method": "POST"})
     lost = (dispute.get("dispute_outcome") or {}).get("outcome_code") == "RESOLVED_BUYER_FAVOUR"
     if dispute["status"] == "RESOLVED" and lost and stage in _APPEAL_NEXT_STAGE:
@@ -294,8 +298,11 @@ class MockPayPal:
             return _error(422, "UNPROCESSABLE_ENTITY", "Dispute is already resolved")
         if dispute["status"] == "UNDER_REVIEW" and action in _SELLER_ACTIONS:
             return _not_allowed_now()
-        # The link rel names match the action names, so escalate and appeal are refused unless PayPal would offer them.
-        if action in ("escalate", "appeal") and not _offers(dispute, action):
+        # Appeal is refused unless the dispute offers it. Escalate is valid at any open INQUIRY: the live sandbox
+        # accepted it with the link absent (see _SELLER_ACTIONS), so the link is not the gate here.
+        if action == "appeal" and not _offers(dispute, action):
+            return _not_allowed_now()
+        if action == "escalate" and dispute["dispute_life_cycle_stage"] != "INQUIRY":
             return _not_allowed_now()
 
         files: list[str] = []
@@ -329,7 +336,13 @@ class MockPayPal:
             bad_info = _bad_evidence_info(body)
             if bad_info:
                 return _invalid_request([bad_info])
+            # The live sandbox refused PROOF_OF_RETURN on a NOT_RECEIVED inquiry (sandbox_proof_of_return_response_*).
+            # VERIFY: acceptance of PROOF_OF_RETURN on a return claim is still unseen.
+            if action == "provide-evidence" and dispute["reason"] == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED" and any(
+                    ev.get("evidence_type") == "PROOF_OF_RETURN" for ev in evidences or []):
+                return _invalid_request([{"issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"}])
 
+        prev = dispute["status"]
         # Uploaded filenames are kept only once the evidence has passed validation, like the rest of the write.
         if files:
             self.evidence_files.setdefault(dispute_id, []).extend(files)
@@ -338,9 +351,11 @@ class MockPayPal:
             dispute.setdefault("messages", []).append(
                 {"posted_by": "SELLER", "time_posted": _now(), "content": body.get("message", "")}
             )
-            # The real sandbox moved the dispute to UNDER_REVIEW after a message and refused the offer that followed.
-            # VERIFY: whether the INQUIRY returns to WAITING_FOR_SELLER_RESPONSE after a buyer reply, which is the
-            # state escalate needs; the mock only reaches it through the sandbox-only require-evidence.
+            # The real sandbox moved the dispute to UNDER_REVIEW after a message and refused the offer that followed
+            # (confirmed 2026-10-14: sandbox_dispute_after_seller_message_PP-R-HDU-10190454.json).
+            # VERIFY: whether the INQUIRY returns to WAITING_FOR_SELLER_RESPONSE after a buyer reply; the second
+            # sandbox account is not the buyer on the existing disputes, so no reply has been sent. The mock only
+            # reaches that state through the sandbox-only require-evidence.
             dispute["status"] = "UNDER_REVIEW"
         elif action == "make-offer":
             amount = body.get("offer_amount")
@@ -362,7 +377,12 @@ class MockPayPal:
             dispute["status"] = "RESOLVED"
             dispute["dispute_outcome"] = {"outcome_code": "RESOLVED_BUYER_FAVOUR"}
         elif action == "escalate":
-            dispute["dispute_life_cycle_stage"] = "CHARGEBACK"
+            # Observed live: the stage stayed INQUIRY, the status became UNDER_REVIEW, and an OTHER evidence entry
+            # carrying the seller's note appeared. VERIFY: whether a later read moves the stage on; the read right
+            # after the escalate did not.
+            dispute.setdefault("evidences", []).append(
+                {"evidence_type": "OTHER", "notes": body["note"], "source": "SUBMITTED_BY_SELLER", "date": _now(),
+                 "action_info": {"action": "ESCALATE"}, "dispute_life_cycle_stage": dispute["dispute_life_cycle_stage"]})
             dispute["status"] = "UNDER_REVIEW"
         elif action == "appeal":
             # VERIFY: the appeal body (same evidences payload as provide-evidence) and the stage transition are from the
@@ -388,13 +408,22 @@ class MockPayPal:
         else:
             return _error(404, "RESOURCE_NOT_FOUND", f"Unknown action {action}")
 
-        # The real sandbox lists options only while it waits for the seller, so a second make_offer in
-        # WAITING_FOR_BUYER_RESPONSE is refused (INVALID_OFFER_TYPE, via the existing offer_type check above).
+        # Live: waiting for the seller lists the full options. Waiting for the buyer lists accept_claim REFUND only, with
+        # no make_offer, so a second offer is refused (INVALID_OFFER_TYPE, via the existing offer_type check above)
+        # (sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json). VERIFY: other statuses are assumed to list none.
         if dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
-            dispute.setdefault("allowed_response_options",
-                               allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
+            options = allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"])
+            if prev != "WAITING_FOR_SELLER_RESPONSE":
+                dispute["allowed_response_options"] = options  # replaces the buyer-only options stored while waiting
+            else:
+                dispute.setdefault("allowed_response_options", options)
+        elif dispute["status"] == "WAITING_FOR_BUYER_RESPONSE":
+            dispute["allowed_response_options"] = {"accept_claim": {"accept_claim_types": ["REFUND"]}}
         else:
             dispute.pop("allowed_response_options", None)
+        if dispute["status"] != "WAITING_FOR_SELLER_RESPONSE":
+            # Like the options, the seller's deadline is only shown while the seller is to respond (live, 2026-10-14).
+            dispute.pop("seller_response_due_date", None)
         event = "CUSTOMER.DISPUTE.RESOLVED" if dispute["status"] == "RESOLVED" else "CUSTOMER.DISPUTE.UPDATED"
         self._event(event, dispute)
         return _json(200, {"links": [{"rel": "self", "href": f"/v1/customer/disputes/{dispute_id}"}]})

@@ -222,7 +222,7 @@ Evidence: reasoner.py SYSTEM_PROMPT (line 223) passes buyer_messages verbatim wi
 ### R12 Return-needed rule at CHARGEBACK with no option list — size S — blocked on sandbox confirmation — from the PR #65 review
 Evidence: with `allowed_response_options` missing at CHARGEBACK, `paypal_allows` now refuses offers (R2), so a not-as-described dispute that needs the item back can fall through to ACCEPT_CLAIM, a full refund without a return. R2 first capped it, but the cap rested on an unverified assumption about what the sandbox returns at CHARGEBACK (see the VERIFY note in `reasoner.py`) and fired on every case without damage. Fix: once a real sandbox CHARGEBACK shows whether the option list is omitted, add a guard rule for ACCEPT_CLAIM when the item needs its return, scoped to that evidence. Acceptance: a test built from the captured payload.
 
-### S3 Confirm the S2 Disputes shapes on the real sandbox — size M — in-progress (cycle 2026-10-14T23:10:16-05:00) — after S2 merges
+### S3 Confirm the S2 Disputes shapes on the real sandbox — size M — done #74 (confirmed: escalate rel, escalate on INQUIRY without buyer_escalation_reason, stage stays INQUIRY, seller message moves to UNDER_REVIEW, posted_by/actor shapes; rest moved to S4; results in docs/sandbox-findings.md)
 S2 shipped escalate, appeal and the richer evidence types against the mock only. Using the existing named manual
 scripts (`spike_sandbox.py`, `make_sandbox_dispute.py`; `require-evidence` stays confined to them), confirm: the link
 rel names `escalate` and `appeal` on a shown dispute; that escalate is accepted on an INQUIRY waiting for the seller;
@@ -231,6 +231,9 @@ reply (the status send-message leaves, and whether a buyer reply returns the INQ
 which the ESCALATE rule and the mock's `require-evidence` stand-in assume); whether escalate needs
 `buyer_escalation_reason`, which the client omits. Fix the mock and the
 client together and remove the matching `VERIFY` notes (`client.py`, `mock.py`, `facts.py`, `approval.py`).
+
+### S4 Remaining sandbox confirmations from S3 — size S — waiting: needs an appealable (lost) chargeback, a buyer-side reply on a dispute the buyer app owns, or a CHARGEBACK-stage dispute
+Left STILL UNVERIFIED by S3 (#74, see `docs/sandbox-findings.md`): the `appeal` rel, multipart body and next stage; PROOF_OF_RETURN acceptance (refused on a NOT_RECEIVED inquiry; try a NOT_AS_DESCRIBED one); whether a buyer reply returns the INQUIRY to WAITING_FOR_SELLER_RESPONSE; whether escalate removes its link (retry safety note in `approval.py`); `allowed_response_options` at CHARGEBACK (unblocks R12). Also the review nits from #74: VERIFY note for mock escalate in WAITING_FOR_BUYER_RESPONSE (`mock.py:300-305`) and `body.get("note")` in the mock escalate branch. Use `scripts/spike_shapes.py` only. Fix mock and client together, remove VERIFY notes only with a fixture.
 
 ## USER
 

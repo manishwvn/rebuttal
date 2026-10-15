@@ -1,0 +1,51 @@
+{
+  "after": {
+    "dispute_id": "PP-R-HDU-10190454",
+    "evidence_types": [
+      "CREATE",
+      "OTHER"
+    ],
+    "has_allowed_response_options": false,
+    "has_seller_response_due_date": false,
+    "link_rels": [
+      "self"
+    ],
+    "message_posted_by": [
+      "BUYER",
+      "SELLER"
+    ],
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "status": "UNDER_REVIEW"
+  },
+  "before": {
+    "dispute_id": "PP-R-HDU-10190454",
+    "evidence_types": [
+      "CREATE"
+    ],
+    "has_allowed_response_options": false,
+    "has_seller_response_due_date": false,
+    "link_rels": [
+      "self"
+    ],
+    "message_posted_by": [
+      "BUYER",
+      "SELLER"
+    ],
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED",
+    "stage": "INQUIRY",
+    "status": "UNDER_REVIEW"
+  },
+  "first_attempt": {
+    "ok": true,
+    "response": {
+      "links": [
+        {
+          "href": "https://api-m.sandbox.paypal.com/v1/customer/disputes/PP-R-HDU-10190454",
+          "method": "GET",
+          "rel": "detail"
+        }
+      ]
+    }
+  }
+}

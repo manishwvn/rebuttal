@@ -6,6 +6,7 @@ together through `Runtime`, the way the dashboard does.
 
 import pytest
 
+from rebuttal.agent.facts import dispute_actions
 from rebuttal.approval import idempotency_key
 from rebuttal.paypal.client import permit_writes
 from rebuttal.runtime import Runtime
@@ -17,7 +18,8 @@ def escalatable_rt() -> Runtime:
     """A delivered NOT_RECEIVED inquiry the seller has already answered and is waiting on the seller again: the case
     the rules escalate. The mock moves the dispute to UNDER_REVIEW after the message, as the real sandbox did, and
     the sandbox-only require-evidence stands in for the buyer's reply that brings it back to the seller.
-    VERIFY: whether a real buyer reply returns an INQUIRY to WAITING_FOR_SELLER_RESPONSE (S3 in QUEUE.md)."""
+    VERIFY: whether a real buyer reply returns an INQUIRY to WAITING_FOR_SELLER_RESPONSE: S3 could not test it (the
+    second sandbox account is not the buyer on the existing disputes; docs/sandbox-findings.md item 5)."""
     rt = Runtime(seed_cases=["inr_delivered"], force_rules=True)
     with permit_writes():
         rt.client.send_message(ID, "It was delivered, see tracking.")
@@ -47,7 +49,12 @@ def test_a_seller_reply_on_a_delivered_inquiry_is_escalated_once_approved():
     done = rt.approvals.approve(proposal.id)
 
     assert done.status == "EXECUTED" and done.result[0]["ok"]
-    assert rt.mock.disputes[ID]["dispute_life_cycle_stage"] == "CHARGEBACK"
+    # As the live sandbox did (PP-R-HDU-10190454): the stage stays INQUIRY, the status is UNDER_REVIEW, and the note
+    # is recorded as an OTHER evidence entry. The escalate link is gone, so the dispute cannot be escalated again.
+    assert rt.mock.disputes[ID]["dispute_life_cycle_stage"] == "INQUIRY"
+    assert rt.mock.disputes[ID]["status"] == "UNDER_REVIEW"
+    assert rt.mock.disputes[ID]["evidences"][-1]["evidence_type"] == "OTHER"
+    assert dispute_actions(rt.client.get_dispute(ID))["can_escalate"] is False
     assert rt.mock.write_calls() == [("POST", f"/v1/customer/disputes/{ID}/escalate")]
     assert rt.mock.request_ids == [(f"/v1/customer/disputes/{ID}/escalate",
                                     idempotency_key(proposal.id, 0, "escalate"))]

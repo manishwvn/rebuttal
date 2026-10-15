@@ -64,8 +64,10 @@ def effective_options(options: dict | None, reason: str = "", stage: str = "") -
 
 
 def _escalation_offered(case: CaseFile) -> bool:
-    """PayPal escalates only an inquiry, and only when the facts say it offers escalation here."""
-    return case.stage == "INQUIRY" and case.facts.get("can_escalate") is True
+    """PayPal escalates only an inquiry, only when the facts say it offers escalation here, and only on the seller's
+    turn: while the buyer still owes a reply (after our own offer or message) we wait instead of asking PayPal to decide."""
+    return (case.stage == "INQUIRY" and case.status == "WAITING_FOR_SELLER_RESPONSE"
+            and case.facts.get("can_escalate") is True)
 
 
 def paypal_allows(resolution: str, case: CaseFile) -> bool:
@@ -83,6 +85,7 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
     if options is None:
         # Offers are not possible at a chargeback. PayPal sending no list there is unverified.
         # VERIFY: confirm the sandbox omits allowed_response_options at CHARGEBACK; mock.py returns the full list.
+        # S3 (2026-10-14) found no CHARGEBACK dispute to check, so this stays open and R12 stays blocked on it.
         return not (case.stage == "CHARGEBACK" and action == "make_offer")
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
     return kind in options.get(action, {}).get(key, [])
@@ -144,8 +147,10 @@ class RuleReasoner:
                     return "OFFER_REPLACEMENT", 0.75, ["Delivered, but not to the address on the order."]
                 if case.stage == "CHARGEBACK":
                     return "SUBMIT_EVIDENCE", 0.85, ["Claim stage; delivered to the order address."]
-                # VERIFY: after our own message the real sandbox showed UNDER_REVIEW, where escalate was refused, so this
-                # rule fires live only if a buyer reply returns the INQUIRY to the seller (S3 in QUEUE.md).
+                # VERIFY: after our own message the live sandbox shows UNDER_REVIEW with no escalate link, and after our
+                # offer WAITING_FOR_BUYER_RESPONSE with one (both confirmed 2026-10-14). `_escalation_offered` requires
+                # WAITING_FOR_SELLER_RESPONSE, so this rule fires live only once a buyer reply returns the INQUIRY to
+                # the seller. S3 could not send a buyer reply (docs/sandbox-findings.md item 5).
                 if (_escalation_offered(case) and f.get("delivered_address_matches") is True
                         and f.get("seller_already_responded")):
                     return "ESCALATE", 0.7, ["Delivered to the order address and we already answered the buyer, "
@@ -327,7 +332,7 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         base.guard_notes = notes + [why, f"Fell back to rules: {base.resolution}."]
         base.source = f"{decision.source}+guard"
         # Cannot loop: rules pick SHARE_TRACKING only when tracking exists, SUBMIT_REFUND_PROOF only when a refund
-        # exists, ESCALATE only at INQUIRY with can_escalate True, delivery to the order address proven (is True),
+        # exists, ESCALATE only at INQUIRY on the seller's turn with can_escalate True, delivery to the order address proven (is True),
         # and seller_already_responded, APPEAL only when can_appeal is True, and never an unknown resolution, so this
         # second pass returns without falling back again.
         return guard(base, case)
@@ -342,8 +347,9 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
                                                   and f.get("shipment_status") == "DELIVERED"
                                                   and f.get("delivered_address_matches") is True
                                                   and f.get("seller_already_responded")):
-        return fallback("Proposed escalating, but PayPal does not offer escalation here, delivery to the order "
-                        "address is not proven, or we have not answered the buyer yet.")
+        return fallback("Proposed escalating, but PayPal does not offer escalation here, it is not our turn "
+                        "to respond, delivery to the order address is not proven, or we have not answered the "
+                        "buyer yet.")
     if decision.resolution == "ESCALATE":
         # The note goes to PayPal, not the buyer, so a model's friendly buyer message is replaced by the factual note.
         note = draft_escalation_note(case)
