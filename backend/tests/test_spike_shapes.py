@@ -98,6 +98,35 @@ def test_survey_refuses_on_the_mock_without_any_network(monkeypatch):
     assert main(["survey"]) == 2
 
 
+def test_survey_never_opens_the_audit_log_even_with_a_database(monkeypatch):
+    # survey only reads, so it must not touch the online database that DATABASE_URL points at.
+    class FakeSettings:
+        mock = False
+        client_id = "id"
+        client_secret = "secret"
+        base_url = "https://api-m.sandbox.paypal.com"
+        audit_path = "unused.jsonl"
+        database_url = "postgresql://example.invalid/db"
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def list_disputes(self, page_size):
+            return []
+
+        def close(self):
+            pass
+
+    def audit_must_not_open(*args, **kwargs):
+        raise AssertionError("survey must not open the audit log")
+
+    monkeypatch.setattr(spike_shapes, "load_settings", lambda: FakeSettings())
+    monkeypatch.setattr(spike_shapes, "PayPalClient", FakeClient)
+    monkeypatch.setattr(spike_shapes, "AuditLog", audit_must_not_open)
+    assert main(["survey"]) == 0
+
+
 class FakePP:
     """Stands in for PayPalClient. Each write is recorded as a tuple, and the queued PayPalErrors are raised, in
     order, before a write succeeds."""

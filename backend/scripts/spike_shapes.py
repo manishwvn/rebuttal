@@ -310,10 +310,11 @@ def main(argv: list[str] | None = None) -> int:
         print("Add PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET (sandbox) to backend/.env first.")
         return 2
     pp = PayPalClient(s.base_url, s.client_id, s.client_secret)
-    audit = AuditLog(s.audit_path, s.database_url)
     try:
         if args.command == "survey":
             return survey(pp)
+        # Only the write commands open the audit log: it may be the online Postgres database.
+        audit = AuditLog(s.audit_path, s.database_url)
         if args.command == "buyer-reply":
             return buyer_reply(pp, s.base_url, audit, args.dispute_id)
         handlers = {"escalate": escalate, "send-message": send_message,

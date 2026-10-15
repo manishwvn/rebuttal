@@ -123,6 +123,7 @@ def test_item_9_an_inquiry_waiting_for_the_seller_shows_the_seller_response_due_
 def test_item_5_a_buyer_reply_fixture_is_still_waiting_for_buyer_and_the_offer_has_a_seller_actor():
     d = load("sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json")
     assert d["dispute_life_cycle_stage"] == "INQUIRY" and d["status"] == "WAITING_FOR_BUYER_RESPONSE"
+    assert "escalate" in rels(d)
     assert seller_activity(d)["offers"] == ["REFUND_WITH_RETURN"]
     assert "seller_response_due_date" not in d and "allowed_response_options" in d
 

@@ -119,8 +119,9 @@ Runs 2026-10-14, disputes PP-R-SVN-10190455 (step 3, run log only) and PP-R-GFH-
   `UNPROCESSABLE_ENTITY`, issue `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE`, debug id `f252997e374b7`. Run log only.
   The current script refuses to send this without the link.
 
-So on a NOT_RECEIVED inquiry PayPal does not accept PROOF_OF_RETURN at all, and on a NOT_AS_DESCRIBED inquiry it offers
-no evidence action. The shape of the body was not accepted anywhere. What would confirm it: a dispute that lists
+PayPal refused PROOF_OF_RETURN once, on PP-R-GFH-10190453 (NOT_RECEIVED, fixture). On a NOT_AS_DESCRIBED inquiry
+(PP-R-SVN-10190455, run log only) it offered no evidence action. One refusal does not show that PayPal never accepts
+PROOF_OF_RETURN on a NOT_RECEIVED inquiry. The shape of the body was not accepted in either run. What would confirm it: a dispute that lists
 `provide_evidence` for a return claim (a NOT_AS_DESCRIBED dispute at a stage where the seller may submit evidence).
 
 ## 5. Escalate after a seller reply, and a buyer reply
@@ -194,7 +195,8 @@ Runs 2026-10-14, disputes PP-R-SVN-10190455 (survey), PP-R-HDU-10190454 and PP-R
 
 - `allowed_response_options` is listed on INQUIRY / WAITING_FOR_BUYER_RESPONSE too (PP-R-GBK-10190434, fixture: it lists
   `accept_claim` REFUND only). PP-R-AFT-10190433 showed the same in survey (run log only). The mock lists them only while the seller is to respond.
-- The `escalate` rel on INQUIRY / WAITING_FOR_BUYER_RESPONSE (GBK, AFT) is seen in survey (run log only; not checked against a fixture).
+- The `escalate` rel is also offered on INQUIRY / WAITING_FOR_BUYER_RESPONSE (PP-R-GBK-10190434, fixture
+  `sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json`). PP-R-AFT-10190433 showed it in survey (run log only).
   The mock offers it only for the seller turn.
 - `seller_activity` shapes: a seller message is `posted_by: SELLER` (PP-R-HDU-10190454, fixture). An offer appears as
   `offer.history[].actor: SELLER` with `offer_type: REFUND_WITH_RETURN` (PP-R-GBK-10190434, fixture, made before this run).
@@ -230,7 +232,7 @@ Nothing in `rebuttal/` was changed by S3. Each row names the note to change and 
 | 2 | `paypal/client.py` `escalate` VERIFY "refused in UNDER_REVIEW" | Replace with: accepted on PP-R-HDU-10190454 in UNDER_REVIEW (fixture), with the link absent. Keep "accepted while WAITING_FOR_SELLER_RESPONSE" as unverified until a fixture exists. |
 | 2 | `paypal/mock.py` `_dispatch` escalate gate | Accept escalate in UNDER_REVIEW without the link, since PayPal did. Decide with the lead whether the link stays a gate on our side (see approval.py). |
 | 3 | `paypal/mock.py` appeal VERIFY (lines near 27 and 368) | No change. Still unverified. |
-| 4 | `paypal/mock.py` `_EVIDENCE_INFO_REQUIRED` and provide-evidence | Refuse PROOF_OF_RETURN on NOT_RECEIVED with 400 `EVIDENCE_TYPE_IS_NOT_ALLOWED`. Refuse provide-evidence with no `provide_evidence` link with 422 `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE`. |
+| 4 | `paypal/mock.py` `_EVIDENCE_INFO_REQUIRED` and provide-evidence | Refuse PROOF_OF_RETURN on NOT_RECEIVED with 400 `EVIDENCE_TYPE_IS_NOT_ALLOWED` (fixture). Refuse provide-evidence with no `provide_evidence` link with 422 `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE` (run log only; add only with a fixture). |
 | 4 | `agent/pipeline.py` `_return_entries` | Do not send PROOF_OF_RETURN for NOT_RECEIVED. Keep the NOT_AS_DESCRIBED path as unconfirmed. |
 | 5 | `agent/facts.py` `seller_activity` VERIFY | Confirmed for `messages` (posted_by SELLER, fixture) and `offers` (actor SELLER, fixture). Remove the VERIFY. Keep the unconfirmed buyer-after-offer part until a buyer reply works. |
 | 5 | `approval.py` `already_applied` VERIFY (seller message and offer shapes) | Confirmed as above. Remove that VERIFY. |
