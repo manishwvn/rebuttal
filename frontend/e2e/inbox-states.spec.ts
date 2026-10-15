@@ -62,7 +62,7 @@ test('an empty inbox says no disputes yet and gives the next step', async ({ pag
   }
 })
 
-test('a failed first inbox load shows the error, not the grid No disputes yet overlay', async ({ page }) => {
+test('a failed first inbox load shows the error, and a Retry that finds no disputes shows the No disputes yet overlay', async ({ page }) => {
   let gets = 0
   await page.route(DISPUTES, (route) => {
     if (route.request().method() === 'OPTIONS') return route.continue()
@@ -75,6 +75,14 @@ test('a failed first inbox load shows the error, not the grid No disputes yet ov
         body: JSON.stringify({ detail: 'inbox down in this test' }),
       })
     }
+    if (gets === 2) {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: '[]',
+      })
+    }
     return route.continue()
   })
   try {
@@ -83,6 +91,13 @@ test('a failed first inbox load shows the error, not the grid No disputes yet ov
     await expect(page.getByTestId('inbox')).not.toContainText('No disputes yet.')
     await expect(page.getByTestId('inbox')).not.toContainText('Loading disputes…')
     await expect(page.getByTestId('inbox-retry')).toBeVisible()
+
+    // The Retry loads an empty inbox: suppressOverlays goes back to none at runtime, so the grid's No disputes yet
+    // overlay must reappear (it was suppressed while the load failed).
+    await page.getByTestId('inbox-retry').click()
+    await expect(page.getByTestId('app-error')).toHaveCount(0)
+    await expect(page.getByTestId('inbox')).toContainText('No disputes yet.')
+    await expect(page.getByTestId('inbox')).not.toContainText('Loading disputes…')
   } finally {
     await page.unroute(DISPUTES)
   }
