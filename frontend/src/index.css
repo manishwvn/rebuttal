@@ -1,7 +1,7 @@
 /* Design tokens from preview/template.html (the design target): a merchant's case desk. */
 :root {
   --bg: #f2f5f8; --surface: #ffffff; --raised: #f7f9fb; --ink: #14202e; --muted: #5a6777; --line: #d8dee6;
-  --accent: #0e6b63; --accent-soft: #dcefec; --on-accent: #ffffff;
+  --accent: #0e6b63; --accent-soft: #dcefec; --on-accent: #ffffff; --on-bad: #ffffff;
   --good: #1d7a3d; --good-soft: #e1f3e6; --warn: #985a00; --warn-soft: #fbefd8; --bad: #b3262d; --bad-soft: #f9e1e2;
   --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -12,14 +12,16 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0e141b; --surface: #161f29; --raised: #1b2531; --ink: #e5ebf1; --muted: #93a0ae; --line: #2a3643;
-    --accent: #4cc2b4; --accent-soft: #143936; --on-accent: #062522;
+    --accent: #4cc2b4; --accent-soft: #143936; --on-accent: #062522; --on-bad: #1d0a0c;
     --good: #5bc983; --good-soft: #15321f; --warn: #e6a84a; --warn-soft: #3a2a12; --bad: #f07178; --bad-soft: #3c1a1d;
     color-scheme: dark;
   }
 }
 
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); margin: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+html { scroll-padding-top: 16px; }
+::selection { background: var(--accent-soft); color: var(--ink); }
 h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 h2 { font-size: 1.05rem; }
 h3 { font-size: 1rem; }
@@ -28,4 +30,13 @@ p { margin: 0; }
 .mono { font-family: var(--mono); font-size: 0.84em; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; border: 0;
+}
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary:focus-visible, button.danger:focus-visible { outline-color: var(--ink); }
+@media (forced-colors: active) { :focus-visible { outline: 2px solid Highlight; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}

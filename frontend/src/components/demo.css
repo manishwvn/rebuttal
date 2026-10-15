@@ -3,9 +3,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
   background: var(--accent-soft);
   border: 1px solid var(--line);
   border-radius: var(--r);
 }
+.demo-banner p { margin: 0; flex: 1 1 320px; }
+.brand a[data-testid='exit-demo'] { margin-left: 4px; font-size: 0.9rem; color: var(--accent); text-decoration: none; }
+.brand a[data-testid='exit-demo']:hover { text-decoration: underline; }
