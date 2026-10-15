@@ -112,10 +112,7 @@ test('reject dialog: the reason box takes Enter as a newline, and Escape closes 
   await expect(page.getByTestId('case-status')).toHaveText('Pending')
 })
 
-// Known gap: Chromium does not trap Tab inside a modal <dialog>, and ConfirmDialog no longer wraps focus itself (the
-// audit asked for that code to go). Tab reaches the page outside the dialog, so this stays a fixme until the parent
-// decides whether to restore a focus trap.
-test.fixme('approve dialog: Tab never leaves the dialog', async ({ page }) => {
+test('approve dialog: Tab never leaves the dialog', async ({ page }) => {
   await simulate(page, 'agent_wrong_size')
   const dialog = page.getByRole('dialog')
   const focusInDialog = () => page.evaluate(() => Boolean(document.activeElement?.closest('dialog')))
