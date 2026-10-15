@@ -18,7 +18,7 @@ BACKEND = PACKAGE.parent
 # Every PayPalClient method that changes something at PayPal, and the private ways to reach one.
 WRITE_METHODS = {"send_message", "make_offer", "provide_evidence", "accept_claim", "escalate", "appeal",
                  "require_evidence", "adjudicate", "create_order", "capture_order", "add_order_tracking", "create_dispute"}
-PRIVATE = {"_request", "_http", "_init"}
+PRIVATE = {"_request", "_http", "_init", "_token_getter", "_client_secret"}
 ALLOWED = {"approval.py"}  # the gate; paypal/client.py defines the methods, paypal/mock.py is the fake server
 # Manual tools that talk to the PayPal sandbox on purpose. They are not part of the agent and run only when a person starts them.
 MANUAL_SCRIPTS = {"spike_sandbox.py", "spike_retry.py", "spike_fresh.py", "make_test_order.py", "make_sandbox_dispute.py", "demo.py"}
@@ -286,3 +286,87 @@ def test_approval_never_creates_disputes_or_orders():
     source = (PACKAGE / "approval.py").read_text()
     for method in ("create_dispute", "create_order", "capture_order"):
         assert method not in source, method
+
+
+@pytest.mark.parametrize("base_url", [
+    "https://example.com",
+    "https://api-m.sandbox.paypal.com.evil.com",
+    "http://localhost:8000",
+    "https://api-m.paypal.com",
+    "http://api-m.sandbox.paypal.com",
+    "",
+    "api-m.sandbox.paypal.com",
+])
+@pytest.mark.parametrize("real_transport", [False, True])
+def test_the_client_refuses_a_host_that_is_not_the_paypal_sandbox(base_url, real_transport):
+    import httpx
+
+    transport = httpx.HTTPTransport() if real_transport else None
+    with pytest.raises(ValueError, match="sandbox"):
+        PayPalClient(base_url, "id", "secret", transport=transport)
+
+
+def test_the_client_accepts_the_sandbox_hosts_and_an_in_process_mock_on_any_host():
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret")
+    PayPalClient("https://api.sandbox.paypal.com", "id", "secret")
+    PayPalClient("http://mock.test", "id", "secret", transport=httpx.MockTransport(handler))
+
+
+def test_the_mock_check_looks_through_stacked_gate_layers_and_refuses_a_real_transport_under_them():
+    import httpx
+
+    from rebuttal.paypal.client import ReadOnlyTransport, WriteGateTransport
+
+    inner = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+    PayPalClient("http://mock.test", "id", "secret", transport=ReadOnlyTransport(WriteGateTransport(inner)))
+    with pytest.raises(ValueError, match="sandbox"):
+        PayPalClient("https://example.com", "id", "secret",
+                     transport=ReadOnlyTransport(WriteGateTransport(httpx.HTTPTransport())))
+
+
+def test_a_mock_on_a_non_paypal_host_builds_its_read_only_clone_and_reads_through_it():
+    import httpx
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1/oauth2/token":
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
+        return httpx.Response(200, json={"dispute_id": "D1"})
+
+    client = PayPalClient("http://mock.test", "id", "secret", transport=httpx.MockTransport(handler))
+    assert client.read_only().get_dispute("D1") == {"dispute_id": "D1"}
+
+
+def test_the_read_only_clone_holds_no_client_secret_attribute_but_can_still_read():
+    import httpx
+
+    # The clone's _token_getter is bound to the parent, which still holds the secret in-process. This test pins only
+    # that the clone has no secret attribute; the clone's transport is what stops writes.
+    token_posts = 0
+    requests_seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal token_posts
+        if request.url.path == "/v1/oauth2/token":
+            token_posts += 1
+            return httpx.Response(200, json={"access_token": "t", "expires_in": 3600})
+        requests_seen.append(request)
+        return httpx.Response(200, json={"dispute_id": "D1"} if request.method == "GET" else {})
+
+    client = PayPalClient("https://api-m.sandbox.paypal.com", "id", "secret", transport=httpx.MockTransport(handler))
+    ro = client.read_only()
+
+    assert ro._client_secret == "" and ro._init is None
+    values = list(vars(ro).values())
+    assert not any("secret" in v for v in values if isinstance(v, str))
+    assert not any("secret" in item for v in values if isinstance(v, (tuple, list))
+                   for item in v if isinstance(item, str))
+    assert ro.get_dispute("D1") == {"dispute_id": "D1"}
+    with permit_writes(), pytest.raises(WriteNotPermitted):
+        ro.send_message("D1", "hi")
+    assert token_posts == 1
+    assert [(r.method, r.headers["authorization"]) for r in requests_seen] == [("GET", "Bearer t")]

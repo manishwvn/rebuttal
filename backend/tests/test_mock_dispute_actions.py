@@ -235,3 +235,33 @@ def test_interrupted_appeal_is_applied_then_answered_503(sandbox):
     assert resp.status_code == 503
     assert sandbox.disputes[DISPUTE]["dispute_life_cycle_stage"] == "PRE_ARBITRATION"
     assert sandbox.interrupt_next_write is False
+
+
+def test_a_second_offer_is_refused_once_the_first_left_the_dispute_waiting_for_the_buyer(sandbox, client):
+    sandbox.add_dispute(_dispute())
+    with permit_writes():
+        client.make_offer(DISPUTE, note="x", offer_type="REFUND")
+        assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_BUYER_RESPONSE"
+        assert "allowed_response_options" not in sandbox.disputes[DISPUTE]
+        with pytest.raises(PayPalError) as err:
+            client.make_offer(DISPUTE, note="again", offer_type="REFUND")
+    assert err.value.status == 400
+    assert {"issue": "INVALID_OFFER_TYPE"} in err.value.body["details"]
+    assert len(sandbox.disputes[DISPUTE]["offer"]["history"]) == 1
+
+
+def test_options_return_when_the_sandbox_hands_the_dispute_back_to_the_seller(sandbox, client):
+    sandbox.add_dispute(_dispute())
+    with permit_writes():
+        client.send_message(DISPUTE, "Hello buyer")
+    assert sandbox.disputes[DISPUTE]["status"] == "UNDER_REVIEW"
+    assert "allowed_response_options" not in sandbox.disputes[DISPUTE]
+    with httpx.Client(base_url=BASE, transport=sandbox.transport()) as http:
+        resp = http.post(f"/v1/customer/disputes/{DISPUTE}/require-evidence",
+                         headers={"Authorization": "Bearer x"}, json={"action": "SELLER_EVIDENCE"})
+    assert resp.status_code == 200
+    options = sandbox.disputes[DISPUTE]["allowed_response_options"]
+    assert "REFUND" in options["make_offer"]["offer_types"]
+    with permit_writes():
+        client.make_offer(DISPUTE, note="x", offer_type="REFUND")
+    assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_BUYER_RESPONSE"

@@ -388,6 +388,13 @@ class MockPayPal:
         else:
             return _error(404, "RESOURCE_NOT_FOUND", f"Unknown action {action}")
 
+        # The real sandbox lists options only while it waits for the seller, so a second make_offer in
+        # WAITING_FOR_BUYER_RESPONSE is refused (INVALID_OFFER_TYPE, via the existing offer_type check above).
+        if dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
+            dispute.setdefault("allowed_response_options",
+                               allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
+        else:
+            dispute.pop("allowed_response_options", None)
         event = "CUSTOMER.DISPUTE.RESOLVED" if dispute["status"] == "RESOLVED" else "CUSTOMER.DISPUTE.UPDATED"
         self._event(event, dispute)
         return _json(200, {"links": [{"rel": "self", "href": f"/v1/customer/disputes/{dispute_id}"}]})

@@ -7,6 +7,10 @@ It added 11 tasks (R1-R11), so the percent dropped from 58% to 48%; that is hone
 Most important: mock mode wrote into the live Supabase database; fixed in this cycle (R1). Next: R2 guard fallback, R3-R6, R8-R9 small fixes, then S2, B2, B4.
 Deadlines ahead: AG Studio first pass and video rough cut Oct 23 (B4 not started), feature freeze Nov 3.
 
+## 2026-10-14 21:10 CDT | W 57→61+ % | F 1→31+ % | R10 part 2, C1 | merged #72, #73
+One team-cycle workflow (46 agents, 59 min). R10 (strict, Opus principal: write boundary intact): mock drops offer options outside WAITING_FOR_SELLER_RESPONSE, VERIFY notes + whitespace-normalised seller message match, sandbox host allowlist (https only, or in-process MockTransport) and a read-only clone without the client secret. R10 done.
+C1: contrast fixes, inbox loading/failed/empty states, keyboard tabs and safer confirm dialog (starts on Cancel, Enter never confirms), a11y labels, 375 px overflow fix; before/after PNGs in docs/screenshots/c1/. Integrator's STATUS edits conflicted again; resolved by keeping both entries.
+
 ## 2026-10-14 18:10 CDT | W 56→56+ % | F 77→79+ % | R10 part 1 | PR #71
 F was 77 %, so no team workflow: one Sonnet builder for items (a) approve logged once per proposal and (e) no in-memory audit copy in Postgres mode, then an Opus reviewer (approval.py is a strict path): no blockers, write boundary and guard intact. Lead applied the two nits (test asserts the INSERT; comment on file-mode for_dispute).
 R10 (b), (c), (d) stay queued; (d) touches paypal/client.py, so it needs a strict review too.
