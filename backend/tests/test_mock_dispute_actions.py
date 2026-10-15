@@ -99,6 +99,7 @@ def test_escalate_keeps_the_inquiry_stage_and_records_the_note_as_other_evidence
         ("OTHER", "SUBMITTED_BY_SELLER", "Buyer wants a refund, we disagree")]
     assert [link["rel"] for link in dispute["links"]] == ["self"]
     assert "seller_response_due_date" not in dispute
+    assert dispute["evidences"][0]["action_info"] == {"action": "ESCALATE"}
 
 
 @pytest.mark.parametrize("status", ["WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW"])
@@ -329,3 +330,19 @@ def test_proof_of_return_is_still_accepted_on_a_not_as_described_inquiry(sandbox
     with permit_writes():
         client.provide_evidence(DISPUTE, [evidence])
     assert sandbox.disputes[DISPUTE]["status"] == "UNDER_REVIEW"
+
+
+def test_offer_options_return_after_an_offer_when_the_sandbox_hands_the_dispute_back(sandbox, client):
+    sandbox.add_dispute(_dispute())
+    with permit_writes():
+        client.make_offer(DISPUTE, note="x", offer_type="REFUND")
+    assert "make_offer" not in sandbox.disputes[DISPUTE]["allowed_response_options"]
+    with httpx.Client(base_url=BASE, transport=sandbox.transport()) as http:
+        resp = http.post(f"/v1/customer/disputes/{DISPUTE}/require-evidence",
+                         headers={"Authorization": "Bearer x"}, json={"action": "SELLER_EVIDENCE"})
+    assert resp.status_code == 200
+    options = sandbox.disputes[DISPUTE]["allowed_response_options"]
+    assert "REFUND" in options["make_offer"]["offer_types"]
+    with permit_writes():
+        client.make_offer(DISPUTE, note="again", offer_type="REFUND")
+    assert sandbox.disputes[DISPUTE]["status"] == "WAITING_FOR_BUYER_RESPONSE"

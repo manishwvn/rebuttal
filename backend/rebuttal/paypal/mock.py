@@ -342,6 +342,7 @@ class MockPayPal:
                     ev.get("evidence_type") == "PROOF_OF_RETURN" for ev in evidences or []):
                 return _invalid_request([{"issue": "EVIDENCE_TYPE_IS_NOT_ALLOWED"}])
 
+        prev = dispute["status"]
         # Uploaded filenames are kept only once the evidence has passed validation, like the rest of the write.
         if files:
             self.evidence_files.setdefault(dispute_id, []).extend(files)
@@ -381,7 +382,7 @@ class MockPayPal:
             # after the escalate did not.
             dispute.setdefault("evidences", []).append(
                 {"evidence_type": "OTHER", "notes": body["note"], "source": "SUBMITTED_BY_SELLER", "date": _now(),
-                 "dispute_life_cycle_stage": dispute["dispute_life_cycle_stage"]})
+                 "action_info": {"action": "ESCALATE"}, "dispute_life_cycle_stage": dispute["dispute_life_cycle_stage"]})
             dispute["status"] = "UNDER_REVIEW"
         elif action == "appeal":
             # VERIFY: the appeal body (same evidences payload as provide-evidence) and the stage transition are from the
@@ -411,8 +412,11 @@ class MockPayPal:
         # no make_offer, so a second offer is refused (INVALID_OFFER_TYPE, via the existing offer_type check above)
         # (sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json). VERIFY: other statuses are assumed to list none.
         if dispute["status"] == "WAITING_FOR_SELLER_RESPONSE":
-            dispute.setdefault("allowed_response_options",
-                               allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"]))
+            options = allowed_response_options(dispute["reason"], dispute["dispute_life_cycle_stage"])
+            if prev != "WAITING_FOR_SELLER_RESPONSE":
+                dispute["allowed_response_options"] = options  # replaces the buyer-only options stored while waiting
+            else:
+                dispute.setdefault("allowed_response_options", options)
         elif dispute["status"] == "WAITING_FOR_BUYER_RESPONSE":
             dispute["allowed_response_options"] = {"accept_claim": {"accept_claim_types": ["REFUND"]}}
         else:

@@ -237,5 +237,5 @@ The first column is the item above. "Kept" means the VERIFY note stays because t
 | 9 | `scenarios.py`, `mock.py` | Note updated. The mock drops `seller_response_due_date` once the dispute leaves WAITING_FOR_SELLER_RESPONSE. |
 | all | `tests/test_write_boundary.py` | `spike_shapes.py` added to the named manual scripts (it enters `permit_writes()` explicitly). |
 
-Observed but not mirrored in the mock: `provide_evidence` offered in UNDER_REVIEW. The mock does mirror
+Observed but not mirrored in the mock: `provide_evidence` offered in UNDER_REVIEW; `seller_response_due_date` is not restored when a dispute returns to WAITING_FOR_SELLER_RESPONSE. The mock does mirror
 `allowed_response_options` listing `accept_claim` REFUND on INQUIRY / WAITING_FOR_BUYER_RESPONSE.
