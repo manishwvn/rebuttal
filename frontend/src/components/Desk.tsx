@@ -105,23 +105,34 @@ export function Desk({ simulator }: { simulator: boolean }) {
             {waiting} {waiting === 1 ? 'proposal' : 'proposals'} waiting for you
           </p>
         </div>
-        <Inbox disputes={disputes ?? []} selectedId={selectedId} onSelect={select} />
+        <Inbox
+          disputes={disputes ?? []}
+          loading={disputes === null && error === null}
+          selectedId={selectedId}
+          onSelect={select}
+        />
       </section>
 
       {selected ? (
         <CaseView dispute={selected} audit={audit} onChanged={changed} />
       ) : disputes === null ? (
+        error === null ? (
+          <p className="note empty loading" role="status">
+            Loading disputes…
+          </p>
+        ) : (
+          <p className="note empty">
+            Could not load disputes.{' '}
+            <button type="button" className="ghost" data-testid="inbox-retry" onClick={retry}>
+              Retry
+            </button>
+          </p>
+        )
+      ) : disputes.length === 0 ? (
         <p className="note empty">
-          {error === null ? (
-            'Loading disputes…'
-          ) : (
-            <>
-              Could not load disputes.{' '}
-              <button type="button" className="ghost" data-testid="inbox-retry" onClick={retry}>
-                Retry
-              </button>
-            </>
-          )}
+          {simulator
+            ? 'No disputes yet. Use the simulator above to create one and watch the agent handle it.'
+            : 'No disputes yet. New ones appear here when PayPal sends a dispute webhook.'}
         </p>
       ) : (
         <p className="note empty">Pick a dispute in the inbox to see what the agent proposes.</p>

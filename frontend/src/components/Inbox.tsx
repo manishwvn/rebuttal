@@ -38,6 +38,7 @@ const modules = [
   RowApiModule, // api.forEachNode
   CellStyleModule, // colDef.cellClass
   GridStateModule, // initialState (the default sort)
+  // The loading overlay (`loading`) and the no-rows overlay come with the grid core, so they need no entry here.
 ]
 
 if (import.meta.env.DEV) enableDevValidations()
@@ -112,6 +113,9 @@ const defaultColDef: ColDef = { sortable: true, resizable: true }
 const initialState: GridState = { sort: { sortModel: [{ colId: 'ageHours', sort: 'asc' }] } }
 const getRowId = (p: GetRowIdParams<InboxRow>) => p.data.id
 
+// The loading overlay (grid option `loading`) shows this text while the first load is in flight.
+const overlayComponentParams = { loading: { overlayText: 'Loading disputes…' } }
+
 function toRows(disputes: Dispute[]): InboxRow[] {
   const now = Date.now()
   return disputes.map((d) => ({
@@ -126,11 +130,13 @@ function toRows(disputes: Dispute[]): InboxRow[] {
 
 interface Props {
   disputes: Dispute[]
+  // True while the first load is in flight: the grid shows the loading overlay instead of 'No disputes yet.'.
+  loading?: boolean
   selectedId: string | null
   onSelect: (disputeId: string) => void
 }
 
-export function Inbox({ disputes, selectedId, onSelect }: Props) {
+export function Inbox({ disputes, loading = false, selectedId, onSelect }: Props) {
   const apiRef = useRef<GridApi<InboxRow> | null>(null)
   const rowData = useMemo(() => toRows(disputes), [disputes])
 
@@ -156,7 +162,7 @@ export function Inbox({ disputes, selectedId, onSelect }: Props) {
   }
 
   return (
-    <div className="inbox-grid" data-testid="inbox">
+    <div className="inbox-grid" data-testid="inbox" role="region" aria-label="Disputes inbox">
       <AgGridProvider modules={modules}>
         <AgGridReact<InboxRow>
           theme={theme}
@@ -168,10 +174,15 @@ export function Inbox({ disputes, selectedId, onSelect }: Props) {
           onGridReady={onGridReady}
           onRowClicked={(e) => e.data && onSelect(e.data.id)}
           onCellKeyDown={(e) => {
-            if ((e.event as KeyboardEvent | null)?.key === 'Enter' && e.data) onSelect(e.data.id)
+            const key = (e.event as KeyboardEvent | null)?.key
+            if (key !== 'Enter' && key !== ' ') return
+            if (key === ' ') e.event?.preventDefault() // Space scrolls the page by default
+            if (e.data) onSelect(e.data.id)
           }}
           initialState={initialState}
-          overlayNoRowsTemplate="No disputes yet."
+          loading={loading}
+          overlayComponentParams={overlayComponentParams}
+          overlayNoRowsTemplate="No disputes yet. Create one with the simulator, or wait for a PayPal webhook."
         />
       </AgGridProvider>
     </div>
