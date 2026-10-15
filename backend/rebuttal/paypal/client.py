@@ -7,11 +7,12 @@ guards back that rule up:
 - a write (POST/PATCH/PUT/DELETE, except the OAuth token call) raises `WriteNotPermitted` unless the calling
   context is inside `permit_writes()`, which only the approval gate's `execute` node (and manual sandbox scripts)
   enter;
-- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET. The clone shares
-  the parent's access token through a getter and holds no client secret, so analysis steps hold a handle that cannot
-  write even if someone reaches for its private attributes.
+- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET. The clone has no
+  client-secret attribute and takes the parent's access token through a getter bound to the parent. That getter keeps
+  the parent, and its secret, reachable in-process, so the transport refuses writes and `permit_writes()` still gates
+  the parent.
 
-The constructor accepts only the PayPal sandbox hosts or an in-process mock transport; any other host raises.
+The constructor accepts only the https PayPal sandbox hosts or an in-process mock transport; anything else raises.
 
 Endpoint shapes follow developer.paypal.com (Disputes API v1, Orders v2).
 Items marked VERIFY should be confirmed against the live sandbox in the
@@ -127,8 +128,10 @@ class PayPalClient:
         *,
         token_getter: Callable[[], str] | None = None,
     ):
-        host = (urlparse(base_url).hostname or "").rstrip(".").lower()
-        if host not in SANDBOX_HOSTS and not _is_in_process_mock(transport):
+        parsed = urlparse(base_url)
+        host = (parsed.hostname or "").rstrip(".").lower()
+        # Client credentials go out as Basic auth, so a real PayPal connection must be https, not just a sandbox host.
+        if not _is_in_process_mock(transport) and (host not in SANDBOX_HOSTS or parsed.scheme != "https"):
             raise ValueError(f"Rebuttal only talks to the PayPal sandbox; refusing {host or base_url}")
         self._init = (base_url, client_id, client_secret, transport, timeout)
         self._client_id = client_id
@@ -140,11 +143,14 @@ class PayPalClient:
         self._token_expiry = 0.0
 
     def read_only(self) -> PayPalClient:
-        """A clone for analysis steps: same endpoint, but no client secret (it takes the parent's access token through
-        `token_getter`) and a transport that refuses any write."""
+        """A clone for analysis steps: same endpoint and a transport that refuses every non-GET request, even inside
+        `permit_writes()`. The clone has no client-secret attribute. It gets the parent's access token through
+        `token_getter`, a bound method of the parent, so the parent and its secret remain reachable in-process; the
+        transport, not the absence of the secret, is what stops writes."""
         if self._init is None:  # already a read-only clone
             return self
         base_url, client_id, _, transport, timeout = self._init
+        # The getter is bound to the parent (see the docstring): it is not a credential-free boundary, only a token source.
         clone = PayPalClient(base_url, client_id, "", timeout=timeout,
                              transport=ReadOnlyTransport(transport or httpx.HTTPTransport()),
                              token_getter=self._access_token)
