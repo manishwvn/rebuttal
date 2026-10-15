@@ -63,6 +63,16 @@ def effective_options(options: dict | None, reason: str = "", stage: str = "") -
     return None, False
 
 
+def accept_with_return(case: CaseFile) -> bool:
+    """Accept the claim as REFUND_WITH_RETURN, not a plain refund, when the item must come back (no refund without
+    return) and PayPal lists that type. At CHARGEBACK the real sandbox lists only accept_claim types, REFUND_WITH_RETURN
+    among them, and refuses it without a return_shipping_address (PP-R-HDU-10190454, 2026-10-15)."""
+    if case.reason != "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED" or case.facts.get("refund_without_return_eligible") is not False:
+        return False
+    types = (case.allowed_response_options or {}).get("accept_claim", {}).get("accept_claim_types", [])
+    return "REFUND_WITH_RETURN" in types
+
+
 def _escalation_offered(case: CaseFile) -> bool:
     """PayPal escalates only an inquiry, only when the facts say it offers escalation here, and only on the seller's
     turn: while the buyer still owes a reply (after our own offer or message) we wait instead of asking PayPal to decide."""
@@ -83,9 +93,8 @@ def paypal_allows(resolution: str, case: CaseFile) -> bool:
         return True
     action, kind = need
     if options is None:
-        # Offers are not possible at a chargeback. PayPal sending no list there is unverified.
-        # VERIFY: confirm the sandbox omits allowed_response_options at CHARGEBACK; mock.py returns the full list.
-        # S3 (2026-10-14) found no CHARGEBACK dispute to check, so this stays open and R12 stays blocked on it.
+        # Offers are not possible at a chargeback. While the seller is to respond the real sandbox lists only
+        # accept_claim types there (sandbox_dispute_chargeback.json); with no list (UNDER_REVIEW) offers stay refused.
         return not (case.stage == "CHARGEBACK" and action == "make_offer")
     key = "offer_types" if action == "make_offer" else "accept_claim_types"
     return kind in options.get(action, {}).get(key, [])
@@ -237,6 +246,9 @@ def draft_message(resolution: str, case: CaseFile) -> str:
         return (f"Hi {first}, no problem. Send the {item} back within our 30-day return window and we'll "
                 "refund you in full as soon as it arrives.")
     if resolution == "ACCEPT_CLAIM":
+        if accept_with_return(case):  # REFUND_WITH_RETURN: the refund waits for the return
+            return (f"Hi {first}, we're sorry. Send the {item} back and we'll refund you in full as soon as the "
+                    "return arrives.")
         return f"Hi {first}, we're sorry. We've refunded you in full for the {item}."
     if resolution == "SUBMIT_REFUND_PROOF":
         return f"Hi {first}, your refund was issued (ID {', '.join(f.get('refund_ids', []))}). It can take a few days to show up."

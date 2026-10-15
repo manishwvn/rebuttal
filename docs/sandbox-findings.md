@@ -239,3 +239,23 @@ The first column is the item above. "Kept" means the VERIFY note stays because t
 
 Observed but not mirrored in the mock: `provide_evidence` offered in UNDER_REVIEW; `seller_response_due_date` is not restored when a dispute returns to WAITING_FOR_SELLER_RESPONSE. The mock does mirror
 `allowed_response_options` listing `accept_claim` REFUND on INQUIRY / WAITING_FOR_BUYER_RESPONSE.
+
+## S4 run, 2026-10-15
+
+PP-R-HDU-10190454 and PP-R-GFH-10190453, escalated by S3, had moved to CHARGEBACK / WAITING_FOR_SELLER_RESPONSE by the
+next day. Commands: `spike_shapes survey`, `accept-return`, `adjudicate` (new), and `spike_retry --only provide_evidence`.
+
+| # | Question | Verdict |
+|---|---|---|
+| 1 | Does PayPal send `allowed_response_options` at CHARGEBACK? | CONFIRMED yes, on both (survey). For NOT_AS_DESCRIBED it lists only `accept_claim`: REFUND, PARTIAL_REFUND, REFUND_WITH_RETURN, REFUND_WITH_RETURN_SHIPMENT_LABEL, and no `make_offer` (`sandbox_dispute_chargeback.json`). Links: accept_claim, provide_evidence, self. Unblocks R12. |
+| 2 | accept-claim REFUND_WITH_RETURN at CHARGEBACK | CONFIRMED: refused without an address, 400 `MISSING_RETURN_SHIPPING_ADDRESS` (`sandbox_accept_return_no_address_PP-R-HDU-10190454.json`); accepted with `return_shipping_address`; the dispute became UNDER_REVIEW with only `provide_supporting_info` and no option list (`sandbox_accept_return_response_PP-R-HDU-10190454.json`; the redaction hides the retry body, the after state shows it landed). |
+| 3 | Sandbox `adjudicate` to make a lost (appealable) case | Refused, 400 `ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE`, at CHARGEBACK in both WAITING_FOR_SELLER_RESPONSE and UNDER_REVIEW (after PROOF_OF_FULFILLMENT evidence) (`sandbox_adjudicate_*_PP-R-GFH-10190453.json`). The appeal rel, body and next stage stay unverified. |
+| 4 | Evidence at CHARGEBACK | Run log only: PROOF_OF_FULFILLMENT via `spike_retry` accepted on GFH; status UNDER_REVIEW, link `provide_supporting_info`. |
+
+Changes: the mock lists the captured CHARGEBACK options for NOT_AS_DESCRIBED and mirrors item 2; `client.accept_claim`
+takes `accept_claim_type` and `return_address`; `pipeline.accept_with_return` plans REFUND_WITH_RETURN with the store's
+return address when the item must come back and PayPal lists that type (R12); `approval.not_allowed_now` refuses a claim
+type PayPal no longer lists. Tests: `tests/test_chargeback_return.py`.
+
+Same day, live end to end: approving the Oct 7 proposal for PP-R-SVN-10190455 on the Render backend ran
+approve > execute (`make_offer` REFUND_WITH_RETURN) > record EXECUTED; PayPal shows the dispute UNDER_REVIEW.

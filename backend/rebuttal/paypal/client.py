@@ -258,10 +258,15 @@ class PayPalClient:
         )
 
     def accept_claim(self, dispute_id: str, *, note: str, refund_amount: dict | None = None,
+                     accept_claim_type: str = "REFUND", return_address: dict | None = None,
                      request_id: str | None = None) -> dict:
-        body: dict[str, Any] = {"note": note, "accept_claim_type": "REFUND"}
+        """REFUND_WITH_RETURN needs return_shipping_address: the real sandbox refuses it without one
+        (MISSING_RETURN_SHIPPING_ADDRESS, PP-R-HDU-10190454 at CHARGEBACK, 2026-10-15)."""
+        body: dict[str, Any] = {"note": note, "accept_claim_type": accept_claim_type}
         if refund_amount:
             body["refund_amount"] = refund_amount
+        if return_address:
+            body["return_shipping_address"] = return_address
         return self._request("POST", f"/v1/customer/disputes/{dispute_id}/accept-claim", json=body,
                              request_id=request_id)
 
@@ -293,12 +298,12 @@ class PayPalClient:
             "POST", f"/v1/customer/disputes/{dispute_id}/require-evidence", json={"action": action}
         )
 
-    def adjudicate(self, dispute_id: str, outcome: str) -> dict:
+    def adjudicate(self, dispute_id: str, outcome: str, *, request_id: str | None = None) -> dict:
         """outcome: BUYER_FAVOR | SELLER_FAVOR (sandbox only)."""
         return self._request(
             "POST",
             f"/v1/customer/disputes/{dispute_id}/adjudicate",
-            json={"adjudication_outcome": outcome},
+            json={"adjudication_outcome": outcome}, request_id=request_id,
         )
 
     # ---------------------------------------------------------------- orders

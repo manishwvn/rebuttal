@@ -1,0 +1,63 @@
+{
+  "after": {
+    "dispute_id": "PP-R-GFH-10190453",
+    "evidence_types": [
+      "CREATE",
+      "OTHER",
+      "PROOF_OF_FULFILLMENT",
+      "PROOF_OF_REFUND"
+    ],
+    "has_allowed_response_options": true,
+    "has_seller_response_due_date": true,
+    "link_rels": [
+      "accept_claim",
+      "provide_evidence",
+      "self"
+    ],
+    "message_posted_by": [
+      "BUYER"
+    ],
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "CHARGEBACK",
+    "status": "WAITING_FOR_SELLER_RESPONSE"
+  },
+  "before": {
+    "dispute_id": "PP-R-GFH-10190453",
+    "evidence_types": [
+      "CREATE",
+      "OTHER",
+      "PROOF_OF_FULFILLMENT",
+      "PROOF_OF_REFUND"
+    ],
+    "has_allowed_response_options": true,
+    "has_seller_response_due_date": true,
+    "link_rels": [
+      "accept_claim",
+      "provide_evidence",
+      "self"
+    ],
+    "message_posted_by": [
+      "BUYER"
+    ],
+    "reason": "MERCHANDISE_OR_SERVICE_NOT_RECEIVED",
+    "stage": "CHARGEBACK",
+    "status": "WAITING_FOR_SELLER_RESPONSE"
+  },
+  "result": {
+    "error": {
+      "debug_id": "f5682741e4a28",
+      "details": [
+        {
+          "issue": "ACTION_NOT_ALLOWED_IN_CURRENT_DISPUTE_STATE"
+        }
+      ],
+      "information_link": "https://developer.paypal.com/docs/api/customer-disputes/v1/#errors",
+      "links": [],
+      "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
+      "name": "INVALID_REQUEST"
+    },
+    "http_status": 400,
+    "ok": false,
+    "request_id": "dd40790c-564d-45cc-abc9-2899212f1377"
+  }
+}

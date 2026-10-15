@@ -14,7 +14,7 @@ from fpdf import FPDF
 from .. import policies
 from ..store import MerchantStore
 from .facts import CaseFile
-from .reasoner import Decision
+from .reasoner import Decision, accept_with_return
 
 EVIDENCE_KINDS = ("provide_evidence", "appeal")  # the actions that carry the evidence PDF
 
@@ -162,6 +162,10 @@ def _plan_actions(decision: Decision, case: CaseFile) -> list[PlannedAction]:
                               {"note": msg, "offer_type": "REFUND_WITH_RETURN", "amount": _money(case.amount),
                                "return_address": policies.RETURN_ADDRESS})]
     if r == "ACCEPT_CLAIM":
+        if accept_with_return(case):
+            return [PlannedAction("accept_claim", f"Accept claim and refund ${case.amount:.2f} after return",
+                                  {"note": msg, "accept_claim_type": "REFUND_WITH_RETURN",
+                                   "return_address": policies.RETURN_ADDRESS})]
         return [PlannedAction("accept_claim", f"Accept claim and refund ${case.amount:.2f}", {"note": msg})]
     if r == "ESCALATE":
         return [PlannedAction("escalate", "Escalate to a PayPal claim", {"note": msg[:2000]})]

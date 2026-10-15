@@ -6,6 +6,8 @@
     cd backend && REBUTTAL_MOCK=0 uv run python -u -m scripts.spike_shapes buyer-reply <dispute id>
     cd backend && REBUTTAL_MOCK=0 uv run python -u -m scripts.spike_shapes proof-of-return <dispute id>
     cd backend && REBUTTAL_MOCK=0 uv run python -u -m scripts.spike_shapes appeal <dispute id>
+    cd backend && REBUTTAL_MOCK=0 uv run python -u -m scripts.spike_shapes accept-return <dispute id>
+    cd backend && REBUTTAL_MOCK=0 uv run python -u -m scripts.spike_shapes adjudicate <dispute id>
 
 Needs PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (sandbox) in backend/.env. buyer-reply also needs the second sandbox
 business account: PAYPAL_BUYER_CLIENT_ID / PAYPAL_BUYER_CLIENT_SECRET. `survey` only reads. Every other command changes
@@ -290,6 +292,53 @@ def appeal(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
     return 0
 
 
+# A placeholder return address for the sandbox merchant (test data, no real person).
+RETURN_ADDRESS = {"address_line_1": "1 Test Street", "admin_area_2": "Austin", "admin_area_1": "TX",
+                  "postal_code": "78701", "country_code": "US"}
+
+
+def accept_return(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
+    """accept-claim with REFUND_WITH_RETURN (queue task R12): first without an address, so the record shows whether
+    PayPal requires one; if the refusal names return_shipping_address, retry once with the placeholder address."""
+    before = pp.get_dispute(dispute_id)
+    if not _offers(before, "accept_claim"):
+        return 1
+    types = (before.get("allowed_response_options") or {}).get("accept_claim", {}).get("accept_claim_types", [])
+    if "REFUND_WITH_RETURN" not in types:
+        print(f"{dispute_id} does not list REFUND_WITH_RETURN ({types}): nothing sent")
+        return 1
+    name = f"accept_return_response_{dispute_id}"
+    if not _fresh(name):
+        return 1
+    path = f"/v1/customer/disputes/{dispute_id}/accept-claim"
+    body = {"note": NOTE, "accept_claim_type": "REFUND_WITH_RETURN"}
+    record: dict[str, Any] = {"before": summarize(before), "first_attempt": attempt(
+        audit, dispute_id, "accept_return", lambda rid: pp._request("POST", path, json=body, request_id=rid))}
+    first = record["first_attempt"]
+    if not first["ok"] and "return_shipping_address" in json.dumps(first["error"]).lower():
+        record["retry_with_address"] = attempt(audit, dispute_id, "accept_return_retry", lambda rid: pp._request(
+            "POST", path, json={**body, "return_shipping_address": RETURN_ADDRESS}, request_id=rid))
+    after = pp.get_dispute(dispute_id)
+    record["after"] = summarize(after)
+    print(json.dumps(redact(record), indent=2, default=str))
+    save_fixture(name, record)
+    return 0
+
+
+def adjudicate(pp: PayPalClient, audit: AuditLog, dispute_id: str) -> int:
+    """Sandbox-only: settle the dispute for the buyer, so it becomes a lost case that may offer an appeal link."""
+    name = f"adjudicate_response_{dispute_id}"
+    if not _fresh(name):
+        return 1
+    before = pp.get_dispute(dispute_id)
+    result = attempt(audit, dispute_id, "adjudicate", lambda rid: pp.adjudicate(dispute_id, "BUYER_FAVOR", request_id=rid))
+    after = pp.get_dispute(dispute_id)
+    record = {"before": summarize(before), "result": result, "after": summarize(after)}
+    print(json.dumps(redact(record), indent=2, default=str))
+    save_fixture(name, record)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="command", required=True)
@@ -298,7 +347,9 @@ def main(argv: list[str] | None = None) -> int:
                        ("send-message", "seller message, then re-read"),
                        ("buyer-reply", "buyer message as the second account, then re-read"),
                        ("proof-of-return", "PROOF_OF_RETURN evidence, then re-read"),
-                       ("appeal", "appeal, only if the dispute shows an appeal link")):
+                       ("appeal", "appeal, only if the dispute shows an appeal link"),
+                       ("accept-return", "accept-claim REFUND_WITH_RETURN, only if PayPal lists it"),
+                       ("adjudicate", "sandbox only: settle for the buyer, then re-read")):
         sub.add_parser(name, help=text).add_argument("dispute_id")
     args = ap.parse_args(argv)
 
@@ -318,7 +369,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "buyer-reply":
             return buyer_reply(pp, s.base_url, audit, args.dispute_id)
         handlers = {"escalate": escalate, "send-message": send_message,
-                    "proof-of-return": proof_of_return, "appeal": appeal}
+                    "proof-of-return": proof_of_return, "appeal": appeal,
+                    "accept-return": accept_return, "adjudicate": adjudicate}
         return handlers[args.command](pp, audit, args.dispute_id)
     finally:
         pp.close()

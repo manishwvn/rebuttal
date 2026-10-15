@@ -130,12 +130,23 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:
         return ("PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made, "
                 "so an earlier attempt may already have been sent)")
+    # After a REFUND_WITH_RETURN acceptance the live dispute is UNDER_REVIEW with no option list, so the options check
+    # below would let a replay through; a claim with a return goes only on the seller's turn.
+    if (kind == "accept_claim" and params.get("accept_claim_type")
+            and dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE"):
+        return ("PayPal is no longer waiting for the seller on this dispute (the dispute has changed since the proposal "
+                "was made, so an earlier attempt may already have been sent)")
     options, _ = effective_options(dispute.get("allowed_response_options"), dispute.get("reason", ""),
                                    dispute.get("dispute_life_cycle_stage", ""))  # none listed: the proven fallback
     if options is None:
         return None
     if kind == "accept_claim" and "accept_claim" not in options:
         return "PayPal no longer allows accepting this claim (the dispute has changed since the proposal was made)"
+    claim_type = params.get("accept_claim_type", "REFUND")
+    # No accept_claim_types list keeps the old behaviour (a plain claim acceptance goes ahead); a list must name the type.
+    if kind == "accept_claim" and claim_type not in ((options.get("accept_claim") or {})
+                                                     .get("accept_claim_types", [claim_type])):
+        return f"PayPal no longer allows a {claim_type} claim acceptance (the dispute has changed since the proposal was made)"
     if kind == "make_offer" and params["offer_type"] not in options.get("make_offer", {}).get("offer_types", []):
         return f"PayPal no longer allows a {params['offer_type']} offer (the dispute has changed since the proposal was made)"
     return None
@@ -178,7 +189,8 @@ def execute_action(client: PayPalClient, dispute_id: str, action: dict, request_
                                  amount=prm.get("amount"), return_address=prm.get("return_address"),
                                  request_id=request_id)
     if kind == "accept_claim":
-        return client.accept_claim(dispute_id, note=prm["note"], request_id=request_id)
+        return client.accept_claim(dispute_id, note=prm["note"], accept_claim_type=prm.get("accept_claim_type", "REFUND"),
+                                   return_address=prm.get("return_address"), request_id=request_id)
     if kind == "escalate":
         return client.escalate(dispute_id, prm["note"], request_id=request_id)
     if kind == "provide_evidence":

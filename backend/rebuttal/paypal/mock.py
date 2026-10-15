@@ -44,6 +44,10 @@ def allowed_response_options(reason: str, stage: str) -> dict:
     if reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED" and stage == "INQUIRY":
         return {"accept_claim": {"accept_claim_types": ["PARTIAL_REFUND", "REFUND_WITH_RETURN", "REFUND"]},
                 "make_offer": {"offer_types": ["REFUND", "REFUND_WITH_RETURN"]}}
+    if reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED" and stage == "CHARGEBACK":
+        # Real sandbox, PP-R-HDU-10190454 (tests/fixtures/sandbox_dispute_chargeback.json): no offers at a chargeback.
+        return {"accept_claim": {"accept_claim_types": ["REFUND", "PARTIAL_REFUND", "REFUND_WITH_RETURN",
+                                                        "REFUND_WITH_RETURN_SHIPMENT_LABEL"]}}
     # VERIFY: other reasons and stages not yet observed; assumes the documented full set.
     return {"accept_claim": {"accept_claim_types": ["PARTIAL_REFUND", "REFUND_WITH_RETURN", "REFUND"]},
             "make_offer": {"offer_types": ["REFUND", "REFUND_WITH_RETURN", "REFUND_WITH_REPLACEMENT",
@@ -322,6 +326,17 @@ class MockPayPal:
                                "message": "Request is not well-formed, syntactically incorrect, or violates schema.",
                                "details": [{"issue": "INVALID_OFFER_TYPE"}]})
 
+        claim_types = options.get("accept_claim", {}).get("accept_claim_types")
+        if action == "accept-claim" and claim_types is not None \
+                and body.get("accept_claim_type", "REFUND") not in claim_types:
+            # VERIFY: mirrors INVALID_OFFER_TYPE; the live refusal for an unlisted claim type is not captured.
+            return _invalid_request([{"issue": "INVALID_ACCEPT_CLAIM_TYPE"}])
+        if action == "accept-claim" and body.get("accept_claim_type") == "REFUND_WITH_RETURN" \
+                and not body.get("return_shipping_address"):
+            # Real sandbox at CHARGEBACK (sandbox_accept_return_no_address_PP-R-HDU-10190454.json).
+            # VERIFY: assumed the same at INQUIRY.
+            return _invalid_request([{"issue": "MISSING_RETURN_SHIPPING_ADDRESS"}])
+
         if action in ("provide-evidence", "appeal"):
             evidences = body.get("evidences")
             if action == "appeal" and (not isinstance(evidences, list) or not evidences):
@@ -373,6 +388,12 @@ class MockPayPal:
         elif action == "provide-evidence":
             dispute.setdefault("evidences", []).extend(body.get("evidences", []))
             dispute["status"] = "UNDER_REVIEW"
+        elif action == "accept-claim" and body.get("accept_claim_type") == "REFUND_WITH_RETURN":
+            # Real sandbox: the dispute waits for the return, UNDER_REVIEW, options gone
+            # (sandbox_accept_return_response_PP-R-HDU-10190454.json, `after`). VERIFY: the success response body was
+            # lost to redaction in that record; only the after state is captured.
+            dispute["status"] = "UNDER_REVIEW"
+            dispute.pop("allowed_response_options", None)
         elif action == "accept-claim":
             dispute["status"] = "RESOLVED"
             dispute["dispute_outcome"] = {"outcome_code": "RESOLVED_BUYER_FAVOUR"}
