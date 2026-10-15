@@ -1,4 +1,19 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
+
+// Chrome hands Tab and Shift+Tab at either end of a modal dialog to the browser UI, so the dialog wraps focus itself.
+const wrapTab = (event: KeyboardEvent<HTMLDialogElement>) => {
+  const items = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), textarea, input')
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (!first) return
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
 
 interface Props {
   title: string
@@ -16,11 +31,23 @@ interface Props {
 // A native modal <dialog>: focus is trapped and Escape closes it. Mount it to open it, unmount it to close it.
 export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, error, unavailable = null, onConfirm, onCancel, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  // The element that had focus when the dialog opened (the button that opened it). Focus goes back there on close.
+  const opener = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     const dialog = ref.current
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     if (dialog && !dialog.open) dialog.showModal()
-    return () => dialog?.close()
+    // Focus starts on Cancel, never on the confirm button. A reason box (textarea or input) that already has focus keeps it.
+    const active = document.activeElement
+    const typing = (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) && dialog?.contains(active)
+    if (!typing) cancelRef.current?.focus()
+    return () => {
+      dialog?.close()
+      const element = opener.current
+      if (element?.isConnected) element.focus()
+    }
   }, [])
 
   return (
@@ -28,6 +55,8 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
       ref={ref}
       className="confirm"
       aria-labelledby="confirm-title"
+      aria-describedby="confirm-body"
+      aria-busy={busy}
       onCancel={(event) => {
         event.preventDefault()
         if (!busy) onCancel()
@@ -38,9 +67,18 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
       onClose={() => {
         if (!busy && !ref.current?.open) onCancel()
       }}
+      onKeyDown={(event) => {
+        // Enter never confirms: nothing here is a submit. A button keeps its own Enter, and the reason box takes a newline.
+        if (event.key === 'Enter' && !(event.target instanceof HTMLButtonElement) && !(event.target instanceof HTMLTextAreaElement)) {
+          event.preventDefault()
+        }
+        if (event.key === 'Tab') wrapTab(event)
+      }}
     >
       <h2 id="confirm-title">{title}</h2>
-      <div className="confirm-body">{children}</div>
+      <div className="confirm-body" id="confirm-body">
+        {children}
+      </div>
       {error && (
         <p role="alert" className="error" data-testid="confirm-error">
           {error}
@@ -52,7 +90,7 @@ export function ConfirmDialog({ title, confirmLabel, tone = 'primary', busy, err
         </p>
       )}
       <div className="actions">
-        <button type="button" className="ghost" onClick={onCancel} disabled={busy}>
+        <button ref={cancelRef} type="button" className="ghost" onClick={onCancel} disabled={busy}>
           Cancel
         </button>
         <button type="button" className={tone === 'danger' ? 'danger' : 'primary'} onClick={onConfirm} disabled={busy || !!unavailable}>
