@@ -119,7 +119,7 @@ export function DemoApp() {
   }
 
   return (
-    <div className="wrap">
+    <main className="wrap">
       <header className="bar">
         <div className="brand">
           <h1>Rebuttal</h1>
@@ -135,18 +135,27 @@ export function DemoApp() {
             Exit demo
           </a>
         </div>
-        <span className="badge" data-testid="mode-badge">
+        <span className="badge" data-testid="mode-badge" role="status">
           demo · {session?.mode ?? 'connecting…'}
         </span>
       </header>
 
-      <p className="note demo-banner" data-testid="demo-banner">
-        This is a sandbox demo on an in-memory mock. No PayPal account is needed, and nothing is ever sent to PayPal. The demo
-        resets itself after a while.
-        <button type="button" className="ghost" data-testid="reset-demo" onClick={reset} disabled={!session || resetting}>
-          Reset demo
+      <div className="note demo-banner" role="note" data-testid="demo-banner">
+        <p>
+          This is a sandbox demo on an in-memory mock. No PayPal account is needed, and nothing is ever sent to PayPal. The demo
+          resets itself after a while.
+        </p>
+        <button
+          type="button"
+          className="ghost"
+          data-testid="reset-demo"
+          onClick={reset}
+          disabled={!session || resetting}
+          aria-busy={resetting}
+        >
+          {resetting ? 'Resetting…' : 'Reset demo'}
         </button>
-      </p>
+      </div>
 
       {problem && (
         <p role="alert" className="error" data-testid="demo-error">
@@ -162,7 +171,11 @@ export function DemoApp() {
         </p>
       )}
 
-      {!session && !problem && <p className="note" data-testid="demo-loading">Starting the demo…</p>}
+      {!session && !problem && (
+        <p className="note empty loading" role="status" data-testid="demo-loading">
+          Starting the demo…
+        </p>
+      )}
 
       {session && demoApi && (
         <ApiContext.Provider value={demoApi}>
@@ -171,6 +184,6 @@ export function DemoApp() {
           </div>
         </ApiContext.Provider>
       )}
-    </div>
+    </main>
   )
 }
