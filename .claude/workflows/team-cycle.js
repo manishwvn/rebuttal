@@ -5,7 +5,7 @@ export const meta = {
   phases: [
     { title: 'Skills', detail: 'Sonnet skill scout searches, vets (docs/autopilot/SKILLS.md) and installs skills for the task', model: 'sonnet' },
     { title: 'Plan', detail: 'Sonnet tech lead per task splits it into disjoint pieces', model: 'sonnet' },
-    { title: 'Build', detail: 'Haiku workers, one worktree each, xhigh or max effort', model: 'haiku' },
+    { title: 'Build', detail: 'Haiku workers, one worktree each, high or xhigh effort', model: 'haiku' },
     { title: 'Audit', detail: 'Haiku auditors scaled by risk: 3 lenses at max for risky pieces, 1 combined for other code, 1 for docs; Haiku fixes, re-audit', model: 'haiku' },
     { title: 'Integrate', detail: 'Sonnet tech lead combines the pieces, runs every test, opens the PR', model: 'sonnet' },
     { title: 'Review', detail: '3 independent Sonnet reviewers (correctness, safety, design) then a principal engineer (Opus when the PR touches PayPal, money or safety paths, else Sonnet) who verifies every finding and decides', model: 'sonnet' },
@@ -59,7 +59,7 @@ const PLAN = {
           title: { type: 'string' },
           instructions: { type: 'string', description: 'Self-contained: what to change, where, acceptance checks, which tests to add and run' },
           files: { type: 'array', items: { type: 'string' }, description: 'Files this piece may create or edit; disjoint from other pieces' },
-          hard: { type: 'boolean', description: 'true for tricky logic: worker gets max effort' },
+          hard: { type: 'boolean', description: 'true for tricky logic: worker gets xhigh effort' },
           skills: { type: 'array', maxItems: 2, items: { type: 'string' }, description: 'Folder names under .claude/skills the worker should read first' },
         },
         required: ['id', 'title', 'instructions', 'files', 'hard', 'skills'],
@@ -132,7 +132,7 @@ const LENSES = [
 ]
 
 // Audits scale with risk to save tokens (the weekly limit is the real constraint): risky pieces (hard, sensitive paths,
-// .claude/, CI) get the 3 lenses at max effort; other code pieces one combined lens; docs-only pieces one docs lens.
+// .claude/, CI) get the 3 lenses at xhigh; other code pieces one combined lens; docs-only pieces one docs lens.
 const SENSITIVE_PATHS = ['backend/rebuttal/approval.py', 'backend/rebuttal/paypal/', 'backend/rebuttal/agent/facts.py', 'backend/rebuttal/agent/reasoner.py', 'backend/rebuttal/config.py', '.claude/', '.github/']
 const DOCS_ONLY = f => /\.(md|txt)$/i.test(f) && !f.startsWith('.claude/')
 const risky = p => p.hard || p.files.some(f => SENSITIVE_PATHS.some(s => f.startsWith(s)))

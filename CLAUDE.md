@@ -10,6 +10,8 @@ Pitch, video script and the judge review that picked this idea: `docs/pitches.md
   the task's PR. CI (`.github/workflows/tests.yml`) must pass before merge.
 - **Code-minimizing skills (for example Ponytail) must never remove tests, guard rules, or the approval boundary.**
   Safety code that looks redundant is deliberate; leave it.
+- Interactive sessions that merge a PR also append a line to `~/.rebuttal-autopilot/runs.log` in the format of
+  `docs/autopilot/CYCLE.md` section 7, so the run history stays complete.
 - Use the `reviewer` agent (`.claude/agents/reviewer.md`) before merging a non-trivial change and the `chores` agent
   for small edits, formatting and docs.
 
