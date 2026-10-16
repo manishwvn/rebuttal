@@ -27,7 +27,7 @@ def credit(status):
         return 0.5
     if s.startswith("in review"):
         return 0.8
-    if re.search(r"\b(done|merged)\b", s):
+    if re.match(r"(done|merged)\b", s):  # only a status that starts with done/merged
         return 1.0
     return 0.0
 

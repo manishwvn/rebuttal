@@ -24,7 +24,7 @@ def next_run(now, w, f, cap, weekly_reset, five_hour_reset, runnable, next_after
 
 def when(text):
     """ISO 8601 to an aware datetime; a naive one is taken as local time."""
-    t = datetime.fromisoformat(text.strip())
+    t = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))  # Python 3.9 rejects a trailing Z
     return t if t.tzinfo else t.astimezone()
 
 
