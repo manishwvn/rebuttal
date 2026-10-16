@@ -48,7 +48,7 @@ REST app; personal accounts cannot). Script `backend/scripts/make_sandbox_disput
 dispute -> webhook arrives), credentials from `backend/.env` (`PAYPAL_BUYER_CLIENT_ID` / `_SECRET`, added to
 `.env.example`). Replaces the password-based buyer steps (supersedes B5).
 
-### S1 APIMatic plugin in every PayPal change — size S — first pass done (this PR, no drift found); standing rule stays
+### S1 APIMatic plugin in every PayPal change — size S — done (first pass, no drift found); standing rule stays
 Sponsor research (Oct 9): the APIMatic Context Plugin for the PayPal Server SDK is free and installed, but
 `docs/apimatic-log.md` is empty, so we have no evidence of use. From now on every task that touches PayPal calls,
 the mock or the client asks the plugin first and logs each use there (date, question, answer, what changed, PR).
