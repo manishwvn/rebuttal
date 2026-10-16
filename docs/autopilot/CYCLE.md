@@ -197,7 +197,8 @@ Cycles that did work also update the repo:
   `~/.rebuttal-autopilot/last-audit-sha` (nothing changed since the last audit: skip it and log "audit skipped: no
   change"): run the `system-audit` workflow
   (`scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/system-audit.js"`, `args: {sha: <main HEAD>,
-  scratch: <a new empty folder under ~/.rebuttal-autopilot/audit-<date>>}`). Add every returned task to `QUEUE.md`
+  scratch: "/Users/manish/.rebuttal-autopilot/audit"}` (one folder, reused by every audit; never create a dated
+  one). After D5 (submitted) is done, move that folder to the Trash with `trash ~/.rebuttal-autopilot/audit`). Add every returned task to `QUEUE.md`
   (priority `now` goes to the top of `## Tasks`), log the summary and the rejected count, and alert if `critical`.
   Then write the audited sha to `~/.rebuttal-autopilot/last-audit-sha`.
   Then put a 5-line plain-English progress summary at the top of `LOG.md` under `# Daily summary <date>` (first

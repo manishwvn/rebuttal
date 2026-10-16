@@ -9,7 +9,8 @@ export const meta = {
   ],
 }
 
-// args: { sha, scratch }  sha = commit of main being audited; scratch = absolute path of an empty scratch directory.
+// args: { sha, scratch }  sha = commit of main being audited; scratch = the one audit folder,
+// ~/.rebuttal-autopilot/audit, reused by every audit (holds the clone at <scratch>/rebuttal).
 
 const FINDINGS = {
   type: 'object',
@@ -76,7 +77,7 @@ Report only real problems, each with evidence (a command and its output, or a co
   .then(r => r && { component: c.key, findings: r.findings })))
 
 const cloneCheck = scratch ? agent(`Fresh-eyes check of Rebuttal as a new developer or a hackathon judge would do it. Work only inside ${scratch}.
-1. git clone https://github.com/manishwvn/rebuttal.git ${scratch}/rebuttal && cd ${scratch}/rebuttal && git checkout ${sha}
+1. Reuse the one audit clone (Oct 16: a new clone per audit left 421 MB folders behind). If ${scratch}/rebuttal/.git exists: \`git -C ${scratch}/rebuttal fetch origin && git -C ${scratch}/rebuttal checkout --detach ${sha}\`; if that checkout fails, \`trash ${scratch}/rebuttal\` and clone instead. Otherwise: \`git clone https://github.com/manishwvn/rebuttal.git ${scratch}/rebuttal && git -C ${scratch}/rebuttal checkout --detach ${sha}\`. Then cd ${scratch}/rebuttal. The documented install commands (uv sync, npm ci) bring dependencies to exactly what the lockfiles say, so the reused folder still tests the README as a new developer would. Never create another folder under ${scratch}.
 2. Follow README.md and frontend/README.md literally, in mock mode only (REBUTTAL_MOCK=1, REBUTTAL_REASONER=rules, no keys, no .env from anywhere else). Start the backend and the dashboard as documented, run the hero case through the simulator, approve it, and check the audit trail. Use ports that are free (check with lsof first) and stop every process you started at the end.
 3. Report every step where the docs are wrong, missing, or the app fails, with the exact command and output. Do not fix anything. Never use a model key or the real sandbox.`,
   { label: 'fresh-clone', phase: 'Fresh clone', model: 'sonnet', effort: 'high', schema: FINDINGS })
