@@ -147,7 +147,7 @@ Research (PayPal plugin, docs) whether a test dispute can be created on the real
 If yes, add it to the simulator in sandbox mode. If it needs a buyer login, make it a USER item with exact steps and
 skip the code.
 
-### E1 Second submission decision — size S — todo — after Oct 18, before Oct 20
+### E1 Second submission decision — size S — done (go: Mandate, separate repo and routine, docs/second-entry.md)
 Rules allow several substantially different submissions, each winning up to one Grand/Honorable + one Sponsor
 prize. Only if Rebuttal's queue is on track: scope a second, different entry aimed at Bryntum ($1,000 x3) or Channel3
 ($1,500) plus one honorable mention, reusing nothing user-visible from Rebuttal. Write `docs/second-entry.md` with
