@@ -17,8 +17,8 @@ def next_run(now, w, f, cap, weekly_reset, five_hour_reset, runnable, next_after
         return max(five_hour_reset + timedelta(minutes=5), now + timedelta(minutes=15))
     if runnable:  # work left and budget left: continue soon
         return now + timedelta(minutes=15)
-    if next_after:  # only date-gated tasks: wake on the earliest date
-        return max(next_after, now + timedelta(hours=1))
+    if next_after:  # only date-gated tasks: wake on the earliest date, but at least daily (audit, health, alerts)
+        return min(max(next_after, now + timedelta(hours=1)), now + timedelta(hours=24))
     return now + timedelta(hours=6)  # nothing runnable: cheap check for new queue tasks
 
 

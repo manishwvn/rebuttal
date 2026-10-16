@@ -40,8 +40,10 @@ Decide yourself, write the decision down in `docs/autopilot/LOG.md`, and keep go
 
 `~/.rebuttal-autopilot/lock` holds the start time (ISO 8601). If it is non-empty and less than 170 minutes old,
 append `<now> SKIP: previous cycle still running` to `~/.rebuttal-autopilot/runs.log` and end. Otherwise write the
-current time to it. Release it at the very end of the cycle, also after a failure, by emptying it (`: > lock`); never
-delete it (section 0, delete guard). A run cut off by the usage limit leaves it set; the 170-minute rule clears that.
+current time to it and remember that value. Release it at the very end of the cycle, also after a failure, by emptying
+it (`: > lock`), but only if it still holds this cycle's own start time (or a heartbeat this cycle wrote); a cycle that
+skipped because the lock was held never touches it (Oct 16 review: "empty the lock after a skip" let a skipping run free a
+working cycle's lock and start a duplicate). Never delete it (section 0, delete guard). A run cut off by the usage limit leaves it set; the 170-minute rule clears that.
 Heartbeat (Oct 14: a 4.7-hour workflow looked stale at 170 minutes, a second cycle redid its task and the first
 cycle's work was discarded): while a cycle runs, rewrite the lock with the current time at least every 30 minutes
 (each `Monitor` wake-up while waiting on a workflow counts) so only a dead cycle looks stale. Claim a task before
@@ -118,12 +120,12 @@ before the reset is free, so never leave it idle while there is runnable work.
      `scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/team-cycle.js"` (or `name: "team-cycle"`),
      `args: {tasks: [{id, title, spec, branch, worktree, base_sha}]}` with `spec` = the task text from `QUEUE.md` plus
      your notes. Per task: a Sonnet tech lead plans up to 12 small disjoint pieces (about one file plus its test each);
-     a Haiku fleet builds them in parallel in their own worktrees (effort xhigh, max for hard pieces); every piece gets
-     3 independent Haiku auditors at max effort (spec, correctness, safety) and up to 2 Haiku fix + re-audit rounds;
+     a Haiku fleet builds them in parallel in their own worktrees (effort high, xhigh for hard pieces); every piece gets
+     independent Haiku auditors (spec, correctness, safety; xhigh for risky pieces, medium otherwise) and up to 2 Haiku fix + re-audit rounds;
      the Sonnet tech lead integrates, runs every test and opens the PR; a review panel checks the whole PR: 3
      independent Sonnet reviewers (correctness and tests, safety and money, design and docs), then an Opus principal
      engineer who verifies each finding, adds what they missed and decides; up to two Sonnet fix rounds, each
-     re-reviewed by the full panel. Token diet (Oct 9, A6 alone cost 9% of the weekly limit): at most 6 pieces per task; builders high (xhigh if hard); audits xhigh for risky pieces, medium otherwise; non-strict PRs get one combined Sonnet reviewer, a Sonnet principal and one fix round; the skill scout runs only when the lead passes `scout: true` for a new kind of work. Earlier tiers: 3 audit lenses at max effort only for risky pieces
+     re-reviewed by the full panel. Token diet (Oct 9, A6 alone cost 9% of the weekly limit): at most 6 pieces per task; builders high (xhigh if hard); audits xhigh for risky pieces, medium otherwise; non-strict PRs get one combined Sonnet reviewer, a Sonnet principal and one fix round; the skill scout runs only when the lead passes `scout: true` for a new kind of work. Earlier tiers: 3 audit lenses at xhigh only for risky pieces
      (hard, sensitive paths, `.claude/`, `.github/`); other code pieces get one combined audit, docs pieces one docs
      audit; the Opus principal only for strict PRs (PayPal, money, safety paths or risk high), Sonnet otherwise.
      Agents run on Anthropic's servers, so the Mac (M1, 8 CPU cores, 16 GB) only hosts their processes and runs tests;
@@ -136,7 +138,8 @@ before the reset is free, so never leave it idle while there is runnable work.
      `vercel-labs/*` and `paypal/*`; other publishers go to the SKILLS.md "Candidates" table for Manish, never
      installed. Never create new skills. Size S agents get the relevant installed skills named in their prompt.
    - Scale: the team sizes in this section are the explicit scale for this project's workflows and override the
-     session's `workflowSizeGuideline` ("small"). Never use Fable models (blocked; billed extra).
+     session's `workflowSizeGuideline` ("small"). Never use Fable models (blocked; billed extra). Never set effort
+     `max` on any agent, and never on Opus (Manish, Oct 16); `xhigh` is the ceiling.
    - Size S tasks and docs-only tasks: one agent (`chores` with `model: "haiku"` for docs, or a `general-purpose`
      agent with `model: "sonnet"` for small code), then one independent `reviewer` agent (`model: "sonnet"`; `"opus"`
      if the diff touches PayPal or money paths). Fix its findings before merge.
@@ -190,10 +193,13 @@ Cycles that did work also update the repo:
 - `LOG.md`: one block per working cycle, newest at the top:
   `## <local date time> | W start→end % | F start→end % | <task id> | <result: merged #n / in-progress / skipped why>`
   plus up to 3 lines of decisions or problems.
-- Once a day (first cycle after 08:00 local), before picking tasks: run the `system-audit` workflow
+- Once a day (first cycle after 08:00 local), before picking tasks, unless `main` HEAD equals the sha in
+  `~/.rebuttal-autopilot/last-audit-sha` (nothing changed since the last audit: skip it and log "audit skipped: no
+  change"): run the `system-audit` workflow
   (`scriptPath: "/Users/manish/Documents/rebuttal/.claude/workflows/system-audit.js"`, `args: {sha: <main HEAD>,
   scratch: <a new empty folder under ~/.rebuttal-autopilot/audit-<date>>}`). Add every returned task to `QUEUE.md`
   (priority `now` goes to the top of `## Tasks`), log the summary and the rejected count, and alert if `critical`.
+  Then write the audited sha to `~/.rebuttal-autopilot/last-audit-sha`.
   Then put a 5-line plain-English progress summary at the top of `LOG.md` under `# Daily summary <date>` (first
   line: the `progress.py` output), and refresh
   `STATUS.md`.
