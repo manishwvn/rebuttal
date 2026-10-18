@@ -156,7 +156,7 @@ decisions are written up as short records in [docs/adr/](docs/adr/README.md).
    `execute`, which refuses to run without one. [ADR 0003](docs/adr/0003-human-approval-via-interrupt.md).
 5. **Deterministic `PayPal-Request-Id` and audit log.** Every approved write carries a request id derived from the
    proposal id, action index and kind, and every agent step and write is appended to the audit log. [ADR 0005](docs/adr/0005-deterministic-request-id-and-audit-log.md).
-6. **Honest evals.** Two held-out sets that no code was tuned against. [ADR 0007](docs/adr/0007-held-out-evals.md).
+6. **Honest evals.** Two held-out sets, written blind to the guard and facts code. [ADR 0007](docs/adr/0007-held-out-evals.md).
 
 Two tests that must stay green: `backend/tests/test_write_boundary.py` and
 `backend/tests/test_core.py::test_analyze_never_writes_to_paypal`.
@@ -204,7 +204,7 @@ violations (PayPal writes before approval) are 0 in every run.
 | Main set | 2026-10-07 | nvidia z-ai/glm-5.3 | final only | 100% (20/20) | 100% | 100% of 4 | n/a | 53,138 |
 | Main set | 2026-10-07 | nvidia z-ai/glm-5.3-flash | final only | 95% (19/20) | 94% | 100% of 4 | n/a | 59,808 |
 | **Held-out 1** (10 cases, not tuned against) | 2026-10-09 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 3 | 2/10 (20%) | 13,685 |
-| **Held-out 2** (10 cases, not tuned against) | 2026-10-10 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 6 | 2/10 (20%) | 13,979 |
+| **Held-out 2** (10 cases, one case later fixed, see notes) | 2026-10-10 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 6 | 2/10 (20%) | 13,979 |
 
 Offline rules baseline (no model, `uv run python -m evals.run --rules`, re-run Oct 14, 2026 for this README): model
 alone 75%, final 85% overall, 100% standard, 25% hard (4 cases). The hard cases are what the model has to win.
@@ -213,6 +213,8 @@ Read these honestly:
 
 - The main set was used to develop the guard and facts code, so its score is a development number. The held-out
   numbers are the honest ones. Samples are small (10 cases each).
+- On Oct 18 the rules baseline and `guard()` were fixed after Held-out 2 showed a double refund
+  (`ho2_dup_already_refunded`); the Oct 10 numbers predate the fix, and later results on that case are not blind.
 - Scores swing 75-95% from run to run on the main set.
 - `snad_outside_window` is a judgment call (a partial refund is defensible), and `ho2_inr_unit_format` hits a known
   limit: the facts code does not normalise street suffixes, so it can report an address mismatch that is not real.

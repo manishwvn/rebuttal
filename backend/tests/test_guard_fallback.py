@@ -2,6 +2,7 @@
 
 import pytest
 
+from evals import run as ev
 from rebuttal.agent.facts import _compute_facts, gather
 from rebuttal.agent.reasoner import (
     RESOLUTIONS,
@@ -13,7 +14,7 @@ from rebuttal.agent.reasoner import (
     paypal_allows,
 )
 from rebuttal.runtime import Runtime
-from rebuttal.scenarios import DEMO_NOW
+from rebuttal.scenarios import DEMO_NOW, load_cases, seed_case
 
 ORDERLESS_REASONS = ("MERCHANDISE_OR_SERVICE_NOT_RECEIVED", "CREDIT_NOT_PROCESSED", "UNAUTHORISED")
 
@@ -240,6 +241,149 @@ def test_damaged_small_claim_is_still_refunded_without_return():
     case.facts = _compute_facts(case.order, None, None, 15.0, DEMO_NOW, case.buyer_messages)
     d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "ACCEPT_CLAIM" and d.confidence == 0.9
+
+
+# ------------------------------------------- a refund that was already issued is not refunded again (queue R15, p2)
+
+
+def _holdout2_case(case_id):
+    """A gathered case from the second held-out set, seeded the way the eval runner seeds it (mock sandbox, no write)."""
+    spec = next(c for c in load_cases(ev.SETS["holdout2"]) if c["id"] == case_id)
+    rt = Runtime(settings=ev.eval_settings(), seed_cases=[], force_rules=True, tracing=False, provider=None, strict=True)
+    seed_case(spec, 0, rt.mock, rt.store)
+    return gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
+
+
+def _refund_issued(case, refunded):
+    case.facts.update(refund_issued=True, refunded_amount=refunded)
+    return case
+
+
+@pytest.mark.parametrize("resolution", ["ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND"])
+def test_a_refund_that_covers_the_disputed_amount_is_not_refunded_again(resolution):
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount)
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_holdout2_duplicate_already_refunded_gets_refund_proof_not_a_second_refund():
+    case = _holdout2_case("ho2_dup_already_refunded")
+    case.facts.update(refund_issued=True, refunded_amount=case.amount, duplicate_charge_found=True,
+                      transaction_search_available=True)
+    assert RuleReasoner().decide(case).resolution == "SUBMIT_REFUND_PROOF"
+    for resolution in ("ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND"):
+        d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+        assert d.resolution == "SUBMIT_REFUND_PROOF"
+
+
+def test_a_duplicate_claim_with_one_charge_and_no_refund_is_submitted_as_evidence():
+    case = _gather("duplicate_false")
+    case.facts.update(refund_issued=False, refunded_amount=0.0, transaction_search_available=True,
+                      duplicate_charge_found=False)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_EVIDENCE" and d.evidence_summary
+    assert any("Transaction Search found no second matching charge" in n for n in d.guard_notes)
+
+
+def test_a_duplicate_claim_with_a_second_charge_keeps_the_claim():
+    case = _gather("duplicate_true")
+    case.facts.update(refund_issued=False, refunded_amount=0.0, transaction_search_available=True,
+                      duplicate_charge_found=True)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM"
+    assert not any("Transaction Search found no second matching charge" in n for n in d.guard_notes)
+
+
+def test_a_duplicate_claim_without_transaction_search_keeps_the_claim():
+    case = _gather("duplicate_false")
+    case.facts.update(refund_issued=False, refunded_amount=0.0, transaction_search_available=False,
+                      duplicate_charge_found=False)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM"
+    assert not any("Transaction Search found no second matching charge" in n for n in d.guard_notes)
+
+
+def test_a_partial_refund_already_issued_keeps_the_claim_at_low_confidence_and_names_the_remainder():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount / 2)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and d.confidence <= 0.5
+    assert any(f"A refund of ${case.amount / 2:.2f} of the ${case.amount:.2f} disputed was already issued" in n
+               for n in d.guard_notes)
+
+
+def test_a_refund_within_a_cent_of_the_disputed_amount_counts_as_full():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount - 0.005)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_refund_on_another_reason_does_not_trigger_the_refusal():
+    case = _gather("snad_changed_mind")
+    _refund_issued(case, case.amount)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM"
+    assert not any("refusing a second one" in n or "was already issued" in n for n in d.guard_notes)
+
+
+def test_a_full_refund_gathered_from_paypal_is_not_refunded_again_without_an_injected_total():
+    case = _gather("cnp_refunded")
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_refund_with_an_unknown_total_counts_as_full_and_does_not_crash():
+    case = _gather("cnp_refunded")
+    case.facts.update(refund_issued=True, refunded_amount=None)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+@pytest.mark.parametrize("resolution", ["OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND"])
+def test_a_partial_refund_at_chargeback_is_not_topped_up_by_a_paypal_alternative(resolution):
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount / 2)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == resolution and d.confidence <= 0.3
+    assert any(f"A refund of ${case.amount / 2:.2f} of the ${case.amount:.2f} disputed was already issued" in n
+               for n in d.guard_notes)
+    assert any("no close alternative" in n for n in d.guard_notes)
+    assert not any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_likely_lost_package_does_not_turn_tracking_into_a_second_refund():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount)
+    case.facts.update(has_tracking=True, likely_lost=True, buyer_asks_for_refund=True)
+    d = guard(Decision("SHARE_TRACKING", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_full_refund_at_chargeback_is_not_repeated_by_a_paypal_alternative():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+@pytest.mark.parametrize("search_available", [True, False])
+def test_a_refund_on_file_on_a_duplicate_claim_is_refund_proof_whatever_the_search_says(search_available):
+    case = _gather("duplicate_false")
+    case.facts.update(refund_issued=True, refund_ids=["R1"], refunded_amount=case.amount,
+                      duplicate_charge_found=False, transaction_search_available=search_available)
+    assert RuleReasoner().decide(case).resolution == "SUBMIT_REFUND_PROOF"
 
 
 @pytest.mark.parametrize("resolution", ["ACCEPT_CLAIM", "SUBMIT_EVIDENCE", "SUBMIT_REFUND_PROOF"])

@@ -57,13 +57,19 @@ JUDGMENT_CALLS = {
                            "business choice that avoids a fight over $40, so models that pick it are not clearly wrong.",
 }
 
-# Cases in the held-out sets whose miss is a known limit of the facts code, not a model failure. Same display as
-# JUDGMENT_CALLS; the labels are kept (they are the correct outcome) and nothing is tuned against them.
+# Cases in the held-out sets with a note. Each entry is either a known limit of the facts code, not a model failure,
+# or a miss that prompted a fix. Same display as JUDGMENT_CALLS, tagged "note"; the labels are kept (they are the
+# correct outcome) and nothing is tuned against the known limits.
 HOLDOUT2_NOTES = {
     "ho2_inr_unit_format": "Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' "
                            "are one address, but the code that compares the ship-to with the delivered-to address "
                            "does not normalise street suffixes or unit markers, so it can report a mismatch. We keep "
                            "the case and the label, and do not tune against it.",
+    "ho2_dup_already_refunded": "The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That "
+                                "miss prompted the R15 fix: the rules check the refund before the duplicate charge, "
+                                "and guard() refuses a second refund. The case and its label are kept unchanged, and "
+                                "it now passes. This was a real fix prompted by a held-out result, so later results "
+                                "on this case are no longer blind.",
 }
 
 
@@ -151,9 +157,10 @@ def write_results_md() -> None:
                                  "evals/holdout.json: 10 disputes written independently of the guard and facts code. "
                                  "Run and reported only; no code is tuned against these results.", {})
     if holdout2:
-        lines += [""] + _section(holdout2, "Held-out set 2 (not used for tuning)",
+        lines += [""] + _section(holdout2, "Held-out set 2 (one case later fixed)",
                                  "evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. "
-                                 "Run and reported only; no code is tuned against these results.", HOLDOUT2_NOTES, "facts limit")
+                                 "Run and reported; one case (ho2_dup_already_refunded) prompted a fix, see notes.",
+                                 HOLDOUT2_NOTES, "note")
     (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
 
 

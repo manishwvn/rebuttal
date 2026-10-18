@@ -45,7 +45,7 @@ The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built wi
 - The official PayPal Agent Toolkit could not be used read-only: it pins an old `langchain`, runs any tool by name, bypasses our HTTP transport and omits the payer email we need. We wrote a four-tool read-only adapter in its tool shape instead (ADR 0008).
 - PayPal's Disputes API does not allow every offer type on every dispute. The model kept choosing a replacement that PayPal would refuse, which is why the guard exists.
 - PayPal documents `PayPal-Request-Id` for Orders and Payments but not for Disputes, so we do not rely on it there. `execute` reads the dispute first and skips a message or offer that already landed.
-- Honest evals. We tuned on a 20-case set, so we wrote two held-out sets blind to the guard code and report them separately.
+- Honest evals. We tuned on a 20-case set, so we wrote two held-out sets blind to the guard code and report them separately. One Held-out 2 case (a double refund) later prompted a fix, so results on it are no longer blind.
 - Free-tier limits: a shared Groq token budget and Render cold starts of about 50 seconds.
 
 ## Accomplishments that we're proud of
