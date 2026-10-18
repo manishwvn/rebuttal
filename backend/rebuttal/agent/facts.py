@@ -248,6 +248,8 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
                                            and f["buyer_reports_damage"])
 
     f["refund_issued"] = bool(order.refunds)
+    # The guard compares this with the disputed amount, so a partial refund is not mistaken for a full one.
+    f["refunded_amount"] = round(sum(float(r["amount"]) for r in order.refunds), 2)
     if order.refunds:
         f["refund_ids"] = [r["refund_id"] for r in order.refunds]
     f["return_received"] = bool(order.return_shipment and order.return_shipment.status == "DELIVERED")
