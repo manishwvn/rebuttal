@@ -1,5 +1,17 @@
 # Autopilot log
 
+# Daily summary 2026-10-18
+progress 84% (39/49 tasks done, 23 days to Nov 10 submit)
+Daily system audit on 72b0728 (Sonnet per component, fresh clone, Opus principal): healthy, 961 tests pass, write boundary intact, not critical; 28 raw findings, 4 rejected, 8 tasks queued (R15-R22).
+Main weakness was money logic: a second refund could be proposed, an address written differently became a free replacement, and a retry after a lost checkpoint could resend evidence or accept-claim.
+Fixed today in one team cycle: R15 second refund refused (#96), R17 retry fails closed (#95), R20 judge-path UI copy (#94). Backend 997 passed; rules evals main 85% (0 gate violations), holdout2 90%.
+Next: R16 address near-match, R18 API safety tests, R19 eval re-run, R21 docs sweep, R22 robustness; S4 now also holds R17's three sandbox fixtures (before Nov 3).
+
+## 2026-10-18 16:11 CDT | W 37→49 % | F 2→96 % | audit, R15, R17, R20 | merged #94, #95, #96
+One team-cycle workflow (70 agents, 57 min) over three disjoint tasks; R15 and R17 strict (Opus principal: write boundary and guard intact), R20 non-strict. All three verdicts safe_to_merge with no findings left.
+Merges conflicted only in STATUS.md headers and one test file (both sides kept); lead re-ran pytest (997) and rules evals on the merged R15 branch before merging. Live health ok after merge.
+F reached 96%, so no second round this cycle.
+
 ## 2026-10-18 06:10 CDT | W 18→? % | F 29→? % | R14 | PR (see runs.log)
 Live still served the pre-#92 bundle 10 h after merge. Cause (Render docs): `rootDir: backend` limits auto-deploys to backend/ changes; #92 was frontend-only.
 Sonnet builder: render.yaml without rootDir, `cd backend` commands, buildFilter, test pins it; Sonnet reviewer: no blockers, 2 should-fix applied.
