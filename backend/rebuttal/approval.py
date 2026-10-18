@@ -8,8 +8,8 @@ Two graph nodes live here, side by side so the rule is easy to audit:
 - `execute` makes the PayPal write call. The graph only routes to it after an approve or edit decision, and it
   refuses to run without one. Every call carries a deterministic idempotency key, and before sending it reads the
   dispute to see whether this very action already landed (a retry after a crash). `already_applied` recognises
-  messages and offers only. Escalate and appeal are not recognised: they fall back to `not_allowed_now`, which fails
-  closed once the dispute's stage or links have moved on.
+  messages and offers only. Escalate, appeal, evidence and accept-claim are not recognised: they fall back to
+  `not_allowed_now`, which fails closed once the dispute's stage, links or status have moved on.
 
 Two rules for node code, both learned from review:
 
@@ -97,7 +97,9 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     cannot be relied on here. Messages and offers are recognised. Escalate and appeal are not: a stage move from
     INQUIRY to CHARGEBACK also happens when the buyer escalates, so it cannot prove this action landed. They fall back
     to `not_allowed_now`, which refuses once the dispute's stage or links have moved on, so a retry after a send that
-    landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim fall back the same way.
+    landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim are not recognised either:
+    `not_allowed_now` refuses them unless PayPal is still waiting for the seller (the only status PayPal documents for
+    evidence), so a retry after a send that landed fails closed (`sent` False).
     VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send. The live
     sandbox showed no before and after pair for escalate (docs/sandbox-findings.md item 7), and it accepted an escalate
     on a dispute with no link, so this check is our own fail-closed guard, not a rule PayPal was seen to apply.
@@ -116,8 +118,9 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
 
 def not_allowed_now(dispute: dict, action: dict) -> str | None:
     """Why PayPal would refuse this action on the dispute as it is now, if its own list of allowed responses says
-    so, or for escalate and appeal, if the dispute's links no longer offer them (the dispute may have moved on while
-    the proposal waited, or after a crash that did send). None = go ahead."""
+    so, for escalate and appeal, if the dispute's links no longer offer them, or for evidence and claim acceptance,
+    unless PayPal is still waiting for the seller (the dispute may have moved on while the proposal waited, or after
+    a crash that did send). None = go ahead."""
     kind, params = action["kind"], action["params"]
     # Escalate and appeal do not depend on allowed_response_options, so they are checked before the options logic.
     # The refusal does not say whether an earlier attempt landed: the dispute changed, and it may have been this action.
@@ -130,10 +133,10 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:
         return ("PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made, "
                 "so an earlier attempt may already have been sent)")
-    # After a REFUND_WITH_RETURN acceptance the live dispute is UNDER_REVIEW with no option list, so the options check
-    # below would let a replay through; a claim with a return goes only on the seller's turn.
-    if (kind == "accept_claim" and params.get("accept_claim_type")
-            and dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE"):
+    # Evidence and every claim acceptance go only on the seller's turn. A replay after a send that landed finds the
+    # dispute UNDER_REVIEW or RESOLVED with no option list (a REFUND_WITH_RETURN acceptance leaves it so), so the
+    # options check below would let it through.
+    if kind in ("provide_evidence", "accept_claim") and dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE":
         return ("PayPal is no longer waiting for the seller on this dispute (the dispute has changed since the proposal "
                 "was made, so an earlier attempt may already have been sent)")
     options, _ = effective_options(dispute.get("allowed_response_options"), dispute.get("reason", ""),
