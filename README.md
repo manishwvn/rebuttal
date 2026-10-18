@@ -15,8 +15,8 @@ Built for the PayPal AI Hackathon (Devpost), Oct-Nov 2026. Sandbox only: the cod
 **Live demo, no token, no PayPal account:** <https://rebuttal-oq3g.onrender.com/#demo>
 
 1. Open the link. The service runs on Render's free plan, so the first load can take about 50 seconds if it was idle.
-2. The page creates a private demo session with six seeded disputes. Open the hero case, "Buyer's AI assistant ordered
-   the wrong size" (`agent_wrong_size`). It is already analyzed and waiting for you.
+2. The page creates a private demo session with six seeded disputes. The hero case, row PP-D-2000 ("Not as described"),
+   is already open, analyzed and waiting for you (case id `agent_wrong_size`).
 3. Read the facts (assistant said "medium", the seller shipped a large), the decision (a refund after the return) and
    the drafted message. The demo uses the offline rules reasoner, so no model runs in it.
 4. Edit one line if you like, then approve. One PayPal call goes out, to an in-memory mock sandbox. Open the audit

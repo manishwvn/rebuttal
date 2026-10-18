@@ -84,13 +84,23 @@ test('Try the demo opens the isolated demo and approves the hero case', async ({
   expectIsolated(sent)
 })
 
+test('the hero case is open when the demo starts', async ({ page }) => {
+  await enterDemo(page)
+  await expect(page.locator(`[row-id="${HERO}"]`)).toHaveAttribute('aria-selected', 'true')
+  const panel = page.getByTestId('assistant-panel')
+  await expect(panel).toBeVisible()
+  await expect(panel.getByTestId('assistant-instruction')).toContainText('medium')
+  await expect(panel.getByTestId('assistant-shipped')).toContainText('Size L')
+})
+
 test('Simulator inside the demo adds a case', async ({ page }) => {
   await enterDemo(page)
   await page.getByLabel('Case').selectOption('inr_no_tracking')
   await page.getByRole('button', { name: 'Create dispute' }).click()
 
+  // The hero case is open from the start, so wait until the new case replaces it.
   const caseView = page.getByTestId('case-view')
-  await expect(caseView).toBeVisible()
+  await expect(caseView.locator('.case-head .mono')).not.toContainText(HERO)
   const disputeId = (await caseView.locator('.case-head .mono').innerText()).split(' ')[0]
   expect(disputeId).toMatch(/^PP-D-\d+$/)
   await expect(page.locator(`[row-id="${disputeId}"]`)).toHaveAttribute('aria-selected', 'true')

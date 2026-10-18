@@ -9,7 +9,7 @@ import { SimulatorPanel } from './SimulatorPanel'
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e)) || 'The request failed'
 
 // The dispute desk: the inbox and the open case. Its disputes and audit reads come from useApi().
-export function Desk({ simulator }: { simulator: boolean }) {
+export function Desk({ simulator, initialId }: { simulator: boolean; initialId?: string }) {
   const api = useApi()
   const [disputes, setDisputes] = useState<Dispute[] | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -42,16 +42,22 @@ export function Desk({ simulator }: { simulator: boolean }) {
 
   // The first load and the Retry button share this. A failed load leaves disputes null with the error set, which the
   // inbox shows as a failed state with Retry.
+  // initialId opens that case once, when the load finds it and the user has not picked a case yet.
   const loadDisputes = useCallback(
     () =>
       api.disputes().then(
         (list) => {
           setDisputes(list)
           setError(null)
+          if (initialId && openId.current === null && list.some((d) => d.dispute_id === initialId)) {
+            openId.current = initialId
+            setSelectedId(initialId)
+            loadAudit(initialId).catch((e: unknown) => setError(message(e)))
+          }
         },
         (e: unknown) => setError(message(e)),
       ),
-    [api],
+    [api, initialId, loadAudit],
   )
 
   useEffect(() => {
