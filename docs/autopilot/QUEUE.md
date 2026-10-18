@@ -172,7 +172,7 @@ Make the USER item: post `docs/discord-preview.md` in the AG Grid and general ch
 ### D1 Feature freeze — Nov 3
 From Nov 3 only fixes, docs, video. Move any unfinished feature task to `## Cut` with one line why.
 
-### R13 Early final-check dry run — size M — todo — priority now (banked reset week, Oct 18-20)
+### R13 Early final-check dry run — size M — in-progress (cycle 2026-10-18T01:11:09-05:00) — priority now (banked reset week, Oct 18-20)
 Run the D2 checklist now, minus the video and Devpost items, so problems surface before the Nov 3 freeze: gitleaks
 over the whole history, every README link, CI green, live health ok, judge demo mode from a fresh browser (Playwright,
 no console errors), the documented judge commands leave the tree clean. Fix what fails in small PRs; record results
