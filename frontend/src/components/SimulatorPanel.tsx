@@ -40,7 +40,7 @@ export function SimulatorPanel({ onCreated }: Props) {
     <section className="block simulator" aria-labelledby="sim-title" data-testid="simulator">
       <div className="block-head">
         <h2 id="sim-title">Simulator</h2>
-        <p>Mock sandbox only: create a labeled dispute and watch the agent handle it. Nothing leaves this machine.</p>
+        <p>Mock sandbox only: create a labeled dispute and watch the agent handle it. Nothing is sent to PayPal.</p>
       </div>
       <div className="actions">
         <label htmlFor="sim-case" className="label">
