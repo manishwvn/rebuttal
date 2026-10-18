@@ -80,9 +80,17 @@ def _escalation_offered(case: CaseFile) -> bool:
             and case.facts.get("can_escalate") is True)
 
 
+# Evidence and claim acceptance go only on the seller's turn; `approval.not_allowed_now` refuses them otherwise, so the
+# analysis must not propose them (PayPal still lists accept_claim REFUND while it waits for the buyer).
+SELLER_TURN_ONLY = ("ACCEPT_CLAIM", "SUBMIT_EVIDENCE", "SUBMIT_REFUND_PROOF")
+
+
 def paypal_allows(resolution: str, case: CaseFile) -> bool:
     """False when PayPal's allowed_response_options (or, if it gave none, the proven fallback) rule it out.
-    ESCALATE is allowed only at INQUIRY with can_escalate; APPEAL only with can_appeal (the case facts say PayPal offers them)."""
+    ESCALATE is allowed only at INQUIRY with can_escalate; APPEAL only with can_appeal (the case facts say PayPal offers them).
+    ACCEPT_CLAIM, SUBMIT_EVIDENCE and SUBMIT_REFUND_PROOF only while the seller is to respond."""
+    if resolution in SELLER_TURN_ONLY and case.status != "WAITING_FOR_SELLER_RESPONSE":
+        return False
     if resolution == "ESCALATE":
         return _escalation_offered(case)
     if resolution == "APPEAL":

@@ -15,7 +15,8 @@ async function simulate(page: Page, caseId: string): Promise<string> {
   return disputeId
 }
 
-const statusCell = (page: Page, disputeId: string) => page.locator(`[row-id="${disputeId}"] [col-id="status"]`)
+// The shared backend's inbox outgrows the grid's rendered rows, so scroll to the dispute before reading its cell.
+const statusCell = (page: Page, disputeId: string) => inboxCell(page, disputeId, 'status')
 const auditSteps = (page: Page) => page.getByTestId('audit-trail').locator('li').evaluateAll((items) => items.map((li) => li.getAttribute('data-step')))
 
 test('hero case: assistant said medium, shipped L; guard note; approve with an edited message', async ({ page }) => {
@@ -23,7 +24,7 @@ test('hero case: assistant said medium, shipped L; guard note; approve with an e
   const caseView = page.getByTestId('case-view')
 
   // The new dispute is in the inbox, pending, and is the open row.
-  await expect(statusCell(page, disputeId)).toHaveText('Pending')
+  await expect(await statusCell(page, disputeId)).toHaveText('Pending')
   await expect(page.locator(`[row-id="${disputeId}"]`)).toHaveAttribute('aria-selected', 'true')
 
   // Assistant instruction vs what shipped, side by side.
@@ -56,8 +57,8 @@ test('hero case: assistant said medium, shipped L; guard note; approve with an e
   // Status changes in the case and the inbox, and the audit trail gains the approval and the execution.
   await expect(dialog).toBeHidden()
   await expect(page.getByTestId('case-status')).toHaveText('Executed')
-  await expect(statusCell(page, disputeId)).toHaveText('Executed')
-  await expect(caseView.getByLabel(/Message the buyer will receive/)).toHaveValue(EDITED)
+  await expect(await statusCell(page, disputeId)).toHaveText('Executed')
+  await expect(caseView.getByTestId('approved-text')).toHaveText(EDITED)
   await expect(caseView.getByRole('button', { name: /Approve|Reject/ })).toHaveCount(0)
   await expect.poll(() => auditSteps(page)).toEqual(['gather', 'decide', 'guard', 'propose', 'approve', 'execute', 'record'])
   await expect(caseView.locator('.result')).toContainText('Sent to PayPal.')
@@ -68,7 +69,7 @@ test('hero case: assistant said medium, shipped L; guard note; approve with an e
 test('reject: nothing is sent to PayPal and the reason lands in the audit trail', async ({ page }) => {
   const disputeId = await simulate(page, 'inr_no_tracking')
   const caseView = page.getByTestId('case-view')
-  await expect(statusCell(page, disputeId)).toHaveText('Pending')
+  await expect(await statusCell(page, disputeId)).toHaveText('Pending')
 
   await caseView.getByRole('button', { name: 'Reject' }).click()
   const dialog = page.getByRole('dialog')
@@ -78,7 +79,7 @@ test('reject: nothing is sent to PayPal and the reason lands in the audit trail'
 
   await expect(dialog).toBeHidden()
   await expect(page.getByTestId('case-status')).toHaveText('Rejected')
-  await expect(statusCell(page, disputeId)).toHaveText('Rejected')
+  await expect(await statusCell(page, disputeId)).toHaveText('Rejected')
   await expect(caseView).toContainText('Nothing was sent to PayPal')
   await expect(page.getByTestId('audit-trail')).toContainText('I will call the buyer myself')
   await expect(caseView.getByRole('button', { name: 'Approve' })).toHaveCount(0)
@@ -152,7 +153,7 @@ test('an interrupted PayPal call: the approval is saved, Retry shows the approve
 
   // The case reads Approved and shows the edited text, not the original draft, with a way to continue.
   await expect(page.getByTestId('case-status')).toHaveText('Approved')
-  await expect(statusCell(page, disputeId)).toHaveText('Approved')
+  await expect(await statusCell(page, disputeId)).toHaveText('Approved')
   await expect(caseView.getByTestId('approved-text')).toHaveText(EDITED)
   await expect(caseView).toContainText('your edited version')
   await expect(caseView.getByRole('button', { name: 'Approve' })).toHaveCount(0)
@@ -166,8 +167,8 @@ test('an interrupted PayPal call: the approval is saved, Retry shows the approve
   // It finishes without a second call: the offer was already at PayPal, and the audit trail says so.
   await expect(dialog).toBeHidden()
   await expect(page.getByTestId('case-status')).toHaveText('Executed')
-  await expect(statusCell(page, disputeId)).toHaveText('Executed')
-  await expect(caseView.getByLabel(/Message the buyer will receive/)).toHaveValue(EDITED)
+  await expect(await statusCell(page, disputeId)).toHaveText('Executed')
+  await expect(caseView.getByTestId('approved-text')).toHaveText(EDITED)
   await expect(page.getByTestId('audit-trail')).toContainText('Already at PayPal from the first attempt, not sent again')
   await expect(page.getByTestId('audit-trail')).toContainText('PayPal call interrupted')
   // (`execute` re-runs on a retry and logs its approval line again, so `approve` can appear twice.)

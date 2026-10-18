@@ -191,7 +191,8 @@ def test_not_allowed_now_refuses_appeal_once_the_appeal_link_is_gone():
 
 
 def test_not_allowed_now_still_checks_offers_and_claims_against_allowed_response_options():
-    options = {"allowed_response_options": {"make_offer": {"offer_types": ["REFUND"]}}}
+    options = {"status": "WAITING_FOR_SELLER_RESPONSE",
+               "allowed_response_options": {"make_offer": {"offer_types": ["REFUND"]}}}
 
     def offer(offer_type: str) -> dict:
         return {"kind": "make_offer", "params": {"offer_type": offer_type, "note": "x"}}
@@ -200,7 +201,18 @@ def test_not_allowed_now_still_checks_offers_and_claims_against_allowed_response
     assert not_allowed_now(options, offer("REFUND")) is None
     assert "REFUND_WITH_RETURN" in not_allowed_now(options, offer("REFUND_WITH_RETURN"))
     assert "accepting this claim" in not_allowed_now(options, accept)
-    assert not_allowed_now({"dispute_life_cycle_stage": "INQUIRY"}, accept) is None
+    assert not_allowed_now({"dispute_life_cycle_stage": "INQUIRY", "status": "WAITING_FOR_SELLER_RESPONSE"},
+                           accept) is None
+
+
+def test_not_allowed_now_refuses_evidence_and_claims_unless_paypal_still_waits_for_the_seller():
+    evidence = {"kind": "provide_evidence", "params": {"evidences": [], "filename": "e.pdf"}}
+    claim = {"kind": "accept_claim", "params": {"note": "x"}}
+    for action in (evidence, claim):
+        for dispute in ({"status": "UNDER_REVIEW"}, {"status": "RESOLVED"}, {"status": "WAITING_FOR_BUYER_RESPONSE"},
+                        {"dispute_life_cycle_stage": "INQUIRY"}):  # the last one has no status key
+            assert "no longer waiting for the seller" in not_allowed_now(dispute, action)
+        assert not_allowed_now({"status": "WAITING_FOR_SELLER_RESPONSE"}, action) is None
 
 
 # ------------------------------------------------------------------------------------------ already_applied

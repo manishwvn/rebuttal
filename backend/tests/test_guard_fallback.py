@@ -384,3 +384,25 @@ def test_a_refund_on_file_on_a_duplicate_claim_is_refund_proof_whatever_the_sear
     case.facts.update(refund_issued=True, refund_ids=["R1"], refunded_amount=case.amount,
                       duplicate_charge_found=False, transaction_search_available=search_available)
     assert RuleReasoner().decide(case).resolution == "SUBMIT_REFUND_PROOF"
+
+
+@pytest.mark.parametrize("resolution", ["ACCEPT_CLAIM", "SUBMIT_EVIDENCE", "SUBMIT_REFUND_PROOF"])
+@pytest.mark.parametrize("status", ["WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW", "RESOLVED"])
+def test_evidence_and_claim_acceptance_are_not_allowed_off_the_sellers_turn(resolution, status):
+    case = _gather("inr_no_tracking")
+    assert case.status == "WAITING_FOR_SELLER_RESPONSE"
+    assert paypal_allows(resolution, case)
+    case.status = status
+    assert not paypal_allows(resolution, case)
+
+
+def test_nothing_proposes_an_accept_claim_that_execute_would_refuse_while_the_buyer_is_to_respond():
+    """PayPal still lists accept_claim REFUND on WAITING_FOR_BUYER_RESPONSE; `execute` refuses it there, so the analysis
+    must not propose it (the merchant would approve an action that is certain to fail)."""
+    case = _gather("inr_no_tracking")
+    case.status = "WAITING_FOR_BUYER_RESPONSE"
+    case.allowed_response_options = {"accept_claim": {"accept_claim_types": ["REFUND"]}}
+    assert RuleReasoner().decide(case).resolution == "ACCEPT_CLAIM"
+    d = guard(RuleReasoner().decide(case), case)
+    assert d.confidence <= 0.3
+    assert any("ACCEPT_CLAIM is not possible" in n for n in d.guard_notes)
