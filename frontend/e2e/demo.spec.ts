@@ -69,7 +69,8 @@ test('Try the demo opens the isolated demo and approves the hero case', async ({
   await expect(page.getByTestId('inbox').locator('.ag-row')).toHaveCount(6)
   for (const id of SEEDED) await expect(page.locator(`[row-id="${id}"]`)).toBeVisible()
 
-  await page.locator(`[row-id="${HERO}"]`).click()
+  // The hero case is already open: no click is needed to see the assistant's instruction.
+  await expect(page.locator(`[row-id="${HERO}"]`)).toHaveAttribute('aria-selected', 'true')
   const panel = page.getByTestId('assistant-panel')
   await expect(panel.getByTestId('assistant-instruction')).toContainText('medium')
   await expect(panel.getByTestId('assistant-shipped')).toContainText('Size L')
@@ -84,17 +85,10 @@ test('Try the demo opens the isolated demo and approves the hero case', async ({
   expectIsolated(sent)
 })
 
-test('the hero case is open when the demo starts', async ({ page }) => {
-  await enterDemo(page)
-  await expect(page.locator(`[row-id="${HERO}"]`)).toHaveAttribute('aria-selected', 'true')
-  const panel = page.getByTestId('assistant-panel')
-  await expect(panel).toBeVisible()
-  await expect(panel.getByTestId('assistant-instruction')).toContainText('medium')
-  await expect(panel.getByTestId('assistant-shipped')).toContainText('Size L')
-})
-
 test('Simulator inside the demo adds a case', async ({ page }) => {
   await enterDemo(page)
+  // The simulator also renders here, so its copy must not claim that nothing leaves the machine.
+  await expect(page.getByTestId('simulator')).toContainText('Nothing is sent to PayPal.')
   await page.getByLabel('Case').selectOption('inr_no_tracking')
   await page.getByRole('button', { name: 'Create dispute' }).click()
 
