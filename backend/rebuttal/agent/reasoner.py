@@ -358,17 +358,6 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         return fallback("Proposed sharing tracking, but there is no tracking.")
     if decision.resolution == "SUBMIT_REFUND_PROOF" and not f.get("refund_issued"):
         return fallback("Proposed refund proof, but no refund exists.")
-    if (decision.resolution in ("ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND")
-            and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION") and f.get("refund_issued")):
-        # A refund already went out, so a second one would pay the buyer twice. A partial refund only leaves the
-        # remainder to check.
-        # An unknown refunded total counts as a full refund: refusing a second payment is the safe default.
-        refunded = f.get("refunded_amount")
-        if refunded is None or refunded >= case.amount - 0.01:
-            return fallback("A refund was already issued; refusing a second one.")
-        notes.append(f"A refund of ${refunded:.2f} of the ${case.amount:.2f} disputed was already issued; the merchant "
-                     "should check the remainder before approving.")
-        decision.confidence = min(decision.confidence, 0.5)
     if decision.resolution == "ESCALATE" and not (_escalation_offered(case)
                                                   and f.get("shipment_status") == "DELIVERED"
                                                   and f.get("delivered_address_matches") is True
@@ -434,6 +423,19 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             notes.append("Delivered to a different address than the order; tracking does not prove this buyer "
                          "received it.")
             decision.confidence = min(decision.confidence, 0.5)
+    if (decision.resolution in ("ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND")
+            and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION") and f.get("refund_issued")):
+        # Runs after the conversions above (a likely-lost package turns tracking into a refund) and before the
+        # duplicate-charge one, which would hide an ACCEPT_CLAIM from it.
+        # A refund already went out, so a second one would pay the buyer twice. A partial refund only leaves the
+        # remainder to check.
+        # An unknown refunded total counts as a full refund: refusing a second payment is the safe default.
+        refunded = f.get("refunded_amount")
+        if refunded is None or refunded >= case.amount - 0.01:
+            return fallback("A refund was already issued; refusing a second one.")
+        notes.append(f"A refund of ${refunded:.2f} of the ${case.amount:.2f} disputed was already issued; the merchant "
+                     "should check the remainder before approving.")
+        decision.confidence = min(decision.confidence, 0.5)
     if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "DUPLICATE_TRANSACTION"
             and f.get("transaction_search_available") is True and f.get("duplicate_charge_found") is False):
         decision.resolution = "SUBMIT_EVIDENCE"

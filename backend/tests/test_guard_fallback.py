@@ -359,6 +359,15 @@ def test_a_partial_refund_at_chargeback_is_not_topped_up_by_a_paypal_alternative
     assert not any("refusing a second one" in n for n in d.guard_notes)
 
 
+def test_a_likely_lost_package_does_not_turn_tracking_into_a_second_refund():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount)
+    case.facts.update(has_tracking=True, likely_lost=True, buyer_asks_for_refund=True)
+    d = guard(Decision("SHARE_TRACKING", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
 def test_a_full_refund_at_chargeback_is_not_repeated_by_a_paypal_alternative():
     case = _gather("cnp_refunded")
     _refund_issued(case, case.amount)
