@@ -276,6 +276,40 @@ def test_a_crash_after_a_message_does_not_send_it_twice_even_if_paypal_ignores_t
     assert len(sellers) == 1 and len(rt.mock.write_calls()) == 1
 
 
+def test_a_crash_after_evidence_fails_closed_on_retry_even_if_paypal_ignores_the_key(monkeypatch):
+    """Evidence goes only while PayPal waits for the seller. After a send that landed, the retry must refuse it
+    rather than send it again, even with the mock's replay cache switched off."""
+    rt = Runtime(seed_cases=["inr_delivered_claim"], force_rules=True)
+    monkeypatch.setattr(rt.mock, "_replays", type("NoCache", (dict,), {"__contains__": lambda *a: False})())
+    p = rt.analyze("PP-D-2000")
+    assert p.actions[0].kind == "provide_evidence"
+    crash_after_paypal_answers(monkeypatch)
+    with pytest.raises(RuntimeError, match="process died"):
+        rt.approvals.approve(p.id)
+    assert len(rt.mock.write_calls()) == 1
+    done = rt.approvals.retry(p.id)
+    assert len(rt.mock.write_calls()) == 1
+    assert done.result[0]["ok"] is False and done.result[0]["sent"] is False
+    assert done.status == "FAILED" and "an earlier attempt may already have been sent" in done.result[0]["error"]
+
+
+def test_a_crash_after_accept_claim_fails_closed_on_retry_even_if_paypal_ignores_the_key(monkeypatch):
+    """A plain claim acceptance goes only while PayPal waits for the seller. After a send that landed, the retry must
+    refuse it rather than send it again, even with the mock's replay cache switched off."""
+    rt = Runtime(seed_cases=["inr_no_tracking"], force_rules=True)
+    monkeypatch.setattr(rt.mock, "_replays", type("NoCache", (dict,), {"__contains__": lambda *a: False})())
+    p = rt.analyze("PP-D-2000")
+    assert p.actions[0].kind == "accept_claim"
+    crash_after_paypal_answers(monkeypatch)
+    with pytest.raises(RuntimeError, match="process died"):
+        rt.approvals.approve(p.id)
+    assert len(rt.mock.write_calls()) == 1
+    done = rt.approvals.retry(p.id)
+    assert len(rt.mock.write_calls()) == 1
+    assert done.result[0]["ok"] is False and done.result[0]["sent"] is False
+    assert done.status == "FAILED" and "an earlier attempt may already have been sent" in done.result[0]["error"]
+
+
 def test_a_failure_before_the_paypal_call_leaves_nothing_sent_and_cannot_be_flipped_to_a_reject(rt, monkeypatch):
     """A failure after the human answered must not let that first answer decide a later one (review blocker)."""
     p = rt.analyze("PP-D-2000")
