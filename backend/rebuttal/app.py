@@ -95,12 +95,16 @@ def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError
     debug_id = exc.debug_id if isinstance(exc, PayPalError) else None
     logger.warning("PayPal call interrupted for %s: %s status=%s debug_id=%s", proposal_id, type(exc).__name__,
                    status, debug_id)
+    dispute_id = DisputeAgent.dispute_of(proposal_id)
     try:
-        dispute_id = DisputeAgent.dispute_of(proposal_id)
         latest = rt.approvals.latest_for(dispute_id)
         proposal = latest if latest and latest.id == proposal_id else None  # a newer proposal's keys were never sent
         actions = [{"action": a.kind, "idempotency_key": idempotency_key(proposal_id, i, a.kind)}
                    for i, a in enumerate(proposal.actions)] if proposal else []
+    except Exception:  # noqa: BLE001 - an unreadable proposal must not cost the audit row its status and debug_id
+        logger.exception("Could not read the proposal %s for the audit", proposal_id)
+        actions = []
+    try:
         rt.audit.log(dispute_id, "execute_interrupted",
                      {"proposal": proposal_id, "status": status, "debug_id": debug_id, "error": type(exc).__name__,
                       "actions": actions})

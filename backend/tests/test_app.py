@@ -252,6 +252,10 @@ def test_a_paypal_error_still_gives_a_readable_502_when_the_proposal_cannot_be_r
     monkeypatch.setattr(app_module.rt.approvals, "latest_for", unreadable)
     failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
     assert failed.status_code == 502 and "approval is saved" in failed.json()["detail"]
+    rows = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
+    assert len(rows) == 1
+    assert rows[0]["detail"]["status"] == 503 and rows[0]["detail"]["debug_id"] == "debug-abc"
+    assert rows[0]["detail"]["actions"] == []
 
 
 def test_a_network_error_during_retry_is_a_readable_502(client, monkeypatch):
