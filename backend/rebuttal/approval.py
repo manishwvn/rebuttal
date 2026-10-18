@@ -100,6 +100,11 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     landed fails closed (`sent` False) instead of being reconciled. Evidence and accept-claim are not recognised either:
     `not_allowed_now` refuses them unless PayPal is still waiting for the seller (the only status PayPal documents for
     evidence), so a retry after a send that landed fails closed (`sent` False).
+    VERIFY: that evidence and claim refusal holds only if a read after a landed send shows PayPal left the seller's
+    turn. The sandbox record does not confirm it: provide_evidence is listed in UNDER_REVIEW (docs/sandbox-findings.md
+    :116, :231, :240), accept_claim REFUND in WAITING_FOR_BUYER_RESPONSE (:200, :241), reads can lag writes (:206), and
+    the evidence status UNDER_REVIEW after a send is in the run log only (:253). A plain accept to RESOLVED has no
+    live record. Confirm with a sandbox fixture before the Nov 3 freeze.
     VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send. The live
     sandbox showed no before and after pair for escalate (docs/sandbox-findings.md item 7), and it accepted an escalate
     on a dispute with no link, so this check is our own fail-closed guard, not a rule PayPal was seen to apply.
@@ -133,9 +138,13 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     if kind == "appeal" and not dispute_actions(dispute)["can_appeal"]:
         return ("PayPal no longer allows appealing this dispute (the dispute has changed since the proposal was made, "
                 "so an earlier attempt may already have been sent)")
-    # Evidence and every claim acceptance go only on the seller's turn. A replay after a send that landed finds the
-    # dispute UNDER_REVIEW or RESOLVED with no option list (a REFUND_WITH_RETURN acceptance leaves it so), so the
+    # Evidence and every claim acceptance go only on the seller's turn. A replay after a send that landed may find the
+    # dispute UNDER_REVIEW or RESOLVED with no option list (a REFUND_WITH_RETURN acceptance may leave it so), so the
     # options check below would let it through.
+    # VERIFY: this rule's fail-closed result holds only if a read after a landed send shows PayPal left the seller's
+    # turn. The sandbox record does not confirm that (docs/sandbox-findings.md :116, :200, :206, :231, :241, :253), so
+    # the refusal can say an earlier attempt may have been sent when none was. Narrowing the rule reopens the replay
+    # hole, so keep it until a fixture confirms the status after each send.
     if kind in ("provide_evidence", "accept_claim") and dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE":
         return ("PayPal is no longer waiting for the seller on this dispute (the dispute has changed since the proposal "
                 "was made, so an earlier attempt may already have been sent)")
