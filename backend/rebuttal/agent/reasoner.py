@@ -362,8 +362,9 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION") and f.get("refund_issued")):
         # A refund already went out, so a second one would pay the buyer twice. A partial refund only leaves the
         # remainder to check.
-        refunded = f.get("refunded_amount", 0.0)
-        if refunded >= case.amount - 0.01:
+        # An unknown refunded total counts as a full refund: refusing a second payment is the safe default.
+        refunded = f.get("refunded_amount")
+        if refunded is None or refunded >= case.amount - 0.01:
             return fallback("A refund was already issued; refusing a second one.")
         notes.append(f"A refund of ${refunded:.2f} of the ${case.amount:.2f} disputed was already issued; the merchant "
                      "should check the remainder before approving.")
@@ -445,6 +446,10 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
         instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
         if instead:
+            if (instead in ("ACCEPT_CLAIM", "OFFER_RETURN_FOR_REFUND") and f.get("refund_issued")
+                    and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION")):
+                # The refund block above saw only the offer; this alternative would refund the buyer in full again.
+                return fallback("A refund was already issued; refusing a second one.")
             decision.resolution = instead
             decision.message_to_buyer = draft_message(instead, case)  # the old text promised something else
             if wanted == "OFFER_REPLACEMENT" and "right one" not in decision.message_to_buyer:

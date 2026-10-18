@@ -328,3 +328,37 @@ def test_a_refund_on_another_reason_does_not_trigger_the_refusal():
     d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "ACCEPT_CLAIM"
     assert not any("refusing a second one" in n or "was already issued" in n for n in d.guard_notes)
+
+
+def test_a_full_refund_gathered_from_paypal_is_not_refunded_again_without_an_injected_total():
+    case = _gather("cnp_refunded")
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_refund_with_an_unknown_total_counts_as_full_and_does_not_crash():
+    case = _gather("cnp_refunded")
+    case.facts.update(refund_issued=True, refunded_amount=None)
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+@pytest.mark.parametrize("resolution", ["OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND"])
+def test_a_partial_refund_at_chargeback_is_not_topped_up_by_a_paypal_alternative(resolution):
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount / 2)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "SUBMIT_REFUND_PROOF"
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+@pytest.mark.parametrize("search_available", [True, False])
+def test_a_refund_on_file_on_a_duplicate_claim_is_refund_proof_whatever_the_search_says(search_available):
+    case = _gather("duplicate_false")
+    case.facts.update(refund_issued=True, refund_ids=["R1"], refunded_amount=case.amount,
+                      duplicate_charge_found=False, transaction_search_available=search_available)
+    assert RuleReasoner().decide(case).resolution == "SUBMIT_REFUND_PROOF"
