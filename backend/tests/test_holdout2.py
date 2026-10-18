@@ -97,7 +97,7 @@ def test_a_holdout2_results_file_lands_in_its_own_results_section(tmp_path, monk
     run_file("ho2.json", "ho2_a", "holdout2")
     ev.write_results_md()
     text = (tmp_path / "RESULTS.md").read_text()
-    rest, ho2 = text.split("## Held-out set 2 (not used for tuning)")
+    rest, ho2 = text.split("## Held-out set 2 (one case later fixed)")
     assert "ho2_a" in ho2 and "ho2_a" not in rest
     assert "ho_a" in rest and "ho_a" not in ho2 and "main_a" in rest
 
