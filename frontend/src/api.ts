@@ -1,5 +1,6 @@
 import type { StudioAiReply, StudioAiRequest } from './components/analytics/studioAiAdapter'
 import type { AnalyticsReport, AuditEntry, DemoSessionInfo, Dispute, Health, Proposal, SimulatorCase } from './types'
+import { backendName } from './labels'
 
 // The dashboard only ever talks to the Rebuttal backend. It never calls PayPal.
 // Served by the backend (same origin) the base is empty; `npm run dev` and the e2e build point at localhost:8000.
@@ -57,7 +58,7 @@ async function request<T>(
   } catch (error) {
     // A cancelled call is the caller's own abort, not a network failure: rethrow it as it is.
     if (init.signal?.aborted) throw error
-    throw new ApiError(0, `Cannot reach the backend at ${API_BASE}. Is it running?`)
+    throw new ApiError(0, `Cannot reach the backend at ${backendName(API_BASE, window.location.origin)}. Is it running?`)
   }
   if (!response.ok) {
     let detail = response.statusText

@@ -181,7 +181,8 @@ export function DemoApp() {
         <ApiContext.Provider value={demoApi}>
           <DemoContext.Provider value={true}>
             <div className="desk-panel">
-              <Desk key={`${session.id}-${generation}`} simulator={true} />
+              {/* The hero case, seeded first by backend/rebuttal/demo.py (HERO_DISPUTE_ID), opens on load. */}
+              <Desk key={`${session.id}-${generation}`} simulator={true} initialId="PP-D-2000" />
             </div>
           </DemoContext.Provider>
         </ApiContext.Provider>

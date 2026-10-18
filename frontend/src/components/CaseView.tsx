@@ -118,9 +118,18 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
   const picked = [...audit].reverse().find((e) => e.step === 'decide')?.detail.resolution
   const reasonerChoice = typeof picked === 'string' ? picked : null
   const guardChanged = (reasonerChoice !== null && reasonerChoice !== decision.resolution) || decision.guard_notes.length > 0
+  // An empty audit means it has not loaded yet: a proposal always has gather and propose entries.
+  const reasonerLabel =
+    reasonerChoice !== null ? resolutionLabel(reasonerChoice) : audit.length > 0 ? 'Not in the audit trail' : 'Loading…'
+  // The guard turned a replacement into a refund, so the approved message still promises one (see the replacement
+  // note). With no alternative the resolution stays OFFER_REPLACEMENT, and that is not a refund.
+  const replacementConverted =
+    decision.resolution !== 'OFFER_REPLACEMENT' && decision.guard_notes.some((n) => n.startsWith('OFFER_REPLACEMENT is not possible'))
 
-  // What a retry will send: the draft, or the merchant's edit (the proposal carries it once approved).
-  const approvedWithEdits = proposal.approved_message !== null && proposal.approved_message !== originalText
+  // What a retry will send: the draft, or the merchant's edit (the proposal carries it once approved). Once executed the
+  // proposal holds the sent text, so the approve line in the audit is the only place the edit still shows.
+  const approvedEdited = [...audit].reverse().find((e) => e.step === 'approve' && e.detail.proposal === proposal.id)?.detail.edited === true
+  const approvedWithEdits = approvedEdited || (proposal.approved_message !== null && proposal.approved_message !== originalText)
 
   // A failed call is followed by a refresh, which can show that the server moved on: the proposal was decided
   // elsewhere, or approved but interrupted. The dialog then stays open so the error remains readable, but its
@@ -214,7 +223,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           <h3 id="why-title">Why this proposal</h3>
           <dl className="compare">
             <dt>Reasoner ({decision.source})</dt>
-            <dd data-testid="reasoner-choice">{reasonerChoice === null ? 'Loading…' : resolutionLabel(reasonerChoice)}</dd>
+            <dd data-testid="reasoner-choice">{reasonerLabel}</dd>
             <dt>Final action</dt>
             <dd data-testid="final-action">
               <strong>{resolutionLabel(decision.resolution)}</strong>
@@ -261,7 +270,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           {callLine(dispute.dispute_id, action)}
         </code>
 
-        {proposal.status === 'APPROVED' && originalText !== null ? (
+        {(proposal.status === 'APPROVED' || proposal.status === 'EXECUTED') && originalText !== null ? (
           <>
             <span className="label">{labels.approved}{approvedWithEdits ? ' (your edited version)' : ''}</span>
             <blockquote className="quote" data-testid="approved-text">
@@ -346,7 +355,14 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           onConfirm={confirm}
           onCancel={close}
         >
-          <SendSummary dispute={dispute} action={action} amount={actionAmount(action, summary.amount)} message={originalText === null ? null : messageToSend} edited={edited} />
+          <SendSummary
+            dispute={dispute}
+            action={action}
+            amount={actionAmount(action, summary.amount)}
+            message={originalText === null ? null : messageToSend}
+            edited={edited}
+            replacementNote={replacementConverted}
+          />
         </ConfirmDialog>
       )}
       {confirming === 'retry' && (
@@ -358,6 +374,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
             amount={actionAmount(action, summary.amount)}
             message={proposal.approved_message ?? originalText}
             edited={approvedWithEdits}
+            replacementNote={replacementConverted}
           />
         </ConfirmDialog>
       )}
@@ -390,6 +407,7 @@ function SendSummary({
   amount,
   message,
   edited,
+  replacementNote,
 }: {
   lead?: string
   dispute: Dispute
@@ -397,6 +415,7 @@ function SendSummary({
   amount: string | null
   message: string | null
   edited: boolean
+  replacementNote: boolean
 }) {
   const sandbox = useContext(DemoContext) ? 'the demo sandbox' : 'the PayPal sandbox'
   return (
@@ -406,7 +425,14 @@ function SendSummary({
         <dt>Call</dt>
         <dd className="mono">{endpointFor(dispute.dispute_id, action)}</dd>
         <dt>Action</dt>
-        <dd>{action.summary}</dd>
+        <dd>
+          {action.summary}
+          {replacementNote && (
+            <p className="muted" data-testid="replacement-note">
+              PayPal takes no replacement offer on this dispute, so this is a refund after the return. The message below also promises a replacement.
+            </p>
+          )}
+        </dd>
         {action.params.offer_type && (
           <>
             <dt>Offer type</dt>

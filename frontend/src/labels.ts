@@ -51,6 +51,9 @@ export const STATUS_TONE: Record<DisplayStatus, 'neutral' | 'warn' | 'accent' | 
 
 export const money = (value: number | string) => `$${Number(value).toFixed(2)}`
 
+// A same-origin build has an empty API base, so name the page origin instead.
+export const backendName = (base: string, origin: string): string => base || origin
+
 export function hoursLabel(hours: number): string {
   const h = Math.max(0, hours)
   return h >= 48 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : `${Math.round(h)}h`
