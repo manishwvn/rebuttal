@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from . import analytics
 from .agent.graph import DisputeAgent
 from .agent.llm import groq_budget
-from .approval import ApprovalError
+from .approval import ApprovalError, idempotency_key
 from .demo import DemoManager
 from .demo_api import make_demo_router
 from .paypal.client import PayPalError
@@ -89,14 +89,20 @@ def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError
     read first. The approval is already saved (the proposal now reads APPROVED), so say that in a normal JSON error:
     an unhandled exception would become a bare 500 that browsers on another origin cannot even read, because it
     carries no CORS headers. The response says nothing about PayPal's reply beyond its status; the status and
-    debug_id go to the server log and the audit trail, where an operator can follow them up."""
+    debug_id go to the server log and the audit trail, where an operator can follow them up. The audit row also names
+    the planned action kinds and their idempotency keys, so an operator can see what may have reached PayPal."""
     status = exc.status if isinstance(exc, PayPalError) else None
     debug_id = exc.debug_id if isinstance(exc, PayPalError) else None
     logger.warning("PayPal call interrupted for %s: %s status=%s debug_id=%s", proposal_id, type(exc).__name__,
                    status, debug_id)
     try:
-        rt.audit.log(DisputeAgent.dispute_of(proposal_id), "execute_interrupted",
-                     {"proposal": proposal_id, "status": status, "debug_id": debug_id, "error": type(exc).__name__})
+        dispute_id = DisputeAgent.dispute_of(proposal_id)
+        proposal = rt.approvals.latest_for(dispute_id)
+        actions = [{"action": a.kind, "idempotency_key": idempotency_key(proposal_id, i, a.kind)}
+                   for i, a in enumerate(proposal.actions)] if proposal else []
+        rt.audit.log(dispute_id, "execute_interrupted",
+                     {"proposal": proposal_id, "status": status, "debug_id": debug_id, "error": type(exc).__name__,
+                      "actions": actions})
     except Exception:  # noqa: BLE001 - the audit store must not turn a readable 502 back into a bare 500
         logger.exception("Could not audit the interrupted PayPal call for %s", proposal_id)
     what = f"PayPal answered with an error ({status})" if status is not None else "PayPal could not be reached"

@@ -182,8 +182,10 @@ def test_a_paypal_error_before_anything_was_sent_is_a_readable_502_and_retry_the
 
 def test_an_interrupted_call_is_logged_and_audited_with_the_status_and_debug_id_but_not_the_body(client, monkeypatch, caplog):
     from rebuttal import approval
+    from rebuttal.approval import idempotency_key
 
     proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    kind = proposal["actions"][0]["kind"]
     monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(
         PayPalError(503, {"name": "SERVICE_UNAVAILABLE", "message": "private words"}, "debug-abc")))
     with caplog.at_level(logging.WARNING, logger="rebuttal.app"):
@@ -193,7 +195,9 @@ def test_an_interrupted_call_is_logged_and_audited_with_the_status_and_debug_id_
     interrupted = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
     assert len(interrupted) == 1
     assert interrupted[0]["detail"] == {"proposal": proposal["id"], "status": 503, "debug_id": "debug-abc",
-                                        "error": "PayPalError"}  # no response body
+                                        "error": "PayPalError",
+                                        "actions": [{"action": kind, "idempotency_key": idempotency_key(proposal["id"], 0, kind)}]}
+    # no response body
 
 
 def test_a_network_error_while_sending_is_a_readable_502_and_retry_then_sends_once(client, monkeypatch, caplog):
@@ -210,12 +214,31 @@ def test_a_network_error_while_sending_is_a_readable_502_and_retry_then_sends_on
     assert any("ReadTimeout" in r.getMessage() for r in caplog.records)
     interrupted = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
     assert interrupted[0]["detail"]["status"] is None and interrupted[0]["detail"]["error"] == "ReadTimeout"
+    from rebuttal.approval import idempotency_key
+
+    kind = proposal["actions"][0]["kind"]
+    assert interrupted[0]["detail"]["actions"] == [{"action": kind, "idempotency_key": idempotency_key(proposal["id"], 0, kind)}]
     waiting = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}["PP-D-2000"]["proposal"]
     assert waiting["status"] == "APPROVED" and app_module.rt.mock.write_calls() == []
 
     monkeypatch.setattr(approval, "execute_action", real)
     done = client.post(f"/api/proposals/{proposal['id']}/retry").json()
     assert done["status"] == "EXECUTED" and len(app_module.rt.mock.write_calls()) == 1
+
+
+def test_a_paypal_error_still_gives_a_readable_502_when_the_proposal_cannot_be_read_for_the_audit(client, monkeypatch):
+    from rebuttal import approval
+
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    monkeypatch.setattr(approval, "execute_action", lambda *a, **k: (_ for _ in ()).throw(
+        PayPalError(503, {"name": "SERVICE_UNAVAILABLE"}, "debug-abc")))
+
+    def unreadable(dispute_id):
+        raise RuntimeError("store is down")
+
+    monkeypatch.setattr(app_module.rt.approvals, "latest_for", unreadable)
+    failed = client.post(f"/api/proposals/{proposal['id']}/approve", json={})
+    assert failed.status_code == 502 and "approval is saved" in failed.json()["detail"]
 
 
 def test_a_network_error_during_retry_is_a_readable_502(client, monkeypatch):
