@@ -57,13 +57,19 @@ JUDGMENT_CALLS = {
                            "business choice that avoids a fight over $40, so models that pick it are not clearly wrong.",
 }
 
-# Cases in the held-out sets whose miss is a known limit of the facts code, not a model failure. Same display as
-# JUDGMENT_CALLS; the labels are kept (they are the correct outcome) and nothing is tuned against them.
+# Cases in the held-out sets with a note. Each entry is either a known limit of the facts code, not a model failure,
+# or a miss that prompted a fix. Same display as JUDGMENT_CALLS; the labels are kept (they are the correct outcome)
+# and nothing is tuned against the known limits.
 HOLDOUT2_NOTES = {
     "ho2_inr_unit_format": "Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' "
                            "are one address, but the code that compares the ship-to with the delivered-to address "
                            "does not normalise street suffixes or unit markers, so it can report a mismatch. We keep "
                            "the case and the label, and do not tune against it.",
+    "ho2_dup_already_refunded": "Missed on Oct 10: the rules answered ACCEPT_CLAIM and would have refunded twice. That "
+                                "miss prompted the R15 fix: the rules check the refund before the duplicate charge, "
+                                "and guard() refuses a second refund. The case and its label are kept unchanged, and "
+                                "it now passes. This was a real fix prompted by a held-out result, so later results "
+                                "on this case are no longer blind.",
 }
 
 
