@@ -193,6 +193,8 @@ class RuleReasoner:
             return "ACCEPT_CLAIM", 0.75, ["No refund on file."]
 
         if reason == "DUPLICATE_TRANSACTION":
+            if f.get("refund_issued"):
+                return "SUBMIT_REFUND_PROOF", 0.9, ["A refund was already issued."]
             if not f.get("transaction_search_available", True):
                 return "SUBMIT_EVIDENCE", 0.4, ["Could not check for a duplicate charge (Transaction Search "
                                                 "unavailable); needs merchant review."]
@@ -343,8 +345,9 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         base = RuleReasoner().decide(case)
         base.guard_notes = notes + [why, f"Fell back to rules: {base.resolution}."]
         base.source = f"{decision.source}+guard"
-        # Cannot loop: rules pick SHARE_TRACKING only when tracking exists, SUBMIT_REFUND_PROOF only when a refund
-        # exists, ESCALATE only at INQUIRY on the seller's turn with can_escalate True, delivery to the order address proven (is True),
+        # Cannot loop: rules pick SHARE_TRACKING only when tracking exists, SUBMIT_REFUND_PROOF whenever a refund exists
+        # for CREDIT_NOT_PROCESSED and DUPLICATE_TRANSACTION (unless PayPal offers an appeal first), ESCALATE only at
+        # INQUIRY on the seller's turn with can_escalate True, delivery to the order address proven (is True),
         # and seller_already_responded, APPEAL only when can_appeal is True, and never an unknown resolution, so this
         # second pass returns without falling back again.
         return guard(base, case)
@@ -355,6 +358,16 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         return fallback("Proposed sharing tracking, but there is no tracking.")
     if decision.resolution == "SUBMIT_REFUND_PROOF" and not f.get("refund_issued"):
         return fallback("Proposed refund proof, but no refund exists.")
+    if (decision.resolution in ("ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND")
+            and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION") and f.get("refund_issued")):
+        # A refund already went out, so a second one would pay the buyer twice. A partial refund only leaves the
+        # remainder to check.
+        refunded = f.get("refunded_amount", 0.0)
+        if refunded >= case.amount - 0.01:
+            return fallback("A refund was already issued; refusing a second one.")
+        notes.append(f"A refund of ${refunded:.2f} of the ${case.amount:.2f} disputed was already issued; the merchant "
+                     "should check the remainder before approving.")
+        decision.confidence = min(decision.confidence, 0.5)
     if decision.resolution == "ESCALATE" and not (_escalation_offered(case)
                                                   and f.get("shipment_status") == "DELIVERED"
                                                   and f.get("delivered_address_matches") is True
@@ -420,6 +433,13 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             notes.append("Delivered to a different address than the order; tracking does not prove this buyer "
                          "received it.")
             decision.confidence = min(decision.confidence, 0.5)
+    if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "DUPLICATE_TRANSACTION"
+            and f.get("transaction_search_available") is True and f.get("duplicate_charge_found") is False):
+        decision.resolution = "SUBMIT_EVIDENCE"
+        decision.message_to_buyer = draft_message("SUBMIT_EVIDENCE", case)
+        decision.evidence_summary = decision.evidence_summary or draft_evidence_summary("SUBMIT_EVIDENCE", case)
+        notes.append("Transaction Search found no second matching charge, so refunding on a duplicate claim is not "
+                     "supported; converted 'ACCEPT_CLAIM' into submitting evidence.")
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
