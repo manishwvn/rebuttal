@@ -445,11 +445,15 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
         wanted = decision.resolution
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
         instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
-        if instead:
-            if (instead in ("ACCEPT_CLAIM", "OFFER_RETURN_FOR_REFUND") and f.get("refund_issued")
-                    and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION")):
-                # The refund block above saw only the offer; this alternative would refund the buyer in full again.
+        if (instead in ("ACCEPT_CLAIM", "OFFER_RETURN_FOR_REFUND") and f.get("refund_issued")
+                and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION")):
+            # The refund block above saw only the offer. This alternative would refund the buyer in full again on a
+            # full refund, and on a partial one pay the disputed amount over: leave the remainder to the merchant.
+            refunded = f.get("refunded_amount")
+            if refunded is None or refunded >= case.amount - 0.01:
                 return fallback("A refund was already issued; refusing a second one.")
+            instead = None
+        if instead:
             decision.resolution = instead
             decision.message_to_buyer = draft_message(instead, case)  # the old text promised something else
             if wanted == "OFFER_REPLACEMENT" and "right one" not in decision.message_to_buyer:

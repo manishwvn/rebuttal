@@ -352,6 +352,19 @@ def test_a_partial_refund_at_chargeback_is_not_topped_up_by_a_paypal_alternative
     case.stage = "CHARGEBACK"
     case.allowed_response_options = None
     d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == resolution and d.confidence <= 0.3
+    assert any(f"A refund of ${case.amount / 2:.2f} of the ${case.amount:.2f} disputed was already issued" in n
+               for n in d.guard_notes)
+    assert any("no close alternative" in n for n in d.guard_notes)
+    assert not any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_full_refund_at_chargeback_is_not_repeated_by_a_paypal_alternative():
+    case = _gather("cnp_refunded")
+    _refund_issued(case, case.amount)
+    case.stage = "CHARGEBACK"
+    case.allowed_response_options = None
+    d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
     assert d.resolution == "SUBMIT_REFUND_PROOF"
     assert any("refusing a second one" in n for n in d.guard_notes)
 
