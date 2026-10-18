@@ -7,9 +7,15 @@ services:
     runtime: python
     plan: free                # sleeps after 15 idle minutes: the first request after that takes about a minute
     region: oregon
-    rootDir: backend
-    buildCommand: pip install uv && uv sync --frozen --no-dev --extra postgres && (cd ../frontend && npm ci && npm run build || echo "frontend build failed, serving the API only")
-    startCommand: uv run --no-sync uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT
+    # No rootDir: Render skips auto-deploys for changes outside it, so frontend-only PRs would never redeploy.
+    # buildFilter below limits deploys to code changes instead.
+    buildFilter:
+      paths:
+        - backend/**
+        - frontend/**
+        - render.yaml
+    buildCommand: cd backend && pip install uv && uv sync --frozen --no-dev --extra postgres && (cd ../frontend && npm ci && npm run build || echo "frontend build failed, serving the API only")
+    startCommand: cd backend && uv run --no-sync uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT
     # The build also compiles the dashboard into frontend/dist, which the API serves on the same origin (docs/deploy.md).
     healthCheckPath: /api/health   # also runs SELECT 1 on Supabase, so it doubles as the keep-alive
     autoDeployTrigger: commit

@@ -103,7 +103,7 @@ run locally with no setup. This drops the roughly $6 Render Postgres line; the R
 - Verified live Oct 7: `backend/tests/live_postgres.py` approves a proposal in a second process after the first exited,
   reads the audit log from a third, and checks the advisory lock. Not part of pytest (the suite never touches it).
 - The password lives only in `backend/.env` (`DATABASE_URL`) and, on deploy, in Render's environment variables.
-- Render: `rootDir: backend`, pin `PYTHON_VERSION` to a full 3.12.x. Start command:
+- Render: no `rootDir` (commands `cd backend`, a `buildFilter` limits deploys to code), pin `PYTHON_VERSION` to a full 3.12.x. Start command:
   `uv run uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT` (our inference; Render documents only `uv sync`).
   Not verified: whether 512 MB is enough.
 

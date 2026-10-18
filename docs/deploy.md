@@ -106,11 +106,17 @@ are open, they are bounded:
 
 ## Dashboard on the same service
 
-The build command also runs `cd ../frontend && npm ci && npm run build`, and the API serves `frontend/dist` from the
-same origin (`REBUTTAL_FRONTEND_DIR` overrides the folder). `/` shows a sign-in screen: paste `REBUTTAL_API_TOKEN`
+The build command (run from the repo root; the blueprint sets no Root Directory) also runs
+`cd ../frontend && npm ci && npm run build`, and the API serves `frontend/dist` from the same origin
+(`REBUTTAL_FRONTEND_DIR` overrides the folder). `/` shows a sign-in screen: paste `REBUTTAL_API_TOKEN`
 (Environment tab). The token is checked against the API and kept in `sessionStorage` only; it is never in the bundle.
 The sign-in screen has a **Try the demo** link (`#demo`) that needs no token. Never set `VITE_API_TOKEN` on Render: the
 frontend build fails on purpose when it is set. `frontend/dist` is not committed.
+
+Service settings come from `render.yaml`: no Root Directory (Render skips auto-deploys for changes outside it, so
+frontend-only PRs would not redeploy), build/start commands that `cd backend` first, and a build filter on `backend/**`,
+`frontend/**` and `render.yaml` so docs-only commits do not redeploy. A service created before this change keeps its old
+dashboard settings until the Blueprint syncs (Render dashboard > Blueprints > the blueprint > Sync), or you edit them by hand.
 
 Verified: the live root `/` serves the dashboard (checked Oct 14), so no extra step is needed on the live service. If a
 future build log says `npm: not found`,
