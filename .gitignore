@@ -17,3 +17,6 @@ LEARNING.md
 coverage.xml
 htmlcov/
 media/
+
+# Playwright MCP session snapshots
+.playwright-mcp/

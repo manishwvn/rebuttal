@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useApi } from '../apiContext'
+import { useContext, useState } from 'react'
+import { DemoContext, useApi } from '../apiContext'
 import {
   actionAmount,
   actionText,
@@ -43,6 +43,7 @@ export function CaseView({ dispute, audit, onChanged }: Props) {
 
 function UnanalyzedCase({ dispute, audit, onChanged }: Omit<Props, 'dispute'> & { dispute: Dispute }) {
   const api = useApi()
+  const target = useContext(DemoContext) ? 'the demo sandbox' : 'PayPal'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,7 +69,7 @@ function UnanalyzedCase({ dispute, audit, onChanged }: Omit<Props, 'dispute'> & 
         </div>
         <span className="num amount">{money(dispute.dispute_amount.value)}</span>
       </header>
-      <p className="note">The agent has not looked at this dispute yet. Analyzing only reads from PayPal; nothing is sent.</p>
+      <p className="note">The agent has not looked at this dispute yet. Analyzing only reads from {target}; nothing is sent.</p>
       {error && (
         <p role="alert" className="error">
           {error}
@@ -91,6 +92,8 @@ type Confirming = 'approve' | 'reject' | 'retry' | null
 
 function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposal: Proposal }) {
   const api = useApi()
+  const demo = useContext(DemoContext)
+  const target = demo ? 'the demo sandbox' : 'PayPal'
   const { decision, case_summary: summary } = proposal
   const facts = summary.facts
   const action = proposal.actions[0]
@@ -287,7 +290,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           </>
         ) : (
           <>
-            <span className="label">Evidence summary sent to PayPal</span>
+            <span className="label">Evidence summary sent to {target}</span>
             <p className="evidence" data-testid="evidence-summary">
               {decision.evidence_summary}
             </p>
@@ -318,7 +321,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
 
         {proposal.status === 'APPROVED' && (
           <div className="actions">
-            <p className="note">Approved, but sending to PayPal was interrupted. Retrying reads the dispute first and never repeats what already landed.</p>
+            <p className="note">Approved, but sending to {target} was interrupted. Retrying reads the dispute first and never repeats what already landed.</p>
             <button type="button" className="primary" onClick={() => openConfirm('retry')}>
               Retry sending
             </button>
@@ -335,7 +338,7 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
 
       {confirming === 'approve' && (
         <ConfirmDialog
-          title={edited ? 'Send this to PayPal with your edits?' : 'Send this to PayPal?'}
+          title={edited ? `Send this to ${target} with your edits?` : `Send this to ${target}?`}
           confirmLabel="Approve and send"
           busy={busy}
           error={error}
@@ -347,9 +350,9 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
         </ConfirmDialog>
       )}
       {confirming === 'retry' && (
-        <ConfirmDialog title="Retry sending to PayPal?" confirmLabel="Retry" busy={busy} error={error} unavailable={unavailable} onConfirm={confirm} onCancel={close}>
+        <ConfirmDialog title={`Retry sending to ${target}?`} confirmLabel="Retry" busy={busy} error={error} unavailable={unavailable} onConfirm={confirm} onCancel={close}>
           <SendSummary
-            lead="Retrying first reads the dispute, then makes at most this one call to the PayPal sandbox (nothing is sent if it already landed):"
+            lead={`Retrying first reads the dispute, then makes at most this one call to ${demo ? target : 'the PayPal sandbox'} (nothing is sent if it already landed):`}
             dispute={dispute}
             action={action}
             amount={actionAmount(action, summary.amount)}
@@ -381,7 +384,7 @@ function callLine(disputeId: string, action: PlannedAction): string {
 }
 
 function SendSummary({
-  lead = 'Approving makes exactly this one call to the PayPal sandbox:',
+  lead,
   dispute,
   action,
   amount,
@@ -395,9 +398,10 @@ function SendSummary({
   message: string | null
   edited: boolean
 }) {
+  const sandbox = useContext(DemoContext) ? 'the demo sandbox' : 'the PayPal sandbox'
   return (
     <>
-      <p>{lead}</p>
+      <p>{lead ?? `Approving makes exactly this one call to ${sandbox}:`}</p>
       <dl className="compare" data-testid="send-summary">
         <dt>Call</dt>
         <dd className="mono">{endpointFor(dispute.dispute_id, action)}</dd>
@@ -430,6 +434,7 @@ function SendSummary({
 }
 
 function Outcome({ proposal }: { proposal: Proposal }) {
+  const demo = useContext(DemoContext)
   if (proposal.status === 'REJECTED') {
     return <p className="result rejected">Rejected. Nothing was sent to PayPal.</p>
   }
@@ -437,9 +442,13 @@ function Outcome({ proposal }: { proposal: Proposal }) {
   if (proposal.status === 'FAILED' || failed.length > 0) {
     return (
       <p className="result failed" role="alert">
-        PayPal refused the call{failed[0]?.error ? `: ${failed[0].error}` : '.'}
+        {demo ? 'The demo sandbox' : 'PayPal'} refused the call{failed[0]?.error ? `: ${failed[0].error}` : '.'}
       </p>
     )
   }
-  return <p className="result">Sent to PayPal. {proposal.actions[0].summary}.</p>
+  return (
+    <p className="result">
+      {demo ? 'Sent to the demo sandbox (mock PayPal).' : 'Sent to PayPal.'} {proposal.actions[0].summary}.
+    </p>
+  )
 }
