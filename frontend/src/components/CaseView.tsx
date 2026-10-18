@@ -121,11 +121,15 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
   // An empty audit means it has not loaded yet: a proposal always has gather and propose entries.
   const reasonerLabel =
     reasonerChoice !== null ? resolutionLabel(reasonerChoice) : audit.length > 0 ? 'Not in the audit trail' : 'Loading…'
-  // The guard rejected a replacement, so the approved message still promises one (see the replacement note).
-  const replacementConverted = decision.guard_notes.some((n) => n.startsWith('OFFER_REPLACEMENT is not possible'))
+  // The guard turned a replacement into a refund, so the approved message still promises one (see the replacement
+  // note). With no alternative the resolution stays OFFER_REPLACEMENT, and that is not a refund.
+  const replacementConverted =
+    decision.resolution !== 'OFFER_REPLACEMENT' && decision.guard_notes.some((n) => n.startsWith('OFFER_REPLACEMENT is not possible'))
 
-  // What a retry will send: the draft, or the merchant's edit (the proposal carries it once approved).
-  const approvedWithEdits = proposal.approved_message !== null && proposal.approved_message !== originalText
+  // What a retry will send: the draft, or the merchant's edit (the proposal carries it once approved). Once executed the
+  // proposal holds the sent text, so the approve line in the audit is the only place the edit still shows.
+  const approvedEdited = [...audit].reverse().find((e) => e.step === 'approve' && e.detail.proposal === proposal.id)?.detail.edited === true
+  const approvedWithEdits = approvedEdited || (proposal.approved_message !== null && proposal.approved_message !== originalText)
 
   // A failed call is followed by a refresh, which can show that the server moved on: the proposal was decided
   // elsewhere, or approved but interrupted. The dialog then stays open so the error remains readable, but its
