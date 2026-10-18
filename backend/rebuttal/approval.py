@@ -142,9 +142,12 @@ def not_allowed_now(dispute: dict, action: dict) -> str | None:
     # dispute UNDER_REVIEW or RESOLVED with no option list (a REFUND_WITH_RETURN acceptance may leave it so), so the
     # options check below would let it through.
     # VERIFY: this rule's fail-closed result holds only if a read after a landed send shows PayPal left the seller's
-    # turn. The sandbox record does not confirm that (docs/sandbox-findings.md :116, :200, :206, :231, :241, :253), so
-    # the refusal can say an earlier attempt may have been sent when none was. Narrowing the rule reopens the replay
-    # hole, so keep it until a fixture confirms the status after each send.
+    # turn. Three sandbox fixtures must confirm it before the Nov 3 freeze: (1) evidence sent, then read: the status
+    # is no longer WAITING_FOR_SELLER_RESPONSE; (2) plain accept_claim sent, then read: the same; (3) provide_evidence
+    # on an UNDER_REVIEW dispute: the record lists it there (docs/sandbox-findings.md :116, :231, :240), so if PayPal
+    # accepts it, this rule refuses a send PayPal allows. The record does not confirm (1) or (2) (:200, :206, :241,
+    # :253), so the refusal can say an earlier attempt may have been sent when none was. Narrowing the rule reopens the
+    # replay hole, so keep it until the three checks pass.
     if kind in ("provide_evidence", "accept_claim") and dispute.get("status") != "WAITING_FOR_SELLER_RESPONSE":
         return ("PayPal is no longer waiting for the seller on this dispute (the dispute has changed since the proposal "
                 "was made, so an earlier attempt may already have been sent)")
