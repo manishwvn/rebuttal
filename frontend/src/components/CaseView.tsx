@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useApi } from '../apiContext'
+import { useContext, useState } from 'react'
+import { DemoContext, useApi } from '../apiContext'
 import {
   actionAmount,
   actionText,
@@ -430,6 +430,7 @@ function SendSummary({
 }
 
 function Outcome({ proposal }: { proposal: Proposal }) {
+  const demo = useContext(DemoContext)
   if (proposal.status === 'REJECTED') {
     return <p className="result rejected">Rejected. Nothing was sent to PayPal.</p>
   }
@@ -437,9 +438,13 @@ function Outcome({ proposal }: { proposal: Proposal }) {
   if (proposal.status === 'FAILED' || failed.length > 0) {
     return (
       <p className="result failed" role="alert">
-        PayPal refused the call{failed[0]?.error ? `: ${failed[0].error}` : '.'}
+        {demo ? 'The demo sandbox' : 'PayPal'} refused the call{failed[0]?.error ? `: ${failed[0].error}` : '.'}
       </p>
     )
   }
-  return <p className="result">Sent to PayPal. {proposal.actions[0].summary}.</p>
+  return (
+    <p className="result">
+      {demo ? 'Sent to the demo sandbox (mock PayPal).' : 'Sent to PayPal.'} {proposal.actions[0].summary}.
+    </p>
+  )
 }

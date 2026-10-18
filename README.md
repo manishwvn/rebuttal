@@ -68,7 +68,7 @@ Live end to end (Oct 7, 2026): deployed on Render with Groq and Supabase Postgre
 real PayPal sandbox arrived as a signature-verified webhook, the agent gathered the facts and drafted a resolution,
 and the proposal is waiting for approval in the checkpointed workflow. No PayPal writes happened before approval.
 
-488 backend tests, 94% combined line and branch coverage (`cd backend && uv run pytest --cov --cov-branch`; CI prints it on every run).
+961 backend tests, 96% combined line and branch coverage (`cd backend && uv run pytest --cov --cov-branch`; CI prints it on every run).
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard, and the Playwright end-to-end tests.
 
 Not verified live: an approved write to the real PayPal sandbox through the deployed app (the hero dispute was
@@ -290,7 +290,7 @@ The main design decisions (single write path, read-only analysis, approval inter
 Rebuttal stands on open-source packages. Versions are in `backend/pyproject.toml` / `backend/uv.lock` and
 `frontend/package.json` / `frontend/package-lock.json`.
 
-- Backend: [FastAPI](https://fastapi.tiangolo.com), [Uvicorn](https://www.uvicorn.org), [httpx](https://www.python-httpx.org),
+- Backend: [FastAPI](https://fastapi.tiangolo.com), [Uvicorn](https://uvicorn.dev), [httpx](https://www.python-httpx.org),
   [Pydantic](https://docs.pydantic.dev), [LangGraph](https://github.com/langchain-ai/langgraph) (with its SQLite and
   Postgres checkpointers), [LangChain](https://github.com/langchain-ai/langchain) (core, Anthropic, Groq, OpenAI-compatible),
   [Langfuse](https://langfuse.com), [fpdf2](https://github.com/py-pdf/fpdf2) (evidence PDFs), psycopg.

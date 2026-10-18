@@ -1,10 +1,12 @@
+import { useContext } from 'react'
+import { DemoContext } from '../apiContext'
 import type { AuditEntry } from '../types'
 import { resolutionLabel } from '../labels'
 
 const text = (value: unknown) => (typeof value === 'string' ? value : value == null ? '' : JSON.stringify(value))
 
 // One readable line per audit step. Unknown steps fall back to their raw detail rather than being hidden.
-function describe(entry: AuditEntry): string {
+function describe(entry: AuditEntry, demo: boolean): string {
   const d = entry.detail
   switch (entry.step) {
     case 'gather':
@@ -21,19 +23,20 @@ function describe(entry: AuditEntry): string {
       return `Merchant rejected${d.reason ? `: ${text(d.reason)}` : ''}`
     case 'execute':
       // A retry reads the dispute first; when the first attempt had already landed, nothing is sent again.
-      return `${d.reconciled ? 'Already at PayPal from the first attempt, not sent again' : 'Sent to PayPal'}: ${text(d.summary)}`
+      return `${d.reconciled ? `Already at ${demo ? 'the demo sandbox' : 'PayPal'} from the first attempt, not sent again` : `Sent to ${demo ? 'the demo sandbox' : 'PayPal'}`}: ${text(d.summary)}`
     case 'record':
       return `Recorded as ${text(d.status)}`
     case 'execute_failed':
-      return `PayPal call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
+      return `${demo ? 'Demo sandbox' : 'PayPal'} call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
     case 'execute_interrupted':
-      return `PayPal call interrupted (${typeof d.status === 'number' ? `PayPal answered ${d.status}` : 'PayPal could not be reached'}). The approval is saved; retry to continue`
+      return `${demo ? 'Demo sandbox' : 'PayPal'} call interrupted (${typeof d.status === 'number' ? `${demo ? 'The demo sandbox' : 'PayPal'} answered ${d.status}` : `${demo ? 'The demo sandbox' : 'PayPal'} could not be reached`}). The approval is saved; retry to continue`
     default:
       return JSON.stringify(d)
   }
 }
 
 export function AuditTrail({ entries }: { entries: AuditEntry[] }) {
+  const demo = useContext(DemoContext)
   if (entries.length === 0) return <p className="note">No audit entries yet.</p>
   return (
     <ol className="timeline" data-testid="audit-trail">
@@ -41,7 +44,7 @@ export function AuditTrail({ entries }: { entries: AuditEntry[] }) {
         <li key={`${entry.ts}-${entry.step}-${i}`} data-step={entry.step}>
           <span className="step">{entry.step}</span>
           <span>
-            {describe(entry)}
+            {describe(entry, demo)}
             <time className="sub" dateTime={entry.ts}>
               {new Date(entry.ts).toLocaleString()}
             </time>

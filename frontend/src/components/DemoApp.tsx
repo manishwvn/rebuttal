@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApiError, createDemoApi, resetDemoSession, startDemoSession } from '../api'
-import { ApiContext } from '../apiContext'
+import { ApiContext, DemoContext } from '../apiContext'
 import { Desk } from './Desk'
 import './demo.css'
 
@@ -179,9 +179,11 @@ export function DemoApp() {
 
       {session && demoApi && (
         <ApiContext.Provider value={demoApi}>
-          <div className="desk-panel">
-            <Desk key={`${session.id}-${generation}`} simulator={true} />
-          </div>
+          <DemoContext.Provider value={true}>
+            <div className="desk-panel">
+              <Desk key={`${session.id}-${generation}`} simulator={true} />
+            </div>
+          </DemoContext.Provider>
         </ApiContext.Provider>
       )}
     </main>

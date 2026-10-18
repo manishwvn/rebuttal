@@ -74,6 +74,11 @@ test('Try the demo opens the isolated demo and approves the hero case', async ({
 
   await approveOpenCase(page)
   await expect(statusCell(page, HERO)).toHaveText('Executed')
+  // The banner says nothing reaches PayPal, so the outcome and audit trail must name the demo sandbox.
+  const caseView = page.getByTestId('case-view')
+  await expect(caseView.locator('.result')).toContainText('Sent to the demo sandbox (mock PayPal).')
+  await expect(page.getByTestId('audit-trail')).toContainText('Sent to the demo sandbox:')
+  await expect(caseView).not.toContainText('Sent to PayPal')
   expectIsolated(sent)
 })
 
