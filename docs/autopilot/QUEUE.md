@@ -169,6 +169,9 @@ design (single write path, guard, approval), eval table, how each sponsor tool i
 ### C3 Discord preview — size S — done (this PR) — after C2 and A5 — target Oct 23
 Make the USER item: post `docs/discord-preview.md` in the AG Grid and general channels (exact steps). Do not post.
 
+### R14 Confirm Render redeployed #92 — size S — todo — priority now
+After #92 merged (Oct 18 01:24 CDT) the live site still served `assets/index-PGbThk6e.js` 25 minutes later, which has "Sent to PayPal" but not "demo sandbox"; `/api/health` stayed ok. Check that the live bundle now contains "demo sandbox". If not, find out why Render did not redeploy (auto-deploy setting or a failed build; read only, do not change Render settings) and add a USER item with the exact steps for Manish.
+
 ### D1 Feature freeze — Nov 3
 From Nov 3 only fixes, docs, video. Move any unfinished feature task to `## Cut` with one line why.
 
