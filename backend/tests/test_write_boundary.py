@@ -267,6 +267,10 @@ def test_render_blueprint_holds_no_secret_values_and_keeps_groq_live():
     assert env["REBUTTAL_API_TOKEN"].get("generateValue") is True and "value" not in env["REBUTTAL_API_TOKEN"]
     assert env["PAYPAL_ENV"]["value"] == "sandbox" and "ANTHROPIC_API_KEY" not in env
     assert blueprint["services"][0]["healthCheckPath"] == "/api/health"
+    service = blueprint["services"][0]  # no rootDir: Render skips auto-deploys for changes outside it
+    assert "rootDir" not in service
+    assert {"backend/**", "frontend/**"} <= set(service["buildFilter"]["paths"])
+    assert service["buildCommand"].startswith("cd backend") and service["startCommand"].startswith("cd backend")
 
 
 def test_make_test_order_only_creates_orders_and_never_touches_a_dispute():

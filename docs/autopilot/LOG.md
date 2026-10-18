@@ -1,5 +1,10 @@
 # Autopilot log
 
+## 2026-10-18 06:10 CDT | W 18→? % | F 29→? % | R14 | PR (see runs.log)
+Live still served the pre-#92 bundle 10 h after merge. Cause (Render docs): `rootDir: backend` limits auto-deploys to backend/ changes; #92 was frontend-only.
+Sonnet builder: render.yaml without rootDir, `cd backend` commands, buildFilter, test pins it; Sonnet reviewer: no blockers, 2 should-fix applied.
+Live service `rebuttal` looks hand-made (Blueprint names `rebuttal-api`), so the redeploy and settings are USER item U4. Render MCP not used: it needs a person to pick the workspace.
+
 ## 2026-10-18 01:11 CDT | W 8→13 % | F 55→92 % | R13 | merged #92
 Lead ran the dry-run checks itself (no team workflow: checks, not building): gitleaks 331 commits clean, README links ok except dead uvicorn.org, CI and live health green, live /#demo from a fresh Playwright browser works with zero console errors, judge commands leave the tree clean, 961 backend tests (96%), 99 e2e.
 One real finding: the demo said "Sent to PayPal" though its banner promises nothing reaches PayPal. Sonnet builder added DemoContext; Sonnet reviewer found more demo strings (dialogs, leads, notes), fixed in one round, re-review clean. README counts fixed.

@@ -169,8 +169,9 @@ design (single write path, guard, approval), eval table, how each sponsor tool i
 ### C3 Discord preview — size S — done (this PR) — after C2 and A5 — target Oct 23
 Make the USER item: post `docs/discord-preview.md` in the AG Grid and general channels (exact steps). Do not post.
 
-### R14 Confirm Render redeployed #92 — size S — todo — priority now
+### R14 Confirm Render redeployed #92 — size S — done (this PR; live redeploy itself is USER item U4) — priority now
 After #92 merged (Oct 18 01:24 CDT) the live site still served `assets/index-PGbThk6e.js` 25 minutes later, which has "Sent to PayPal" but not "demo sandbox"; `/api/health` stayed ok. Check that the live bundle now contains "demo sandbox". If not, find out why Render did not redeploy (auto-deploy setting or a failed build; read only, do not change Render settings) and add a USER item with the exact steps for Manish.
+Result Oct 18 06:20 CDT: still `index-PGbThk6e.js`, no "demo sandbox". Cause: `rootDir: backend`; Render only auto-deploys on changes under the root directory, and #92 touched only `frontend/`. Fix in this PR: no rootDir, `cd backend` in both commands, `buildFilter` on `backend/**`, `frontend/**`, `render.yaml`, pinned by a test. The live service is named `rebuttal`, not the Blueprint's `rebuttal-api`, so it is likely not Blueprint-managed and its dashboard settings must be changed by hand: USER item U4. Render MCP was not used (it asks a person to pick the workspace).
 
 ### D1 Feature freeze — Nov 3
 From Nov 3 only fixes, docs, video. Move any unfinished feature task to `## Cut` with one line why.
@@ -247,6 +248,16 @@ Left STILL UNVERIFIED by S3 (#74, see `docs/sandbox-findings.md`): the `appeal` 
 ## USER
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
+
+- **U4 Render: redeploy and fix auto-deploy** (ready Oct 18, from R14; the live demo still serves the pre-#92 bundle). Change the three fields together in one save; a cleared Root Directory with the old commands would fail the build.
+  1. Go to dashboard.render.com, sign in, open the service `rebuttal` (URL `rebuttal-oq3g.onrender.com`), click **Settings**, scroll to **Build & Deploy**.
+  2. **Root Directory**: click Edit, clear the field (empty), Save.
+  3. **Build Command**: Edit, paste `cd backend && pip install uv && uv sync --frozen --no-dev --extra postgres && (cd ../frontend && npm ci && npm run build || echo "frontend build failed, serving the API only")`, Save.
+  4. **Start Command**: Edit, paste `cd backend && uv run --no-sync uvicorn rebuttal.app:app --host 0.0.0.0 --port $PORT`, Save.
+  5. **Build Filters** > Included Paths: add `backend/**`, `frontend/**`, `render.yaml`, Save.
+  6. Top right: **Manual Deploy** > **Deploy latest commit**. Wait for "Live" (about 5 minutes).
+  7. Check: open `https://rebuttal-oq3g.onrender.com/#demo`, approve a proposal; the dialog says "demo sandbox". Tell the lead "U4 done".
+  If anything fails, set Root Directory back to `backend` and the two commands back to the versions without `cd backend &&`, then Manual Deploy again.
 
 - **U3 Demo video review and upload** (ready Oct 14, from B4): follow the four USER steps under B4 above: watch `media/rebuttal-demo.mp4` (run `scripts/make_video.sh` first if missing), optionally pick a better `say` voice, upload to YouTube as Public, then tell the lead "U3 done" with the link.
 
