@@ -48,6 +48,8 @@ async function approveOpenCase(page: Page) {
   await page.getByTestId('case-view').getByRole('button', { name: 'Approve' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByTestId('send-summary')).toBeVisible()
+  await expect(dialog).toContainText('Send this to the demo sandbox?')
+  await expect(dialog).not.toContainText('PayPal sandbox')
   await dialog.getByRole('button', { name: 'Approve and send' }).click()
 }
 

@@ -50,6 +50,7 @@ test('hero case: assistant said medium, shipped L; guard note; approve with an e
   await expect(summary).toContainText('REFUND_WITH_RETURN')
   await expect(summary).toContainText('$48.00')
   await expect(dialog.getByTestId('send-message')).toHaveText(EDITED)
+  await expect(dialog).toContainText('Send this to PayPal with your edits?')
   await dialog.getByRole('button', { name: 'Approve and send' }).click()
 
   // Status changes in the case and the inbox, and the audit trail gains the approval and the execution.
@@ -59,6 +60,8 @@ test('hero case: assistant said medium, shipped L; guard note; approve with an e
   await expect(caseView.getByLabel(/Message the buyer will receive/)).toHaveValue(EDITED)
   await expect(caseView.getByRole('button', { name: /Approve|Reject/ })).toHaveCount(0)
   await expect.poll(() => auditSteps(page)).toEqual(['gather', 'decide', 'guard', 'propose', 'approve', 'execute', 'record'])
+  await expect(caseView.locator('.result')).toContainText('Sent to PayPal.')
+  await expect(page.getByTestId('audit-trail')).toContainText('Sent to PayPal:')
   await expect(page.getByTestId('audit-trail')).toContainText('Merchant approved with an edited message')
 })
 

@@ -8,6 +8,8 @@ const text = (value: unknown) => (typeof value === 'string' ? value : value == n
 // One readable line per audit step. Unknown steps fall back to their raw detail rather than being hidden.
 function describe(entry: AuditEntry, demo: boolean): string {
   const d = entry.detail
+  const target = demo ? 'the demo sandbox' : 'PayPal'
+  const Target = demo ? 'Demo sandbox' : 'PayPal'
   switch (entry.step) {
     case 'gather':
       return `Read the dispute, order, tracking and policies (${Array.isArray(d.tool_calls) ? d.tool_calls.length : 0} lookups, read only)`
@@ -23,13 +25,13 @@ function describe(entry: AuditEntry, demo: boolean): string {
       return `Merchant rejected${d.reason ? `: ${text(d.reason)}` : ''}`
     case 'execute':
       // A retry reads the dispute first; when the first attempt had already landed, nothing is sent again.
-      return `${d.reconciled ? `Already at ${demo ? 'the demo sandbox' : 'PayPal'} from the first attempt, not sent again` : `Sent to ${demo ? 'the demo sandbox' : 'PayPal'}`}: ${text(d.summary)}`
+      return `${d.reconciled ? `Already at ${target} from the first attempt, not sent again` : `Sent to ${target}`}: ${text(d.summary)}`
     case 'record':
       return `Recorded as ${text(d.status)}`
     case 'execute_failed':
-      return `${demo ? 'Demo sandbox' : 'PayPal'} call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
+      return `${Target} call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
     case 'execute_interrupted':
-      return `${demo ? 'Demo sandbox' : 'PayPal'} call interrupted (${typeof d.status === 'number' ? `${demo ? 'The demo sandbox' : 'PayPal'} answered ${d.status}` : `${demo ? 'The demo sandbox' : 'PayPal'} could not be reached`}). The approval is saved; retry to continue`
+      return `${Target} call interrupted (${typeof d.status === 'number' ? `${target} answered ${d.status}` : `${target} could not be reached`}). The approval is saved; retry to continue`
     default:
       return JSON.stringify(d)
   }
