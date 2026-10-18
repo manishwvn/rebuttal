@@ -66,9 +66,9 @@ Per case: `yes` = the final action matches the label; otherwise the final action
 | ho_inr_porch | SHARE_TRACKING | yes |
 | ho_agent_wrong_color | OFFER_RETURN_FOR_REFUND | yes (model: OFFER_REPLACEMENT) |
 
-## Held-out set 2 (not used for tuning)
+## Held-out set 2 (one case later fixed)
 
-evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. Run and reported only; no code is tuned against these results.
+evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. Run and reported; one case (ho2_dup_already_refunded) prompted a fix, see notes.
 
 | Date | Provider | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens | Gate violations | Langfuse experiment |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -80,15 +80,16 @@ Per case: `yes` = the final action matches the label; otherwise the final action
 |---|---|---|
 | ho2_cnp_return_received | ACCEPT_CLAIM | yes |
 | ho2_cnp_refund_posted | SUBMIT_REFUND_PROOF | yes |
-| ho2_dup_already_refunded (hard) | SUBMIT_REFUND_PROOF | yes |
+| ho2_dup_already_refunded (note) | SUBMIT_REFUND_PROOF | yes |
 | ho2_unauth_standing_filters | SUBMIT_EVIDENCE | yes |
 | ho2_unauth_over_cap (hard) | ACCEPT_CLAIM | yes |
 | ho2_snad_rough_spoon (hard) | ACCEPT_CLAIM | yes |
 | ho2_snad_dead_fan (hard) | OFFER_RETURN_FOR_REFUND | yes (model: OFFER_REPLACEMENT) |
 | ho2_inr_digits_swapped (hard) | OFFER_REPLACEMENT | yes |
-| ho2_inr_unit_format (facts limit) | SHARE_TRACKING | yes |
+| ho2_inr_unit_format (note) | SHARE_TRACKING | yes |
 | ho2_inr_nothing_shipped | ACCEPT_CLAIM | yes (model: OFFER_REPLACEMENT) |
 
-Facts limits:
+Notes:
 
 - `ho2_inr_unit_format`: Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' are one address, but the code that compares the ship-to with the delivered-to address does not normalise street suffixes or unit markers, so it can report a mismatch. We keep the case and the label, and do not tune against it.
+- `ho2_dup_already_refunded`: The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That miss prompted the R15 fix: the rules check the refund before the duplicate charge, and guard() refuses a second refund. The case and its label are kept unchanged, and it now passes. This was a real fix prompted by a held-out result, so later results on this case are no longer blind.

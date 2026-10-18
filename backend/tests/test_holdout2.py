@@ -116,4 +116,5 @@ def test_a_holdout2_miss_is_marked_as_a_facts_limit_not_a_model_failure(tmp_path
     (tmp_path / "results" / "ho2.json").write_text(json.dumps(d))
     ev.write_results_md()
     text = (tmp_path / "RESULTS.md").read_text()
-    assert "ho2_inr_unit_format (facts limit)" in text and "not a model failure" in text
+    assert "ho2_inr_unit_format (note)" in text and "not a model failure" in text
+    assert "Notes:" in text and "facts limit" not in text
