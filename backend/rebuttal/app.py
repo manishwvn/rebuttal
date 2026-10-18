@@ -97,7 +97,8 @@ def paypal_interrupted(proposal_id: str, exc: PayPalError | httpx.TransportError
                    status, debug_id)
     try:
         dispute_id = DisputeAgent.dispute_of(proposal_id)
-        proposal = rt.approvals.latest_for(dispute_id)
+        latest = rt.approvals.latest_for(dispute_id)
+        proposal = latest if latest and latest.id == proposal_id else None  # a newer proposal's keys were never sent
         actions = [{"action": a.kind, "idempotency_key": idempotency_key(proposal_id, i, a.kind)}
                    for i, a in enumerate(proposal.actions)] if proposal else []
         rt.audit.log(dispute_id, "execute_interrupted",

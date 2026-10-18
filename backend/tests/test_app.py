@@ -200,6 +200,19 @@ def test_an_interrupted_call_is_logged_and_audited_with_the_status_and_debug_id_
     # no response body
 
 
+def test_the_interrupted_audit_names_no_actions_when_the_latest_proposal_is_not_the_one_that_was_sent(client):
+    """A newer proposal's action kinds and keys were never sent under the older id, so they must not be audited."""
+    proposal = client.post("/api/disputes/PP-D-2000/analyze").json()
+    stale_id = "prop_00000000_PP-D-2000"
+    assert stale_id != proposal["id"]
+    error = app_module.paypal_interrupted(stale_id, PayPalError(503, {"name": "SERVICE_UNAVAILABLE"}, "debug-xyz"))
+    assert error.status_code == 502
+    interrupted = [r for r in client.get("/api/audit/PP-D-2000").json() if r["step"] == "execute_interrupted"]
+    assert len(interrupted) == 1
+    assert interrupted[0]["detail"] == {"proposal": stale_id, "status": 503, "debug_id": "debug-xyz",
+                                        "error": "PayPalError", "actions": []}
+
+
 def test_a_network_error_while_sending_is_a_readable_502_and_retry_then_sends_once(client, monkeypatch, caplog):
     from rebuttal import approval
 
