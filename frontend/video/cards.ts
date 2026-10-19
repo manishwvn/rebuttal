@@ -175,10 +175,10 @@ export function evalCard(stage: 1 | 2): string {
     stage === 2
       ? `<section class="panel main">
 <p>${escapeHtml(
-          "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 95% (19 of 20), hard cases 4 of 4.",
+          "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 85% (17 of 20) latest, 95% best, hard cases 4 of 4.",
         )}</p>
 <div class="chips">
-<span class="chip">${escapeHtml("85-95% across three Groq runs.")}</span>
+<span class="chip">${escapeHtml("85-95% across Groq runs.")}</span>
 <span class="chip">${escapeHtml("4 hard cases = the buyer's wording changes the right answer.")}</span>
 </div>
 </section>`
@@ -193,7 +193,7 @@ export function evalCard(stage: 1 | 2): string {
 <section class="content">
 <h1>${escapeHtml("Held-out test")}</h1>
 <p class="statement">${escapeHtml(
-    "10 unseen disputes, never used for tuning: model alone 8 of 10, model + guard 10 of 10",
+    "Two sets of 10 unseen disputes, never used for tuning: model alone 7 of 10 and 7 of 10, model + guard 10 of 10 and 9 of 10",
   )}</p>
 ${mainSet}
 </section>
