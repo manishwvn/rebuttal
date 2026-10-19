@@ -160,10 +160,14 @@ class RuleReasoner:
             if not f.get("has_tracking"):
                 return "ACCEPT_CLAIM", 0.85, ["No tracking on file, so delivery can't be proven."]
             if f.get("shipment_status") == "DELIVERED":
-                if not f.get("delivered_address_matches"):
+                # Only a proven mismatch (False). None is uncertain (same house number, ZIP and city), not a misdelivery.
+                if f.get("delivered_address_matches") is False:
                     return "OFFER_REPLACEMENT", 0.75, ["Delivered, but not to the address on the order."]
+                # The reason text claims the order address only when it is proven (True); None is not confirmed.
+                where = "to the order address" if f.get("delivered_address_matches") is True else \
+                    "(the address is not confirmed; check it)"
                 if case.stage == "CHARGEBACK":
-                    return "SUBMIT_EVIDENCE", 0.85, ["Claim stage; delivered to the order address."]
+                    return "SUBMIT_EVIDENCE", 0.85, [f"Claim stage; delivered {where}."]
                 # VERIFY: after our own message the live sandbox shows UNDER_REVIEW with no escalate link, and after our
                 # offer WAITING_FOR_BUYER_RESPONSE with one (both confirmed 2026-10-14). `_escalation_offered` requires
                 # WAITING_FOR_SELLER_RESPONSE, so this rule fires live only once a buyer reply returns the INQUIRY to
@@ -172,7 +176,7 @@ class RuleReasoner:
                         and f.get("seller_already_responded")):
                     return "ESCALATE", 0.7, ["Delivered to the order address and we already answered the buyer, "
                                             "but the dispute is still open; ask PayPal to decide."]
-                return "SHARE_TRACKING", 0.8, ["Delivered to the order address."]
+                return "SHARE_TRACKING", 0.8, [f"Delivered {where}."]
             if f.get("days_since_last_scan", 0) >= policies.LOST_PACKAGE_DAYS:
                 return "OFFER_REPLACEMENT", 0.65, ["No carrier movement for 10+ days; treat as lost."]
             return "SHARE_TRACKING", 0.75, ["Package is moving and inside normal delivery time."]
@@ -272,8 +276,13 @@ def draft_evidence_summary(resolution: str, case: CaseFile) -> str:
         lines.append(f"Shipped via {f['carrier']} {f['tracking_number']}; status {f['shipment_status']}"
                      + (f", delivered {f['delivered_on']}." if f.get("delivered_on") else "."))
         if "delivered_address_matches" in f:
-            lines.append("Delivered to the address on the order." if f["delivered_address_matches"]
-                         else "Delivery address differs from the order address.")
+            if f["delivered_address_matches"] is True:
+                lines.append("Delivered to the address on the order.")
+            elif f["delivered_address_matches"] is None:
+                lines.append("Delivery address is written differently from the order address "
+                             "(same house number, ZIP and city).")
+            else:
+                lines.append("Delivery address differs from the order address.")
     if f.get("is_agent_purchase"):
         lines.append(f"Placed by {f['agent_name']}. User instruction: \"{f['agent_instruction']}\". "
                      + ("Order matched the instruction." if f.get("agent_followed_instruction")
@@ -290,6 +299,7 @@ SYSTEM_PROMPT = """You resolve PayPal disputes for a small online shop called Ju
 Goal: the cheapest fair resolution. Keep the sale when the merchant isn't at fault, refund fast when the buyer is right, and never fight a case the evidence can't win.
 Read the buyer's own words carefully: they often pick the wrong dispute reason, and what they ask for matters.
 Facts in the case file were computed by code from PayPal and the shop's records; treat them as true.
+If delivered_address_matches is null the carrier wrote the address differently (same house number, ZIP and city); do not treat that as a misdelivery, and do not rely on tracking without a caution.
 If the purchase was made by the buyer's AI shopping assistant, compare its instruction with what it ordered.
 Four facts decide specific cases: if assistant_misordered is true, the buyer's own AI assistant ordered something other than its instruction; do not fight it with evidence, offer the friendly fix; if cannot_prove_delivery is true on a not-received dispute, there is no tracking to submit, so refund the buyer; if likely_lost is true, treat the package as lost, so a buyer who wants money back gets a refund, not tracking details; if refund_without_return_eligible is true, refund in full without asking for a return.
 ESCALATE and APPEAL are only in allowed_resolutions when PayPal offers them; prefer ESCALATE only when delivery to the order address is proven and the buyer still disputes; never pick either otherwise.
@@ -431,6 +441,15 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             notes.append("Delivered to a different address than the order; tracking does not prove this buyer "
                          "received it.")
             decision.confidence = min(decision.confidence, 0.5)
+    if (decision.resolution in ("SHARE_TRACKING", "SUBMIT_EVIDENCE")
+            and case.reason == "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
+            and f.get("delivered_address_matches") is None and "delivered_address_matches" in f):
+        # Written differently (same house number, ZIP and city): not proof of a misdelivery, so the resolution stays,
+        # but the tracking needs a caution. guard() can run twice on the fallback path, so the note is added once.
+        note = "Delivery address written differently; confirm before relying on tracking"
+        if note not in notes:
+            notes.append(note)
+        decision.confidence = min(decision.confidence, 0.6)
     if (decision.resolution in ("ACCEPT_CLAIM", "OFFER_PARTIAL_REFUND", "OFFER_RETURN_FOR_REFUND")
             and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION") and f.get("refund_issued")):
         # Runs after the conversions above (a likely-lost package turns tracking into a refund) and before the

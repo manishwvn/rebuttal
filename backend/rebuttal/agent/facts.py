@@ -24,8 +24,59 @@ def parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+_ADDRESS_WORDS = {"street": "st", "avenue": "ave", "road": "rd", "apartment": "apt", "unit": "apt"}
+
+
 def _norm(addr: str | None) -> str:
-    return " ".join((addr or "").lower().replace(",", " ").split())
+    """Lowercase, punctuation as spaces, common street words shortened: one address written two ways compares equal."""
+    text = (addr or "").lower().replace("#", " apt ")
+    out: list[str] = []
+    for word in re.sub(r"[\W_]", " ", text).split():
+        word = _ADDRESS_WORDS.get(word, word)
+        if word == "apt" and out and out[-1] == "apt":  # "Apt #4B" becomes "apt apt 4b"
+            continue
+        out.append(word)
+    return " ".join(out)
+
+
+def _house_zip_city(addr: str) -> tuple[str, str, str] | None:
+    """(house number, ZIP5, city's last word) of a normalised address, or None when one of the three is missing."""
+    addr = re.sub(r"(\d{5}) (\d{4})$", r"\1\2", addr)  # ZIP+4 "89501-1234" normalises to "89501 1234": one token
+    words = addr.split()
+    if len(words) < 4 or not words[0].isdigit():
+        return None
+    zip_word, state = words[-1], words[-2]
+    if not (zip_word.isdigit() and len(zip_word) in (5, 9)) or not (len(state) == 2 and state.isalpha()):
+        return None
+    return words[0], zip_word[:5], words[-3]
+
+
+def _unit(addr: str) -> str | None:
+    """The word after 'apt' in a normalised address, or None when there is no unit."""
+    words = addr.split()
+    if "apt" not in words or words.index("apt") + 1 >= len(words):
+        return None
+    i = words.index("apt") + 1
+    unit = words[i]
+    # "Apt 4 B" and "Apt 4-B" are "Apt 4B": join a lone trailing letter onto a unit that ends in a digit.
+    if i + 1 < len(words) and len(words[i + 1]) == 1 and words[i + 1].isalpha() and unit[-1:].isdigit():
+        unit += words[i + 1]
+    return unit
+
+
+def _address_match(delivered_to: str | None, ship_to: str | None) -> bool | None:
+    """True when the addresses match after normalising. None when house number, ZIP and city agree but the rest is
+    written differently (uncertain). False otherwise, including a different unit in the same building."""
+    delivered, shipped = _norm(delivered_to), _norm(ship_to)
+    if delivered == shipped:
+        return True
+    a, b = _house_zip_city(delivered), _house_zip_city(shipped)
+    if a is not None and a == b:
+        unit_a, unit_b = _unit(delivered), _unit(shipped)
+        if unit_a and unit_b and unit_a != unit_b:
+            return False
+        return None
+    return False
 
 
 @dataclass
@@ -228,7 +279,8 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
         f["days_since_last_scan"] = (now - s.event_at).days
         if s.status == "DELIVERED":
             f["delivered_on"] = s.event_at.date().isoformat()
-            f["delivered_address_matches"] = _norm(s.delivered_to) == _norm(order.ship_to)
+            # True, False, or None: None means the address is written differently but house number, ZIP and city agree.
+            f["delivered_address_matches"] = _address_match(s.delivered_to, order.ship_to)
             f["days_since_delivery"] = (now - s.event_at).days
             f["within_return_window"] = f["days_since_delivery"] <= policies.RETURN_WINDOW_DAYS
         else:

@@ -91,5 +91,5 @@ Per case: `yes` = the final action matches the label; otherwise the final action
 
 Notes:
 
-- `ho2_inr_unit_format`: Facts-normalisation limit, not a model failure. 'Mill Street Apt 4B' and 'Mill St #4B' are one address, but the code that compares the ship-to with the delivered-to address does not normalise street suffixes or unit markers, so it can report a mismatch. We keep the case and the label, and do not tune against it.
+- `ho2_inr_unit_format`: The rules baseline missed this in the Oct 18 audit (OFFER_REPLACEMENT instead of SHARE_TRACKING, because the facts code did not normalise street suffixes or unit markers). That miss prompted the R16 fix: addresses are normalised, and the same house number, ZIP and city with different wording is 'uncertain' and never turned into a replacement. The case and its label are kept unchanged, and later results on this case are not blind.
 - `ho2_dup_already_refunded`: The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That miss prompted the R15 fix: the rules check the refund before the duplicate charge, and guard() refuses a second refund. The case and its label are kept unchanged, and it now passes. This was a real fix prompted by a held-out result, so later results on this case are no longer blind.
