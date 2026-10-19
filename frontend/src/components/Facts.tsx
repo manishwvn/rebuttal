@@ -28,7 +28,8 @@ function rows(f: Facts): Row[] {
       `${String(f.carrier)} ${String(f.tracking_number)}: ${delivered ? `delivered ${String(f.delivered_on)}` : `${String(f.shipment_status).toLowerCase()}, last scan ${String(f.days_since_last_scan)} days ago`}`,
     )
     if (has('delivered_address_matches')) {
-      // null means the address is written differently from the order: a neutral note to check, not a finding.
+      // The backend sends only true or false today (facts.py compares normalised addresses). null is reserved for an
+      // inconclusive match and renders as a neutral note to check, not a finding.
       const matches = f.delivered_address_matches
       if (matches === true) add(true, 'Delivered to the address on the order')
       else if (matches === false) add(false, 'Delivered to a different address than the order')
