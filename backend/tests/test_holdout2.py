@@ -119,3 +119,21 @@ def test_a_holdout2_case_fixed_after_a_miss_carries_its_note(tmp_path, monkeypat
     assert "ho2_inr_unit_format (note)" in text and "R16" in text
     assert "not a model failure" not in text
     assert "Notes:" in text and "facts limit" not in text
+
+
+def test_the_r27_guard_miss_carries_its_note(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.setattr(ev, "HERE", tmp_path)
+    (tmp_path / "results").mkdir()
+    row = {"id": "ho2_unauth_over_cap", "title": "t", "hard": True, "expected": "ACCEPT_CLAIM",
+           "got": "OFFER_PARTIAL_REFUND", "correct": False, "confidence": 0.9, "source": "x", "provider": "p",
+           "model": "m"}
+    d = {"mode": "m", "cases": 1, "accuracy": 0.0, "standard_accuracy": None, "hard_accuracy": 0.0, "hard_cases": 1,
+         "approval_gate_violations": 0, "rows": [row], "tokens_used": 1, "langfuse": None, "provider": "p",
+         "model": "m", "date": "2026-10-19", "set": "holdout2"}
+    (tmp_path / "results" / "ho2.json").write_text(json.dumps(d))
+    ev.write_results_md()
+    text = (tmp_path / "RESULTS.md").read_text()
+    assert "ho2_unauth_over_cap (note)" in text and "R27" in text
+    assert "not yet merged" not in text and "in progress" not in text

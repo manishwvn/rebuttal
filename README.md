@@ -224,6 +224,7 @@ Read these honestly:
 - Scores swing 75-95% from run to run on the main set.
 - `snad_outside_window` is a judgment call (a partial refund is defensible).
 - On Oct 18 Held-out 2 showed `ho2_inr_unit_format` reported as a misdelivery. The fix (R16) normalises street suffixes and unit markers, and an address written differently but with the same house number, ZIP and city is "uncertain" and is not converted into a replacement. Later results on that case are not blind.
+- On Oct 19 Held-out 2 showed the Groq model choosing a partial refund for `ho2_unauth_over_cap` (assistant over its spending cap) and the guard passing it. The R27 fix makes the guard send that choice back to the rules (ACCEPT_CLAIM). R27 also makes an uncertain delivery address on an UNAUTHORISED dispute SUBMIT_EVIDENCE at 0.5 confidence. Later results on that case are not blind.
 - The gap between "model alone" and "final" is the guard at work. In the held-out runs the guard's changes turned
   OFFER_REPLACEMENT, an offer type PayPal does not allow on those disputes, into OFFER_RETURN_FOR_REFUND, and on
   `ho2_inr_nothing_shipped` (nothing shipped, so no delivery can be proved: `cannot_prove_delivery`) into ACCEPT_CLAIM.

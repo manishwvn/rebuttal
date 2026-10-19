@@ -195,8 +195,12 @@ class RuleReasoner:
         if reason == "UNAUTHORISED":
             if f.get("is_agent_purchase") and f.get("within_agent_spending_limit") and f.get("agent_followed_instruction"):
                 return "SUBMIT_EVIDENCE", 0.8, ["Placed by the buyer's own assistant within its instructions."]
-            if f.get("delivered_address_matches"):
+            if f.get("delivered_address_matches") is True:
                 return "SUBMIT_EVIDENCE", 0.7, ["Delivered to the address on the transaction."]
+            # None is uncertain (same house number, ZIP and city): evidence stays, but the match needs a check.
+            if f.get("delivered_address_matches") is None and "delivered_address_matches" in f:
+                return "SUBMIT_EVIDENCE", 0.5, ["Delivered, but the address is written differently from the order's; "
+                                                "check it before relying on the delivery."]
             return "ACCEPT_CLAIM", 0.6, ["Nothing ties the purchase to the account holder."]
 
         if reason == "CREDIT_NOT_PROCESSED":
@@ -433,6 +437,14 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
         decision.resolution = "SUBMIT_EVIDENCE"
         decision.evidence_summary = decision.evidence_summary or draft_evidence_summary("SUBMIT_EVIDENCE", case)
         notes.append("Unauthorised-purchase claim: converted 'share tracking' into submitting evidence.")
+    if (_depth == 0 and case.reason == "UNAUTHORISED"
+            and decision.resolution in ("SUBMIT_EVIDENCE", "OFFER_PARTIAL_REFUND")
+            and f.get("is_agent_purchase")
+            and not (f.get("within_agent_spending_limit") and f.get("agent_followed_instruction"))):
+        # Only the model's pick takes this path. The rules' pick then gets one guard pass at depth 1, which skips this
+        # block, so a pick that is evidence (address matched) is never converted again and guard cannot loop.
+        return fallback("The buyer's assistant bought outside its spending limit or instruction, so evidence or an "
+                        "offer defending the sale is not supported.")
     if decision.resolution == "SHARE_TRACKING" and f.get("likely_lost") and f.get("buyer_asks_for_refund"):
         decision.resolution = "ACCEPT_CLAIM"
         decision.message_to_buyer = draft_message("ACCEPT_CLAIM", case)

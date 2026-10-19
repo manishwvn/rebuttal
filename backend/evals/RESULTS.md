@@ -86,7 +86,7 @@ Per case: `yes` = the final action matches the label; otherwise the final action
 | ho2_inr_digits_swapped (hard) | OFFER_REPLACEMENT | yes | yes |
 | ho2_snad_dead_fan (hard) | OFFER_RETURN_FOR_REFUND | yes (model: OFFER_REPLACEMENT) | yes (model: OFFER_REPLACEMENT) |
 | ho2_snad_rough_spoon (hard) | ACCEPT_CLAIM | yes | yes |
-| ho2_unauth_over_cap (hard) | ACCEPT_CLAIM | yes | **OFFER_PARTIAL_REFUND** |
+| ho2_unauth_over_cap (note) | ACCEPT_CLAIM | yes | **OFFER_PARTIAL_REFUND** |
 | ho2_unauth_standing_filters | SUBMIT_EVIDENCE | yes | yes |
 | ho2_dup_already_refunded (note) | SUBMIT_REFUND_PROOF | yes | yes |
 | ho2_cnp_refund_posted | SUBMIT_REFUND_PROOF | yes | yes |
@@ -96,3 +96,4 @@ Notes:
 
 - `ho2_inr_unit_format`: The rules baseline missed this in the Oct 18 audit (OFFER_REPLACEMENT instead of SHARE_TRACKING, because the facts code did not normalise street suffixes or unit markers). That miss prompted the R16 fix: addresses are normalised, and the same house number, ZIP and city with different wording is 'uncertain' and never turned into a replacement. The case and its label are kept unchanged, and later results on this case are not blind.
 - `ho2_dup_already_refunded`: The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That miss prompted the R15 fix: the rules check the refund before the duplicate charge, and guard() refuses a second refund. The case and its label are kept unchanged, and it now passes. This was a real fix prompted by a held-out result, so later results on this case are no longer blind.
+- `ho2_unauth_over_cap`: The Oct 19 Groq run missed this: the model chose OFFER_PARTIAL_REFUND for a purchase the buyer's assistant made above its owner's spending cap, and guard() let it through (the rules baseline already answered ACCEPT_CLAIM). That miss prompted the R27 fix: guard() now sends an evidence or partial-refund choice on an over-limit or off-instruction assistant purchase back to the rules. The case and its label are kept unchanged. This was a real fix prompted by a held-out result, so later results on this case are no longer blind.
