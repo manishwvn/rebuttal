@@ -54,7 +54,7 @@ The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built wi
 - Eval numbers (from backend/evals/RESULTS.md, Groq `qwen/qwen3.8-27b`): latest run Oct 19: main set 75% model alone, 85% (17/20) final (95% on Oct 14, swings run to run); held-out set 1: 70% model alone, 100% (10/10) final; held-out set 2: 70% model alone, 90% (9/10) final (Oct 10: 80% and 100%). Zero PayPal writes before approval in every run. Held-out sets have 10 cases each, so the sample is small.
 - The write boundary is enforced by tests, not by convention.
 - A public demo that needs no accounts and cannot reach the real PayPal client.
-- 469 backend tests at 93% combined line and branch coverage, ten architecture decision records.
+- over 1,000 backend tests, ten architecture decision records.
 
 ## What we learned
 

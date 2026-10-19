@@ -70,7 +70,7 @@ Per case: `yes` = the final action matches the label; otherwise the final action
 
 ## Held-out set 2 (one case later fixed)
 
-evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. Run and reported; one case (ho2_dup_already_refunded) prompted a fix, see notes.
+evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. Run and reported; three cases (ho2_inr_unit_format, ho2_dup_already_refunded, ho2_unauth_over_cap) prompted fixes, see notes.
 
 | Date | Provider | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens | Gate violations | Langfuse experiment |
 |---|---|---|---|---|---|---|---|---|---|---|

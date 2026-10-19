@@ -97,6 +97,8 @@ section 9). AG Grid staff confirmed on Discord that the watermark is not penaliz
 AG Grid. It is not independently confirmed for Studio's AI module. The details are in
 [docs/ag-studio.md](../docs/ag-studio.md) section 3.
 
+The unlicensed banner is logged with `console.error`; that is expected without a licence key (watermark use is allowed).
+
 The AI features need:
 
 - the `AgStudioAiModule` registered in `AgStudioProvider` (`src/components/analytics/StudioDashboard.tsx`);

@@ -156,7 +156,7 @@ month). This replaces the planned paid Render plan. Done when the workflow is me
 
 ### A2 Held-out eval — size S — done (this PR): model alone 80%, final 100%, results in `backend/evals/RESULTS.md`
 `cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse --save`. Report model-alone vs final
-accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
+accuracy and the per-case misses in `backend/evals/RESULTS.md` (include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
@@ -217,7 +217,7 @@ Groq smoke check of the assistant, prompt starters showing, AI module licence no
 ### B3 More evals — size M — done (holdout2 run Oct 10: final 100%, model alone 80%; this PR)
 Grow to about 40 cases: 10 more held-out cases written by a subagent that is **not allowed to read**
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
-Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
+Run once on Groq (respect the one-run-per-day rule). Update `backend/evals/RESULTS.md`.
 
 ### B4 Automated demo video — size L — in-progress [90%] (#68 merged) (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from
