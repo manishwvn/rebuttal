@@ -102,7 +102,7 @@ def test_a_holdout2_results_file_lands_in_its_own_results_section(tmp_path, monk
     assert "ho_a" in rest and "ho_a" not in ho2 and "main_a" in rest
 
 
-def test_a_holdout2_miss_is_marked_as_a_facts_limit_not_a_model_failure(tmp_path, monkeypatch):
+def test_a_holdout2_case_fixed_after_a_miss_carries_its_note(tmp_path, monkeypatch):
     import json
 
     monkeypatch.setattr(ev, "HERE", tmp_path)
@@ -116,5 +116,6 @@ def test_a_holdout2_miss_is_marked_as_a_facts_limit_not_a_model_failure(tmp_path
     (tmp_path / "results" / "ho2.json").write_text(json.dumps(d))
     ev.write_results_md()
     text = (tmp_path / "RESULTS.md").read_text()
-    assert "ho2_inr_unit_format (note)" in text and "not a model failure" in text
+    assert "ho2_inr_unit_format (note)" in text and "R16" in text
+    assert "not a model failure" not in text
     assert "Notes:" in text and "facts limit" not in text
