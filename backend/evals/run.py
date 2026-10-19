@@ -65,8 +65,8 @@ HOLDOUT2_NOTES = {
                            "SHARE_TRACKING, because the facts code did not normalise street suffixes or unit markers). "
                            "That miss prompted the R16 fix: addresses are normalised, and the same house number, ZIP "
                            "and city with different wording is 'uncertain' and never turned into a replacement. The "
-                           "case and its label are kept unchanged, and it now passes. Later results on this case are "
-                           "no longer blind.",
+                           "case and its label are kept unchanged. The R16 fix is not merged yet, so the case still "
+                           "misses until it lands, and it passes after that. Later results on this case are not blind.",
     "ho2_dup_already_refunded": "The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That "
                                 "miss prompted the R15 fix: the rules check the refund before the duplicate charge, "
                                 "and guard() refuses a second refund. The case and its label are kept unchanged, and "
