@@ -30,12 +30,18 @@ _ADDRESS_WORDS = {"street": "st", "avenue": "ave", "road": "rd", "apartment": "a
 def _norm(addr: str | None) -> str:
     """Lowercase, punctuation as spaces, common street words shortened: one address written two ways compares equal."""
     text = (addr or "").lower().replace("#", " apt ")
-    words = re.sub(r"[\W_]", " ", text).split()
-    return " ".join(_ADDRESS_WORDS.get(w, w) for w in words)
+    out: list[str] = []
+    for word in re.sub(r"[\W_]", " ", text).split():
+        word = _ADDRESS_WORDS.get(word, word)
+        if word == "apt" and out and out[-1] == "apt":  # "Apt #4B" becomes "apt apt 4b"
+            continue
+        out.append(word)
+    return " ".join(out)
 
 
 def _house_zip_city(addr: str) -> tuple[str, str, str] | None:
     """(house number, ZIP5, city's last word) of a normalised address, or None when one of the three is missing."""
+    addr = re.sub(r"(\d{5}) (\d{4})$", r"\1\2", addr)  # ZIP+4 "89501-1234" normalises to "89501 1234": one token
     words = addr.split()
     if len(words) < 4 or not words[0].isdigit():
         return None
@@ -45,14 +51,25 @@ def _house_zip_city(addr: str) -> tuple[str, str, str] | None:
     return words[0], zip_word[:5], words[-3]
 
 
+def _unit(addr: str) -> str | None:
+    """The word after 'apt' in a normalised address, or None when there is no unit."""
+    words = addr.split()
+    if "apt" not in words or words.index("apt") + 1 >= len(words):
+        return None
+    return words[words.index("apt") + 1]
+
+
 def _address_match(delivered_to: str | None, ship_to: str | None) -> bool | None:
     """True when the addresses match after normalising. None when house number, ZIP and city agree but the rest is
-    written differently (uncertain). False otherwise."""
+    written differently (uncertain). False otherwise, including a different unit in the same building."""
     delivered, shipped = _norm(delivered_to), _norm(ship_to)
     if delivered == shipped:
         return True
     a, b = _house_zip_city(delivered), _house_zip_city(shipped)
     if a is not None and a == b:
+        unit_a, unit_b = _unit(delivered), _unit(shipped)
+        if unit_a and unit_b and unit_a != unit_b:
+            return False
         return None
     return False
 
