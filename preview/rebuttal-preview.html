@@ -185,7 +185,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 48.0,
       "proposal": {
-        "id": "prop_7242b0cc",
+        "id": "prop_7bdc809a_PP-D-2000",
         "dispute_id": "PP-D-2000",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -195,12 +195,12 @@ const DATA = {
             "The buyer's assistant ordered a different variant than instructed."
           ],
           "buyer_wants": "(not interpreted by the offline baseline)",
-          "message_to_buyer": "Hi Priya, sorry about the mix-up. Your shopping assistant placed the order for Linen shirt (Navy / Size L), but your note asked for something different. Send it back and we'll ship the right one as soon as the return is scanned.",
+          "message_to_buyer": "Hi Priya, sorry about the mix-up. Your shopping assistant placed the order for Linen shirt (Navy / Size L), but your note asked for something different. Send it back and we'll refund the $48.00 as soon as the return is scanned; if you'd rather have the right one, reply and we'll ship it instead.",
           "evidence_summary": "Order JO-3000: Linen shirt (Navy / Size L), $48.00. Shipped via USPS 9400111899223344556677; status DELIVERED, delivered 2026-10-01. Delivered to the address on the order. Placed by Atlas (buyer's AI shopping assistant). User instruction: \"Get my brother the navy linen shirt in medium, under $60.\". Order did not match the instruction.",
           "partial_refund_pct": null,
           "source": "rules",
           "guard_notes": [
-            "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+            "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
           ]
         },
         "actions": [
@@ -208,7 +208,7 @@ const DATA = {
             "kind": "make_offer",
             "summary": "Offer full refund of $48.00 after return",
             "params": {
-              "note": "Hi Priya, sorry about the mix-up. Your shopping assistant placed the order for Linen shirt (Navy / Size L), but your note asked for something different. Send it back and we'll ship the right one as soon as the return is scanned.",
+              "note": "Hi Priya, sorry about the mix-up. Your shopping assistant placed the order for Linen shirt (Navy / Size L), but your note asked for something different. Send it back and we'll refund the $48.00 as soon as the return is scanned; if you'd rather have the right one, reply and we'll ship it instead.",
               "offer_type": "REFUND_WITH_RETURN",
               "amount": {
                 "currency_code": "USD",
@@ -236,11 +236,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Linen shirt (Navy / Size L)",
             "item_price": 48.0,
             "days_since_purchase": 8,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "USPS",
             "tracking_number": "9400111899223344556677",
             "shipment_status": "DELIVERED",
@@ -249,65 +251,64 @@ const DATA = {
             "delivered_address_matches": true,
             "days_since_delivery": 5,
             "within_return_window": true,
+            "buyer_asks_for_refund": false,
+            "likely_lost": false,
+            "buyer_reports_damage": false,
+            "refund_without_return_eligible": false,
             "refund_issued": false,
+            "refunded_amount": 0,
             "return_received": false,
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
             "is_agent_purchase": true,
+            "assistant_misordered": true,
             "agent_name": "Atlas (buyer's AI shopping assistant)",
             "agent_instruction": "Get my brother the navy linen shirt in medium, under $60.",
             "agent_followed_instruction": false,
-            "within_agent_spending_limit": true
+            "within_agent_spending_limit": true,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
+            "Damaged items",
             "Returns",
-            "Size exchanges",
-            "Damaged items"
+            "Size exchanges"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2000",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2000",
             "merchant orders: lookup invoice JO-3000",
-            "GET /v2/checkout/orders/5O00019047A000Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00019047A000Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "make_offer",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2000"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": false
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2000",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2000",
               "merchant orders: lookup invoice JO-3000",
-              "GET /v2/checkout/orders/5O00019047A000Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00019047A000Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Linen shirt (Navy / Size L)",
               "item_price": 48.0,
               "days_since_purchase": 8,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "USPS",
               "tracking_number": "9400111899223344556677",
               "shipment_status": "DELIVERED",
@@ -316,26 +317,35 @@ const DATA = {
               "delivered_address_matches": true,
               "days_since_delivery": 5,
               "within_return_window": true,
+              "buyer_asks_for_refund": false,
+              "likely_lost": false,
+              "buyer_reports_damage": false,
+              "refund_without_return_eligible": false,
               "refund_issued": false,
+              "refunded_amount": 0,
               "return_received": false,
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
               "is_agent_purchase": true,
+              "assistant_misordered": true,
               "agent_name": "Atlas (buyer's AI shopping assistant)",
               "agent_instruction": "Get my brother the navy linen shirt in medium, under $60.",
               "agent_followed_instruction": false,
-              "within_agent_spending_limit": true
+              "within_agent_spending_limit": true,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
+              "Damaged items",
               "Returns",
-              "Size exchanges",
-              "Damaged items"
+              "Size exchanges"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "decide",
           "detail": {
@@ -348,43 +358,54 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "guard",
           "detail": {
             "notes": [
-              "PayPal does not allow OFFER_REPLACEMENT on this dispute (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
+              "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead."
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "propose",
           "detail": {
-            "proposal": "prop_7242b0cc",
+            "proposal": "prop_7bdc809a_PP-D-2000",
             "actions": [
               "Offer full refund of $48.00 after return"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "approve",
           "detail": {
-            "proposal": "prop_7242b0cc",
+            "proposal": "prop_7bdc809a_PP-D-2000",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2000",
           "step": "execute",
           "detail": {
             "action": "make_offer",
-            "summary": "Offer full refund of $48.00 after return"
+            "summary": "Offer full refund of $48.00 after return",
+            "idempotency_key": "54707718-71f1-55a1-8749-389aecd53db6",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2000",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_7bdc809a_PP-D-2000",
+            "status": "EXECUTED"
           }
         }
       ],
@@ -399,7 +420,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 32.0,
       "proposal": {
-        "id": "prop_66eace2d",
+        "id": "prop_d4b05016_PP-D-2001",
         "dispute_id": "PP-D-2001",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -436,11 +457,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Soy candle (Cedar)",
             "item_price": 32.0,
             "days_since_purchase": 15,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "UPS",
             "tracking_number": "1Z999AA10123456784",
             "shipment_status": "DELIVERED",
@@ -449,61 +472,60 @@ const DATA = {
             "delivered_address_matches": true,
             "days_since_delivery": 11,
             "within_return_window": true,
+            "buyer_asks_for_refund": false,
+            "likely_lost": false,
+            "buyer_reports_damage": false,
+            "refund_without_return_eligible": false,
             "refund_issued": false,
+            "refunded_amount": 0,
             "return_received": false,
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
-            "is_agent_purchase": false
+            "is_agent_purchase": false,
+            "assistant_misordered": false,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
+            "Damaged items",
             "AI assistant purchases",
-            "Standing reorders",
-            "Returns"
+            "Standing reorders"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2001",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2001",
             "merchant orders: lookup invoice JO-3001",
-            "GET /v2/checkout/orders/5O00119047A001Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00119047A001Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "send_message",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2001"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": false
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2001",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2001",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2001",
               "merchant orders: lookup invoice JO-3001",
-              "GET /v2/checkout/orders/5O00119047A001Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00119047A001Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Soy candle (Cedar)",
               "item_price": 32.0,
               "days_since_purchase": 15,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "UPS",
               "tracking_number": "1Z999AA10123456784",
               "shipment_status": "DELIVERED",
@@ -512,22 +534,31 @@ const DATA = {
               "delivered_address_matches": true,
               "days_since_delivery": 11,
               "within_return_window": true,
+              "buyer_asks_for_refund": false,
+              "likely_lost": false,
+              "buyer_reports_damage": false,
+              "refund_without_return_eligible": false,
               "refund_issued": false,
+              "refunded_amount": 0,
               "return_received": false,
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
-              "is_agent_purchase": false
+              "is_agent_purchase": false,
+              "assistant_misordered": false,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
+              "Damaged items",
               "AI assistant purchases",
-              "Standing reorders",
-              "Returns"
+              "Standing reorders"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2001",
           "step": "decide",
           "detail": {
@@ -540,37 +571,48 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2001",
           "step": "propose",
           "detail": {
-            "proposal": "prop_66eace2d",
+            "proposal": "prop_d4b05016_PP-D-2001",
             "actions": [
               "Message buyer with tracking"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2001",
           "step": "approve",
           "detail": {
-            "proposal": "prop_66eace2d",
+            "proposal": "prop_d4b05016_PP-D-2001",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2001",
           "step": "execute",
           "detail": {
             "action": "send_message",
-            "summary": "Message buyer with tracking"
+            "summary": "Message buyer with tracking",
+            "idempotency_key": "89c3f844-bf9e-5350-942c-8498df0c2403",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2001",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_d4b05016_PP-D-2001",
+            "status": "EXECUTED"
           }
         }
       ],
-      "final_status": "WAITING_FOR_SELLER_RESPONSE",
+      "final_status": "UNDER_REVIEW",
       "final_outcome": null
     },
     {
@@ -581,7 +623,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 38.0,
       "proposal": {
-        "id": "prop_b81d4b75",
+        "id": "prop_004df437_PP-D-2002",
         "dispute_id": "PP-D-2002",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -619,11 +661,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Wool beanie (Rust)",
             "item_price": 38.0,
             "days_since_purchase": 11,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "USPS",
             "tracking_number": "9400111899223311223344",
             "shipment_status": "DELIVERED",
@@ -632,61 +676,60 @@ const DATA = {
             "delivered_address_matches": false,
             "days_since_delivery": 7,
             "within_return_window": true,
+            "buyer_asks_for_refund": false,
+            "likely_lost": false,
+            "buyer_reports_damage": false,
+            "refund_without_return_eligible": false,
             "refund_issued": false,
+            "refunded_amount": 0,
             "return_received": false,
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
-            "is_agent_purchase": false
+            "is_agent_purchase": false,
+            "assistant_misordered": false,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
+            "Damaged items",
             "Shipping",
-            "Lost packages",
-            "Returns"
+            "Lost packages"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2002",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2002",
             "merchant orders: lookup invoice JO-3002",
-            "GET /v2/checkout/orders/5O00219047A002Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00219047A002Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "make_offer",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2002"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": false
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2002",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2002",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2002",
               "merchant orders: lookup invoice JO-3002",
-              "GET /v2/checkout/orders/5O00219047A002Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00219047A002Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Wool beanie (Rust)",
               "item_price": 38.0,
               "days_since_purchase": 11,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "USPS",
               "tracking_number": "9400111899223311223344",
               "shipment_status": "DELIVERED",
@@ -695,22 +738,31 @@ const DATA = {
               "delivered_address_matches": false,
               "days_since_delivery": 7,
               "within_return_window": true,
+              "buyer_asks_for_refund": false,
+              "likely_lost": false,
+              "buyer_reports_damage": false,
+              "refund_without_return_eligible": false,
               "refund_issued": false,
+              "refunded_amount": 0,
               "return_received": false,
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
-              "is_agent_purchase": false
+              "is_agent_purchase": false,
+              "assistant_misordered": false,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
+              "Damaged items",
               "Shipping",
-              "Lost packages",
-              "Returns"
+              "Lost packages"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2002",
           "step": "decide",
           "detail": {
@@ -723,33 +775,44 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2002",
           "step": "propose",
           "detail": {
-            "proposal": "prop_b81d4b75",
+            "proposal": "prop_004df437_PP-D-2002",
             "actions": [
               "Offer replacement (no refund)"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2002",
           "step": "approve",
           "detail": {
-            "proposal": "prop_b81d4b75",
+            "proposal": "prop_004df437_PP-D-2002",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2002",
           "step": "execute",
           "detail": {
             "action": "make_offer",
-            "summary": "Offer replacement (no refund)"
+            "summary": "Offer replacement (no refund)",
+            "idempotency_key": "8fa29fa8-ad5d-5b80-9872-a448f87cb1c7",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2002",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_004df437_PP-D-2002",
+            "status": "EXECUTED"
           }
         }
       ],
@@ -764,7 +827,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 12.0,
       "proposal": {
-        "id": "prop_3d53c53f",
+        "id": "prop_359fe327_PP-D-2003",
         "dispute_id": "PP-D-2003",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -801,11 +864,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Ceramic mug (Speckled)",
             "item_price": 12.0,
             "days_since_purchase": 6,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "USPS",
             "tracking_number": "9400111899223355667788",
             "shipment_status": "DELIVERED",
@@ -814,61 +879,60 @@ const DATA = {
             "delivered_address_matches": true,
             "days_since_delivery": 3,
             "within_return_window": true,
+            "buyer_asks_for_refund": false,
+            "likely_lost": false,
+            "buyer_reports_damage": true,
+            "refund_without_return_eligible": true,
             "refund_issued": false,
+            "refunded_amount": 0,
             "return_received": false,
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
-            "is_agent_purchase": false
+            "is_agent_purchase": false,
+            "assistant_misordered": false,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
             "Returns",
             "Size exchanges",
-            "Lost packages"
+            "Damaged items"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2003",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2003",
             "merchant orders: lookup invoice JO-3003",
-            "GET /v2/checkout/orders/5O00319047A003Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00319047A003Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "accept_claim",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2003"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": false
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2003",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2003",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2003",
               "merchant orders: lookup invoice JO-3003",
-              "GET /v2/checkout/orders/5O00319047A003Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00319047A003Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Ceramic mug (Speckled)",
               "item_price": 12.0,
               "days_since_purchase": 6,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "USPS",
               "tracking_number": "9400111899223355667788",
               "shipment_status": "DELIVERED",
@@ -877,22 +941,31 @@ const DATA = {
               "delivered_address_matches": true,
               "days_since_delivery": 3,
               "within_return_window": true,
+              "buyer_asks_for_refund": false,
+              "likely_lost": false,
+              "buyer_reports_damage": true,
+              "refund_without_return_eligible": true,
               "refund_issued": false,
+              "refunded_amount": 0,
               "return_received": false,
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
-              "is_agent_purchase": false
+              "is_agent_purchase": false,
+              "assistant_misordered": false,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
               "Returns",
               "Size exchanges",
-              "Lost packages"
+              "Damaged items"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2003",
           "step": "decide",
           "detail": {
@@ -905,33 +978,44 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2003",
           "step": "propose",
           "detail": {
-            "proposal": "prop_3d53c53f",
+            "proposal": "prop_359fe327_PP-D-2003",
             "actions": [
               "Accept claim and refund $12.00"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2003",
           "step": "approve",
           "detail": {
-            "proposal": "prop_3d53c53f",
+            "proposal": "prop_359fe327_PP-D-2003",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2003",
           "step": "execute",
           "detail": {
             "action": "accept_claim",
-            "summary": "Accept claim and refund $12.00"
+            "summary": "Accept claim and refund $12.00",
+            "idempotency_key": "efa56921-40fc-584a-8ddb-fd53dde05b8a",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2003",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_359fe327_PP-D-2003",
+            "status": "EXECUTED"
           }
         }
       ],
@@ -946,7 +1030,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 36.0,
       "proposal": {
-        "id": "prop_259b7324",
+        "id": "prop_2543f876_PP-D-2004",
         "dispute_id": "PP-D-2004",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -997,11 +1081,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Candle refill pack (Cedar)",
             "item_price": 36.0,
             "days_since_purchase": 6,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "UPS",
             "tracking_number": "1Z999AA10123456787",
             "shipment_status": "DELIVERED",
@@ -1010,16 +1096,25 @@ const DATA = {
             "delivered_address_matches": true,
             "days_since_delivery": 3,
             "within_return_window": true,
+            "buyer_asks_for_refund": false,
+            "likely_lost": false,
+            "buyer_reports_damage": false,
+            "refund_without_return_eligible": false,
             "refund_issued": false,
+            "refunded_amount": 0,
             "return_received": false,
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
             "is_agent_purchase": true,
+            "assistant_misordered": false,
             "agent_name": "Atlas (buyer's AI shopping assistant)",
             "agent_instruction": "Reorder my cedar candle refills whenever I'm running low, up to $40 a month.",
             "agent_followed_instruction": true,
-            "within_agent_spending_limit": true
+            "within_agent_spending_limit": true,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
             "Size exchanges",
@@ -1027,48 +1122,38 @@ const DATA = {
             "Standing reorders"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2004",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2004",
             "merchant orders: lookup invoice JO-3004",
-            "GET /v2/checkout/orders/5O00419047A004Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00419047A004Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "provide_evidence",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2004"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": true
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2004",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2004",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2004",
               "merchant orders: lookup invoice JO-3004",
-              "GET /v2/checkout/orders/5O00419047A004Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00419047A004Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Candle refill pack (Cedar)",
               "item_price": 36.0,
               "days_since_purchase": 6,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "UPS",
               "tracking_number": "1Z999AA10123456787",
               "shipment_status": "DELIVERED",
@@ -1077,16 +1162,25 @@ const DATA = {
               "delivered_address_matches": true,
               "days_since_delivery": 3,
               "within_return_window": true,
+              "buyer_asks_for_refund": false,
+              "likely_lost": false,
+              "buyer_reports_damage": false,
+              "refund_without_return_eligible": false,
               "refund_issued": false,
+              "refunded_amount": 0,
               "return_received": false,
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
               "is_agent_purchase": true,
+              "assistant_misordered": false,
               "agent_name": "Atlas (buyer's AI shopping assistant)",
               "agent_instruction": "Reorder my cedar candle refills whenever I'm running low, up to $40 a month.",
               "agent_followed_instruction": true,
-              "within_agent_spending_limit": true
+              "within_agent_spending_limit": true,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
               "Size exchanges",
@@ -1096,7 +1190,7 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2004",
           "step": "decide",
           "detail": {
@@ -1109,33 +1203,44 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2004",
           "step": "propose",
           "detail": {
-            "proposal": "prop_259b7324",
+            "proposal": "prop_2543f876_PP-D-2004",
             "actions": [
               "Submit PROOF_OF_FULFILLMENT with evidence PDF"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2004",
           "step": "approve",
           "detail": {
-            "proposal": "prop_259b7324",
+            "proposal": "prop_2543f876_PP-D-2004",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2004",
           "step": "execute",
           "detail": {
             "action": "provide_evidence",
-            "summary": "Submit PROOF_OF_FULFILLMENT with evidence PDF"
+            "summary": "Submit PROOF_OF_FULFILLMENT with evidence PDF",
+            "idempotency_key": "6fc5633c-c0e1-54eb-be94-e75b3e966415",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2004",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_2543f876_PP-D-2004",
+            "status": "EXECUTED"
           }
         }
       ],
@@ -1150,7 +1255,7 @@ const DATA = {
       "stage": "INQUIRY",
       "amount": 54.0,
       "proposal": {
-        "id": "prop_b1215aaa",
+        "id": "prop_1b457f2e_PP-D-2005",
         "dispute_id": "PP-D-2005",
         "created": "2026-10-06T15:00:00+00:00",
         "decision": {
@@ -1198,11 +1303,13 @@ const DATA = {
           ],
           "facts": {
             "order_found": true,
+            "demo_fixture": false,
             "tracking_uploaded_to_paypal": true,
             "item": "Throw blanket (Slate)",
             "item_price": 54.0,
             "days_since_purchase": 30,
             "has_tracking": true,
+            "cannot_prove_delivery": false,
             "carrier": "UPS",
             "tracking_number": "1Z999AA10123456789",
             "shipment_status": "DELIVERED",
@@ -1211,7 +1318,12 @@ const DATA = {
             "delivered_address_matches": true,
             "days_since_delivery": 26,
             "within_return_window": true,
+            "buyer_asks_for_refund": true,
+            "likely_lost": false,
+            "buyer_reports_damage": false,
+            "refund_without_return_eligible": false,
             "refund_issued": true,
+            "refunded_amount": 54.0,
             "refund_ids": [
               "RF0052Y7741"
             ],
@@ -1219,7 +1331,11 @@ const DATA = {
             "transaction_search_available": true,
             "matching_charges_same_day": 1,
             "duplicate_charge_found": false,
-            "is_agent_purchase": false
+            "is_agent_purchase": false,
+            "assistant_misordered": false,
+            "can_escalate": true,
+            "can_appeal": false,
+            "seller_already_responded": false
           },
           "policies": [
             "Returns",
@@ -1227,48 +1343,38 @@ const DATA = {
             "Lost packages"
           ],
           "tool_calls": [
-            "GET /v1/customer/disputes/PP-D-2005",
+            "get_dispute: GET /v1/customer/disputes/PP-D-2005",
             "merchant orders: lookup invoice JO-3005",
-            "GET /v2/checkout/orders/5O00519047A005Z (shipping.trackers)",
-            "GET /v1/reporting/transactions (purchase day)"
+            "get_order_trackers: GET /v2/checkout/orders/5O00519047A005Z (shipping.trackers)",
+            "list_transactions: GET /v1/reporting/transactions (purchase day)"
           ]
         },
-        "status": "EXECUTED",
-        "result": [
-          {
-            "action": "provide_evidence",
-            "ok": true,
-            "response": {
-              "links": [
-                {
-                  "rel": "self",
-                  "href": "/v1/customer/disputes/PP-D-2005"
-                }
-              ]
-            }
-          }
-        ],
+        "status": "PENDING",
+        "result": [],
+        "approved_message": null,
         "has_evidence_document": true
       },
       "audit": [
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2005",
           "step": "gather",
           "detail": {
             "tool_calls": [
-              "GET /v1/customer/disputes/PP-D-2005",
+              "get_dispute: GET /v1/customer/disputes/PP-D-2005",
               "merchant orders: lookup invoice JO-3005",
-              "GET /v2/checkout/orders/5O00519047A005Z (shipping.trackers)",
-              "GET /v1/reporting/transactions (purchase day)"
+              "get_order_trackers: GET /v2/checkout/orders/5O00519047A005Z (shipping.trackers)",
+              "list_transactions: GET /v1/reporting/transactions (purchase day)"
             ],
             "facts": {
               "order_found": true,
+              "demo_fixture": false,
               "tracking_uploaded_to_paypal": true,
               "item": "Throw blanket (Slate)",
               "item_price": 54.0,
               "days_since_purchase": 30,
               "has_tracking": true,
+              "cannot_prove_delivery": false,
               "carrier": "UPS",
               "tracking_number": "1Z999AA10123456789",
               "shipment_status": "DELIVERED",
@@ -1277,7 +1383,12 @@ const DATA = {
               "delivered_address_matches": true,
               "days_since_delivery": 26,
               "within_return_window": true,
+              "buyer_asks_for_refund": true,
+              "likely_lost": false,
+              "buyer_reports_damage": false,
+              "refund_without_return_eligible": false,
               "refund_issued": true,
+              "refunded_amount": 54.0,
               "refund_ids": [
                 "RF0052Y7741"
               ],
@@ -1285,7 +1396,11 @@ const DATA = {
               "transaction_search_available": true,
               "matching_charges_same_day": 1,
               "duplicate_charge_found": false,
-              "is_agent_purchase": false
+              "is_agent_purchase": false,
+              "assistant_misordered": false,
+              "can_escalate": true,
+              "can_appeal": false,
+              "seller_already_responded": false
             },
             "policies": [
               "Returns",
@@ -1295,7 +1410,7 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2005",
           "step": "decide",
           "detail": {
@@ -1308,33 +1423,44 @@ const DATA = {
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2005",
           "step": "propose",
           "detail": {
-            "proposal": "prop_b1215aaa",
+            "proposal": "prop_1b457f2e_PP-D-2005",
             "actions": [
               "Submit PROOF_OF_REFUND with evidence PDF"
             ]
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2005",
           "step": "approve",
           "detail": {
-            "proposal": "prop_b1215aaa",
+            "proposal": "prop_1b457f2e_PP-D-2005",
             "by": "merchant",
             "edited": false
           }
         },
         {
-          "ts": "2026-10-06T22:31:04+00:00",
+          "ts": "2026-10-19T15:11:57+00:00",
           "dispute_id": "PP-D-2005",
           "step": "execute",
           "detail": {
             "action": "provide_evidence",
-            "summary": "Submit PROOF_OF_REFUND with evidence PDF"
+            "summary": "Submit PROOF_OF_REFUND with evidence PDF",
+            "idempotency_key": "55b0f27c-0d1e-54fe-a84c-a6bc41736ca0",
+            "reconciled": false
+          }
+        },
+        {
+          "ts": "2026-10-19T15:11:57+00:00",
+          "dispute_id": "PP-D-2005",
+          "step": "record",
+          "detail": {
+            "proposal": "prop_1b457f2e_PP-D-2005",
+            "status": "EXECUTED"
           }
         }
       ],
@@ -1342,237 +1468,7 @@ const DATA = {
       "final_outcome": "RESOLVED_SELLER_FAVOUR"
     }
   ],
-  "evals": {
-    "mode": "mock / rules",
-    "cases": 20,
-    "accuracy": 0.8,
-    "standard_accuracy": 0.938,
-    "hard_accuracy": 0.25,
-    "hard_cases": 4,
-    "approval_gate_violations": 0,
-    "rows": [
-      {
-        "id": "agent_wrong_size",
-        "title": "Buyer's AI assistant ordered the wrong size",
-        "hard": false,
-        "expected": "OFFER_RETURN_FOR_REFUND",
-        "got": "OFFER_RETURN_FOR_REFUND",
-        "correct": true,
-        "confidence": 0.8,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "inr_delivered",
-        "title": "Says not received, tracking shows delivered",
-        "hard": false,
-        "expected": "SHARE_TRACKING",
-        "got": "SHARE_TRACKING",
-        "correct": true,
-        "confidence": 0.8,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "inr_delivered_claim",
-        "title": "Escalated not-received claim, delivered",
-        "hard": false,
-        "expected": "SUBMIT_EVIDENCE",
-        "got": "SUBMIT_EVIDENCE",
-        "correct": true,
-        "confidence": 0.85,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "inr_in_transit",
-        "title": "Not received, package moving normally",
-        "hard": false,
-        "expected": "SHARE_TRACKING",
-        "got": "SHARE_TRACKING",
-        "correct": true,
-        "confidence": 0.75,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "inr_no_tracking",
-        "title": "Not received, no tracking",
-        "hard": false,
-        "expected": "ACCEPT_CLAIM",
-        "got": "ACCEPT_CLAIM",
-        "correct": true,
-        "confidence": 0.85,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "inr_misdelivered",
-        "title": "Delivered to the wrong address",
-        "hard": false,
-        "expected": "OFFER_REPLACEMENT",
-        "got": "OFFER_REPLACEMENT",
-        "correct": true,
-        "confidence": 0.75,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "snad_changed_mind",
-        "title": "Not as described, really a change of mind",
-        "hard": false,
-        "expected": "OFFER_RETURN_FOR_REFUND",
-        "got": "OFFER_RETURN_FOR_REFUND",
-        "correct": true,
-        "confidence": 0.7,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "snad_damaged_low_value",
-        "title": "Cheap item arrived damaged",
-        "hard": false,
-        "expected": "ACCEPT_CLAIM",
-        "got": "ACCEPT_CLAIM",
-        "correct": true,
-        "confidence": 0.8,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "snad_damaged_high_value",
-        "title": "Expensive item arrived damaged",
-        "hard": false,
-        "expected": "OFFER_REPLACEMENT",
-        "got": "OFFER_RETURN_FOR_REFUND",
-        "correct": false,
-        "confidence": 0.75,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "snad_outside_window",
-        "title": "Complaint long after the return window",
-        "hard": false,
-        "expected": "SUBMIT_EVIDENCE",
-        "got": "SUBMIT_EVIDENCE",
-        "correct": true,
-        "confidence": 0.7,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "unauth_agent_mandate",
-        "title": "Unrecognized charge from the buyer's own assistant",
-        "hard": false,
-        "expected": "SUBMIT_EVIDENCE",
-        "got": "SUBMIT_EVIDENCE",
-        "correct": true,
-        "confidence": 0.8,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "unauth_delivered",
-        "title": "Unauthorized claim, delivered to account address",
-        "hard": false,
-        "expected": "SUBMIT_EVIDENCE",
-        "got": "SUBMIT_EVIDENCE",
-        "correct": true,
-        "confidence": 0.7,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "cnp_refunded",
-        "title": "Refund already issued",
-        "hard": false,
-        "expected": "SUBMIT_REFUND_PROOF",
-        "got": "SUBMIT_REFUND_PROOF",
-        "correct": true,
-        "confidence": 0.9,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "cnp_owed",
-        "title": "Return received, refund never sent",
-        "hard": false,
-        "expected": "ACCEPT_CLAIM",
-        "got": "ACCEPT_CLAIM",
-        "correct": true,
-        "confidence": 0.75,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "duplicate_true",
-        "title": "Charged twice",
-        "hard": false,
-        "expected": "ACCEPT_CLAIM",
-        "got": "ACCEPT_CLAIM",
-        "correct": true,
-        "confidence": 0.9,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "duplicate_false",
-        "title": "Thinks they were charged twice",
-        "hard": false,
-        "expected": "SUBMIT_EVIDENCE",
-        "got": "SUBMIT_EVIDENCE",
-        "correct": true,
-        "confidence": 0.75,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "hard_inr_wrong_color",
-        "title": "Picked 'not received' but actually got the wrong color",
-        "hard": true,
-        "expected": "OFFER_REPLACEMENT",
-        "got": "SHARE_TRACKING",
-        "correct": false,
-        "confidence": 0.8,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "hard_stuck_wants_refund",
-        "title": "Lost package, buyer wants money back",
-        "hard": true,
-        "expected": "ACCEPT_CLAIM",
-        "got": "OFFER_REPLACEMENT",
-        "correct": false,
-        "confidence": 0.65,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "hard_two_pieces",
-        "title": "Damage described without the usual words",
-        "hard": true,
-        "expected": "ACCEPT_CLAIM",
-        "got": "OFFER_RETURN_FOR_REFUND",
-        "correct": false,
-        "confidence": 0.7,
-        "source": "rules",
-        "writes_before_approval": 0
-      },
-      {
-        "id": "hard_agent_right_size",
-        "title": "Assistant ordered correctly, item runs small",
-        "hard": true,
-        "expected": "OFFER_RETURN_FOR_REFUND",
-        "got": "OFFER_RETURN_FOR_REFUND",
-        "correct": true,
-        "confidence": 0.7,
-        "source": "rules",
-        "writes_before_approval": 0
-      }
-    ]
-  }
+  "evals": null
 };
 
 const REASON = {

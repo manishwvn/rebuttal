@@ -455,7 +455,7 @@ function SendSummary({
           {action.summary}
           {replacementNote && (
             <p className="muted" data-testid="replacement-note">
-              PayPal takes no replacement offer on this dispute, so this is a refund after the return. The message below also promises a replacement.
+              PayPal takes no replacement offer on this dispute, so this is a refund after the return. The message below offers a replacement only as an alternative the buyer can ask for.
             </p>
           )}
         </dd>

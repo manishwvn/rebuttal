@@ -255,8 +255,9 @@ def draft_message(resolution: str, case: CaseFile) -> str:
     if resolution == "OFFER_RETURN_FOR_REFUND":
         if f.get("is_agent_purchase") and not f.get("agent_followed_instruction", True):
             return (f"Hi {first}, sorry about the mix-up. Your shopping assistant placed the order for {item}, "
-                    "but your note asked for something different. Send it back and we'll ship the right one "
-                    "as soon as the return is scanned.")
+                    "but your note asked for something different. Send it back and we'll refund the "
+                    f"${case.amount:.2f} as soon as the return is scanned; if you'd rather have the right one, "
+                    "reply and we'll ship it instead.")
         return (f"Hi {first}, no problem. Send the {item} back within our {policies.RETURN_WINDOW_DAYS}-day return window and we'll "
                 "refund you in full as soon as it arrives.")
     if resolution == "ACCEPT_CLAIM":
