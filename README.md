@@ -208,7 +208,7 @@ violations (PayPal writes before approval) are 0 in every run.
 | Main set | 2026-10-07 | nvidia z-ai/glm-5.3-flash | final only | 95% (19/20) | 94% | 100% of 4 | n/a | 59,808 |
 | **Held-out 1** (10 cases, not tuned against) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 70% (7/10) | 100% (10/10) | 100% | 100% of 3 | 3/10 (30%) | 15,737 |
 | Held-out 1 | 2026-10-09 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 3 | 2/10 (20%) | 13,685 |
-| **Held-out 2** (10 cases, one case later fixed, see notes) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 70% (7/10) | 90% (9/10) | 100% | 83% of 6 | 2/10 (20%) | 16,106 |
+| **Held-out 2** (10 cases; Oct 19 miss `ho2_unauth_over_cap`, see notes) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 70% (7/10) | 90% (9/10) | 100% | 83% of 6 | 2/10 (20%) | 16,106 |
 | Held-out 2 | 2026-10-10 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 6 | 2/10 (20%) | 13,979 |
 
 Offline rules baseline (no model, `uv run python -m evals.run --rules`, re-run Oct 19, 2026 on 6b0fa6a): main set
