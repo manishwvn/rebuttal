@@ -6,6 +6,9 @@ Daily system audit on f038629 (Sonnet per component, fresh clone, Opus principal
 Main defect: guard() recursed forever on a refund-proof decision when it was not the seller's turn (re-analysis after an approve gave a bare 500; nothing reached PayPal). Fixed today in R25 (#106); R28 (#105) shows INTERRUPTED proposals instead of "Sent to PayPal".
 Next: R26 hero offer note must say refund (may need a video re-record), R27 guard money rules, R29 boundary hardening, R30 docs drift, R31 negation-aware keywords, R32 analytics labels.
 
+## 2026-10-19 10:10 CDT | W 76→? % | F 64→? % | R26 | PR (see runs.log)
+H=4, so one size S task. Sonnet builder + Sonnet reviewer: no blockers; should-fix (stale video narration in shots.json and video-script.md) fixed in the same PR.
+Hero note now states the $48.00 refund first, replacement only on request; guard logic unchanged (message text only). Rules evals unchanged (85%); backend 1082 passed. U3 approve-dialog shot needs re-recording.
 ## 2026-10-19 08:10 CDT | W 68→73 % | F 4→44 % | audit, R25, R28 | merged #105, #106
 One team-cycle workflow (26 agents, 46 min) over two disjoint tasks; R25 strict (Opus principal: write boundary and guard intact, safe_to_merge), R28 non-strict. No findings left on either.
 R25 merged after #105 with a STATUS.md header conflict only (both entries kept). Rules evals unchanged (main 85%, holdout 90%, holdout2 100%); backend 1081 passed.
