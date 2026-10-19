@@ -71,6 +71,12 @@ HOLDOUT2_NOTES = {
                                 "and guard() refuses a second refund. The case and its label are kept unchanged, and "
                                 "it now passes. This was a real fix prompted by a held-out result, so later results "
                                 "on this case are no longer blind.",
+    "ho2_unauth_over_cap": "The Oct 19 Groq run missed this: the model chose OFFER_PARTIAL_REFUND for a purchase the "
+                           "buyer's assistant made above its owner's spending cap, and guard() let it through (the "
+                           "rules baseline already answered ACCEPT_CLAIM). That miss prompted the R27 fix: guard() "
+                           "now sends an evidence or partial-refund choice on an over-limit or off-instruction "
+                           "assistant purchase back to the rules, so the case is no longer guard-blind. The case and "
+                           "its label are kept unchanged, and later results on it are no longer blind.",
 }
 
 
