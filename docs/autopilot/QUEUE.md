@@ -40,7 +40,7 @@ Evidence: approval.py:309-310 `decision="edit" if edited_message else "approve"`
 Fix: branch on `edited_message is not None`. Either drop HEAD from the allow-list or add it to test_only_post_to_the_token_and_verify_paths_passes_the_write_gates, and reword the docs to 'GET/HEAD plus the token and verify-webhook-signature POSTs'. Add a test that reloads rebuttal.app with REBUTTAL_CORS_ORIGINS set and checks a preflight on /api/health. Either make for_dispute read the JSONL file when a path is set, or document that file mode is per-process.
 Acceptance: tests: approve(pid,'') raises ApprovalError and mock.write_calls()==[]; the HEAD test; the CORS wiring test. test_write_boundary.py is unchanged or only strengthened.
 
-### R30 Docs and eval-honesty drift sweep — size S — in-progress (cycle 2026-10-19T12:10:34-05:00) — audit Oct 19, priority next
+### R30 Docs and eval-honesty drift sweep — size S — done #110 — audit Oct 19, priority next
 Evidence (verified): README.md:73 says '976 backend tests', but pytest gives 1041 passed. docs/devpost.md:57 says '469 backend tests at 93%' (now 1041 at 96%; 'ten ADRs' is correct). evals/run.py:33-34 and the --set help at :295 say held-out sets are 'never used for tuning', and run.py:161-163 says 'one case later fixed', yet HOLDOUT2_NOTES lists two fixes (ho2_inr_unit_format R16, ho2_dup_already_refunded R15). README.md:222-226 already carries both caveats. frontend/video/cards.ts:196 says 'written blind' with no caveat. docs/deploy.md:138 says 'Not verified here: the uv build/start commands on Render', yet the live service runs. STATUS.md:3 header says Oct 18/R17, but the entries are R21/R22 from Oct 19. docs/autopilot/QUEUE.md:115 and :176 point at docs/evals.md, which does not exist. README lacks a Vite port example and a note on backend/audit.jsonl. frontend/README does not say the AG Studio licence banner is logged with console.error.
 Fix: write 'over 1,000 backend tests' (or the exact count) in the README and devpost. Fix the run.py comment, help and section title to 'two cases later fixed', then run `uv run python -m evals.run --rebuild-md`. Add a caveat to the cards.ts held-out line. Correct deploy.md, the STATUS header and the QUEUE paths (to backend/evals/RESULTS.md). Add `VITE_API_BASE=http://localhost:8001 npm run dev -- --port 5174` and a one-line audit.jsonl note to the README, and the console.error note to frontend/README.
 Acceptance: grep finds no 976/469 claims, no 'never used for tuning', and no docs/evals.md references. RESULTS.md is regenerated. Tests stay green.
@@ -156,7 +156,7 @@ month). This replaces the planned paid Render plan. Done when the workflow is me
 
 ### A2 Held-out eval — size S — done (this PR): model alone 80%, final 100%, results in `backend/evals/RESULTS.md`
 `cd backend && uv run python -m evals.run --set holdout --provider groq --langfuse --save`. Report model-alone vs final
-accuracy and the per-case misses in `docs/evals.md` (create it, include the main-set numbers from `STATUS.md`) and in
+accuracy and the per-case misses in `backend/evals/RESULTS.md` (include the main-set numbers from `STATUS.md`) and in
 `STATUS.md`. **Change no agent code because of the result.** If Groq returns 429 (daily quota), mark
 `waiting: Groq quota until <time>` and move on; retry next day.
 
@@ -217,7 +217,7 @@ Groq smoke check of the assistant, prompt starters showing, AI module licence no
 ### B3 More evals — size M — done (holdout2 run Oct 10: final 100%, model alone 80%; this PR)
 Grow to about 40 cases: 10 more held-out cases written by a subagent that is **not allowed to read**
 `agent/facts.py`, `agent/reasoner.py` or `agent/llm.py` (give it only `cases.json` format and the dispute types).
-Run once on Groq (respect the one-run-per-day rule). Update `docs/evals.md`.
+Run once on Groq (respect the one-run-per-day rule). Update `backend/evals/RESULTS.md`.
 
 ### B4 Automated demo video — size L — in-progress [90%] (#68 merged) (part 1 #66 one-command rough cut; part 2: Analytics segment, live-proof card, 2:50; left: USER review and upload) — after A4, B1 — rough cut deadline Oct 23
 Free tooling only: Playwright records the browser (video) following the A4 shot list in demo mode; narration from

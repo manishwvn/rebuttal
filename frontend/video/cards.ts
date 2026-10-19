@@ -193,7 +193,7 @@ export function evalCard(stage: 1 | 2): string {
 <section class="content">
 <h1>${escapeHtml("Held-out test")}</h1>
 <p class="statement">${escapeHtml(
-    "Two sets of 10 disputes written blind to the agent code: model alone 7 of 10 on both, model + guard 10 of 10 and 9 of 10",
+    "Two sets of 10 disputes written blind to the agent code (three later fixed): model alone 7 of 10 on both, model + guard 10 of 10 and 9 of 10",
   )}</p>
 ${mainSet}
 </section>

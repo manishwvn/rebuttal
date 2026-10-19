@@ -35,6 +35,8 @@ REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTT
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 
+Local runs also append every audit record to `backend/audit.jsonl` (path from `REBUTTAL_AUDIT_PATH`; git-ignored).
+
 Port 8000 or 5173 busy? Change them together: `--port`, `REBUTTAL_CORS_ORIGINS` and the frontend's `VITE_API_BASE` must all name the same ports.
 
 Terminal 2:
@@ -43,6 +45,7 @@ Terminal 2:
 cd frontend
 npm install
 npm run dev                                # then open http://localhost:5173/#demo
+VITE_API_BASE=http://localhost:8001 npm run dev -- --port 5174   # example only: backend on 8001 with REBUTTAL_CORS_ORIGINS=http://localhost:5174
 ```
 
 Backend only, no browser:
@@ -70,7 +73,7 @@ Live end to end (Oct 7, 2026): deployed on Render with Groq and Supabase Postgre
 real PayPal sandbox arrived as a signature-verified webhook, the agent gathered the facts and drafted a resolution,
 and the proposal is waiting for approval in the checkpointed workflow. No PayPal writes happened before approval.
 
-976 backend tests, 96% combined line and branch coverage (`cd backend && uv run pytest --cov --cov-branch`; CI prints it on every run).
+over 1,000 backend tests (`cd backend && uv run pytest`); CI also prints coverage on every run.
 CI also runs ruff, gitleaks, CodeQL, OSV-Scanner and OpenSSF Scorecard, and the Playwright end-to-end tests.
 
 Not verified live: an approved write to the real PayPal sandbox through the deployed app (the hero dispute was

@@ -30,8 +30,8 @@ from rebuttal.runtime import Runtime
 from rebuttal.scenarios import load_cases, seed_case
 
 HERE = Path(__file__).resolve().parent
-# Labeled sets. The held-out ones were written independently of the guard and the facts code and are never used for
-# tuning: they are only run and reported.
+# Labeled sets. The held-out ones were written independently of the guard and the facts code. Held-out 2 was written
+# blind, but three of its cases were later fixed after misses (see HOLDOUT2_NOTES). The held-out results are run and reported.
 SETS = {"main": HERE / "cases.json", "holdout": HERE / "holdout.json", "holdout2": HERE / "holdout2.json"}
 DATASETS = {"main": None, "holdout": "rebuttal-disputes-holdout",
             "holdout2": "rebuttal-disputes-holdout2"}  # Langfuse dataset names (None = the default)
@@ -167,7 +167,7 @@ def write_results_md() -> None:
     if holdout2:
         lines += [""] + _section(holdout2, "Held-out set 2 (one case later fixed)",
                                  "evals/holdout2.json: 10 more disputes, written blind to the guard and facts code. "
-                                 "Run and reported; one case (ho2_dup_already_refunded) prompted a fix, see notes.",
+                                 "Run and reported; three cases (ho2_inr_unit_format, ho2_dup_already_refunded, ho2_unauth_over_cap) prompted fixes, see notes.",
                                  HOLDOUT2_NOTES, "note")
     (HERE / "RESULTS.md").write_text("\n".join(lines) + "\n")
 
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     ap.add_argument("--langfuse", action="store_true",
                     help="trace every case and record the run as a Langfuse experiment (needs the Langfuse keys)")
     ap.add_argument("--set", dest="case_set", choices=list(SETS), default="main",
-                    help="main = cases.json; holdout, holdout2 = the held-out sets (never used for tuning)")
+                    help="main = cases.json; holdout, holdout2 = the held-out sets (written blind; see HOLDOUT2_NOTES)")
     ap.add_argument("--rebuild-md", action="store_true", help="regenerate RESULTS.md from evals/results/ and exit")
     ap.add_argument("--provider", choices=PROVIDERS, help="pin the model provider (needs its key in backend/.env)")
     args = ap.parse_args()

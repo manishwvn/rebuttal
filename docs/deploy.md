@@ -135,7 +135,7 @@ serves only `/api`.
 - Mock instead of the real sandbox: set `REBUTTAL_MOCK=1` in Render. Then the in-memory sandbox plus the judge
   simulator (`/api/simulator/dispute/{case}`) run, and webhooks are accepted without a webhook id. Paused proposals
   and the audit log are then in memory (lost on restart) unless `REBUTTAL_MOCK_USE_DATABASE=1`.
-- Not verified here: the `uv` build/start commands on Render (Render documents `uv.lock` support but not these exact
-  commands), and whether 512 MB is enough. If the build fails, read the build log and tell me the first error.
+- The `uv` build/start commands on Render are verified by the live deploy (the service runs with them). Whether 512 MB
+  is enough is not verified. If the build fails, read the build log and tell me the first error.
 - The NVIDIA and Anthropic keys are not needed on Render. Do not set `ANTHROPIC_API_KEY` there: it would win over
   Groq.
