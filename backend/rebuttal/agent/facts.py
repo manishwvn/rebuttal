@@ -260,16 +260,17 @@ def gather(dispute_id: str, client: PayPalClient, store: MerchantStore, now: dat
 _NEGATORS = {"not", "no", "without", "never", "cannot"}
 
 
-def _mentions(said: str, words: tuple[str, ...]) -> bool:
+def _mentions(said: str, words: tuple[str, ...], whole_word: bool = True) -> bool:
     """True if one of `words` appears in `said` (lowercase) and is not negated.
 
-    A hit counts only at a word start and end (plus a plural or tense ending), so "student" does not read as "dent" and
-    "tornado" does not read as "torn". A hit is negated by not, n't, no, never, without or "rather than" within the 3
+    A hit counts only at a word start, so "student" does not read as "dent". With `whole_word` it must also end the
+    word (plus a plural or tense ending), so "tornado" does not read as "torn"; refund words skip that so "reimbursed"
+    and "refundable" still match. A hit is negated by not, n't, no, never, without or "rather than" within the 3
     words before it, in the same sentence ("i don't want a refund", "the box is not damaged"). One real hit anywhere
     is enough: "not damaged on the outside, but the lid is cracked" still counts.
     """
     for w in words:
-        for m in re.finditer(r"\b" + re.escape(w) + r"(?:s|es|ed|ing)?\b", said):
+        for m in re.finditer(r"\b" + re.escape(w) + (r"(?:s|es|ed|ing)?\b" if whole_word else ""), said):
             before = re.split(r"[.!?;\n]", said[:m.start()])[-1].split()[-3:]
             negated = any(t.strip(",") in _NEGATORS or t.endswith("n't") for t in before) \
                 or "rather than" in " ".join(before)
@@ -309,13 +310,12 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
 
     # Words from anything the buyer said: the refund request may sit in the claim notes, not the latest message.
     said = " ".join(buyer_messages).lower()
-    f["buyer_asks_for_refund"] = _mentions(said, policies.REFUND_WORDS)
+    f["buyer_asks_for_refund"] = _mentions(said, policies.REFUND_WORDS, whole_word=False)
     # Shipped, not delivered, and no carrier scan for LOST_PACKAGE_DAYS: treat the package as lost.
     f["likely_lost"] = bool(s and s.status != "DELIVERED"
                             and f["days_since_last_scan"] >= policies.LOST_PACKAGE_DAYS)
     # Damaged and under the small-item threshold: refund in full, no return required.
-    # The disputed amount decides the
-    # size, not the first order line: a cheap first line must not make a big damaged claim look small.
+    # The disputed amount decides the size, not the first order line: a cheap first line must not make a big damaged claim look small.
     f["buyer_reports_damage"] = _mentions(said, policies.DAMAGE_WORDS)
     f["refund_without_return_eligible"] = (amount < policies.SMALL_ITEM_REFUND_THRESHOLD
                                            and f["buyer_reports_damage"])
