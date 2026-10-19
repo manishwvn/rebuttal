@@ -96,9 +96,9 @@ sessions, never the real sandbox, the database or the approval queue (see [demo-
 are open, they are bounded:
 
 - 40 live sessions; the least recently used is evicted when a 41st starts.
-- 20 session creations or resets per minute for the whole service. So one client can use up the window and lock judges
-  out for up to a minute, or push their sessions out through eviction. Accepted for the hackathon; there is no
-  per-client limit.
+- 20 session creations or resets per minute for the whole service. Each client (first `X-Forwarded-For` hop) gets 10 per minute
+  (`REBUTTAL_DEMO_CLIENT_LIMIT`), so one client cannot use up the whole window, but several clients can still lock
+  judges out for up to a minute or push sessions out through eviction. Accepted for the hackathon.
 - 16 disputes and 100 workflow runs per session (analyze, approve, reject, retry, simulate). Each run adds to the
   session's memory, so the budget keeps one client from filling the 512 MB of the free plan, which the webhook and
   approval queue share. Reset demo restores it.

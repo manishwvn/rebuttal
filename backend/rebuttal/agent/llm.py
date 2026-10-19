@@ -58,7 +58,7 @@ class DecisionOut(BaseModel):
         default=None, description="Integer 5-50, only for OFFER_PARTIAL_REFUND, otherwise null.")
     confidence: float = Field(description="0.0 to 1.0.")
     reasoning: list[str] = Field(description="3-5 short bullet strings citing facts or policies.")
-    message_to_buyer: str = Field(description="Friendly, under 90 words, signed 'Juniper & Oak'.")
+    message_to_buyer: str = Field(description="Friendly, under 90 words, no signature line.")
     evidence_summary: str = Field(
         default="", description="2-4 factual sentences for PayPal, only if submitting evidence, otherwise empty.")
 

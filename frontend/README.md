@@ -66,7 +66,7 @@ The browser needs the backend to allow its origin: set `REBUTTAL_CORS_ORIGINS` o
 wildcard). Playwright sets it for `http://localhost:4173`.
 
 Playwright starts its own backend, preview build and dev server (`reuseExistingServer` is false), so ports 8000, 4173 and
-5174 must be free: stop `uvicorn` and `npm run dev`/`vite preview` before `npm run e2e`, or it fails to start.
+5174 must be free: stop `uvicorn` and `npm run dev`/`vite preview` before `npx playwright test`, or it fails to start.
 
 ## Demo mode
 

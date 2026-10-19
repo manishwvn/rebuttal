@@ -7,6 +7,10 @@ Main weakness was money logic: a second refund could be proposed, an address wri
 Fixed today in one team cycle: R15 second refund refused (#96), R17 retry fails closed (#95), R20 judge-path UI copy (#94). Backend 997 passed; rules evals main 85% (0 gate violations), holdout2 90%.
 Next: R16 address near-match, R18 API safety tests, R19 eval re-run, R21 docs sweep, R22 robustness; S4 now also holds R17's three sandbox fixtures (before Nov 3).
 
+## 2026-10-18 21:11 CDT | W 50→57 % | F 3→52 % | R18, R22, R16, R21 | merged #98, #99, #100, #101
+R16 via team-cycle (30 agents, 33 min, strict, Opus principal: boundary intact, safe_to_merge); R18, R22, R21 via one Sonnet builder plus an independent reviewer each. R22's Opus review caught a duplicate-send risk on legacy checkpoints (no seller_activity); fixed to fail closed before any PayPal call, re-reviewed clean.
+R16 branch was handed back on a detached HEAD; lead re-attached it, merged main, re-ran pytest (1040) before merge. A force-push was refused by permissions; used plain pushes only. Live health ok after each merge.
+
 ## 2026-10-18 16:11 CDT | W 37→49 % | F 2→96 % | audit, R15, R17, R20 | merged #94, #95, #96
 One team-cycle workflow (70 agents, 57 min) over three disjoint tasks; R15 and R17 strict (Opus principal: write boundary and guard intact), R20 non-strict. All three verdicts safe_to_merge with no findings left.
 Merges conflicted only in STATUS.md headers and one test file (both sides kept); lead re-ran pytest (997) and rules evals on the merged R15 branch before merging. Live health ok after merge.

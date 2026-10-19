@@ -200,7 +200,7 @@ Runs 2026-10-14, disputes PP-R-SVN-10190455 (survey), PP-R-HDU-10190454 and PP-R
   `accept_claim` REFUND only). PP-R-AFT-10190433 showed the same in survey (run log only). The mock mirrors this: full options while the seller is to respond, `accept_claim` REFUND only while the buyer is.
 - The `escalate` rel is also offered on INQUIRY / WAITING_FOR_BUYER_RESPONSE (PP-R-GBK-10190434, fixture
   `sandbox_dispute_after_buyer_reply_PP-R-GBK-10190434.json`). PP-R-AFT-10190433 showed it in survey (run log only).
-  The mock offers it only for the seller turn.
+  The mock offers it on both turns (WAITING_FOR_SELLER_RESPONSE and WAITING_FOR_BUYER_RESPONSE).
 - `seller_activity` shapes: a seller message is `posted_by: SELLER` (PP-R-HDU-10190454, fixture). An offer appears as
   `offer.history[].actor: SELLER` with `offer_type: REFUND_WITH_RETURN` (PP-R-GBK-10190434, fixture, made before this run).
 - Reads can lag a write (run log only): PP-R-GFH-10190453 showed `[self]` right after escalate and `provide_evidence` at the next read.

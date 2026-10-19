@@ -446,3 +446,10 @@ def test_share_tracking_draft_depends_on_address_match():
     from rebuttal.agent.reasoner import draft_message
     assert "to the address on your order" in draft_message("SHARE_TRACKING", _delivered_case(True))
     assert "to the address on your order" not in draft_message("SHARE_TRACKING", _delivered_case(False))
+
+
+def test_return_draft_uses_the_policy_return_window(monkeypatch):
+    from rebuttal import policies
+    from rebuttal.agent.reasoner import draft_message
+    monkeypatch.setattr(policies, "RETURN_WINDOW_DAYS", 45)
+    assert "45-day return window" in draft_message("OFFER_RETURN_FOR_REFUND", _delivered_case(True))
