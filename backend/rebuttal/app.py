@@ -15,7 +15,7 @@ import httpx
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -48,8 +48,19 @@ def configure_cors(application: FastAPI, origins: list[str]) -> None:
                                    allow_headers=["Authorization", "Content-Type"])
 
 
+async def json_500(request: Request, call_next):
+    """An unexpected error becomes a JSON 500 with the CORS headers, not Starlette's bare text 500. The text and
+    traceback go to the log only. HTTPExceptions are answered inside the app and never reach this handler."""
+    try:
+        return await call_next(request)
+    except Exception:  # noqa: BLE001 - every unexpected error gets the same JSON answer
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse({"detail": "Internal server error"}, status_code=500)
+
+
 app = FastAPI(title="Rebuttal", version="0.1.0")
 rt = Runtime(seed_cases=DEMO_CASES, audit_to_file=True)  # loads backend/.env into the environment
+app.middleware("http")(json_500)  # must be added before CORS: the last-added middleware is outermost, so CORS wraps it
 configure_cors(app, cors_origins())  # after the Runtime, so REBUTTAL_CORS_ORIGINS may live in backend/.env
 
 

@@ -18,10 +18,12 @@ from unittest.mock import patch
 import httpx
 import pytest
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
 from rebuttal import demo_api
 from rebuttal.agent.pipeline import Proposal
+from rebuttal.approval import ApprovalError
 from rebuttal.demo import (
     HERO_DISPUTE_ID,
     DemoBusy,
@@ -386,3 +388,37 @@ def test_the_per_client_limit_keys_on_the_first_forwarded_hop():
     other = http.post("/api/demo/sessions", headers={"X-Forwarded-For": "2.2.2.2"})
     assert (ok.status_code, again.status_code, other.status_code) == (200, 429, 200)
     assert "retry-after" in again.headers
+
+
+def test_an_unexpected_error_in_a_route_is_a_logged_json_500_that_hides_the_cause(client, manager, caplog):
+    sid = new_session(client)
+    with patch.object(manager.sessions[sid].runtime, "analyze", side_effect=RuntimeError("boom secret")):
+        r = client.post(f"/api/demo/{sid}/disputes/{HERO_DISPUTE_ID}/analyze")
+    assert r.status_code == 500
+    assert r.json() == {"detail": "The demo hit an unexpected error. Reset the demo."}
+    assert "boom secret" not in r.text
+    assert "Unhandled error in a demo route" in caplog.text
+    assert "boom secret" in caplog.text  # the cause stays in the server log
+
+
+def test_the_unexpected_error_500_carries_cors_headers_for_an_allowed_origin(manager):
+    session = manager.create()
+    app = FastAPI()
+    app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allow_methods=["GET", "POST"])
+    app.include_router(make_demo_router(manager))
+    with patch.object(session.runtime, "analyze", side_effect=RuntimeError("boom secret")):
+        r = TestClient(app).post(f"/api/demo/{session.id}/disputes/{HERO_DISPUTE_ID}/analyze",
+                                 headers={"Origin": "http://localhost:5173"})
+    assert r.status_code == 500
+    assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert r.json() == {"detail": "The demo hit an unexpected error. Reset the demo."}
+
+
+def test_routes_own_http_and_approval_errors_keep_their_status_and_message(client, manager):
+    sid = new_session(client)
+    r = client.post(f"/api/demo/{sid}/disputes/PP-D-9999/analyze")
+    assert r.status_code == 404 and r.json() == {"detail": "Unknown demo dispute"}
+    approvals = manager.sessions[sid].runtime.approvals
+    with patch.object(approvals, "approve", side_effect=ApprovalError("Proposal is not waiting")):
+        r = client.post(f"/api/demo/{sid}/proposals/prop_x_{HERO_DISPUTE_ID}/approve", json={})
+    assert r.status_code == 409 and r.json() == {"detail": "Proposal is not waiting"}
