@@ -161,7 +161,11 @@ def test_the_product_is_the_item_name_without_its_variant(item, product):
 
 
 def test_a_proposal_without_an_item_has_an_unknown_product():
-    assert row_of(make_dispute(), make_proposal(item=None))["product"] == "Not analyzed"
+    assert row_of(make_dispute(), make_proposal(item=None))["product"] == "Unknown"
+
+
+def test_a_dispute_without_a_proposal_has_the_not_analyzed_product():
+    assert row_of(make_dispute(), None)["product"] == "Not analyzed"
 
 
 def test_agreement_compares_the_last_decide_record_with_the_final_resolution():

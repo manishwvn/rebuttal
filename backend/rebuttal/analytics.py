@@ -106,7 +106,7 @@ def _row(dispute: dict, proposal: dict | None, records: list[dict]) -> dict[str,
         "paypal_status": dispute["status"],
         "created": dispute["create_time"],
         "due": dispute.get("seller_response_due_date"),
-        "product": _product_name(_facts(proposal).get("item")),
+        "product": _product_name(_facts(proposal).get("item")) if proposal else "Not analyzed",
         "amount": float(amount),
         "status": status,
         "outcome": outcome,
@@ -170,10 +170,9 @@ def _facts(proposal: dict | None) -> dict:
 
 def _product_name(item: str | None) -> str:
     """`facts.item` reads "<name> (<variant>)". The variant may hold brackets of its own ("Size (L)"), so the cut is at
-    the bracket that matches the last one, not at the first " (". Without an item the product is "Not analyzed"
-    (the dispute has no proposal yet)."""
+    the bracket that matches the last one, not at the first " (". Without an item the product is Unknown."""
     if not item:
-        return "Not analyzed"
+        return "Unknown"
     if item.endswith(")"):
         depth = 0
         for i in range(len(item) - 1, -1, -1):

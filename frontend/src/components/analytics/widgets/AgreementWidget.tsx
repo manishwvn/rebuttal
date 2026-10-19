@@ -15,6 +15,7 @@ type WidgetRows = NonNullable<ReturnType<typeof useWidgetRows>>
 const NO_DATA: Metrics = { pct: 0, compared: 0, agreed: 0, guardChanges: 0 }
 
 // Below this many compared decisions a percentage says little (0 of 1 reads as 0.0%), so the rate shows n/a.
+// Display rule only: the backend agreement.rate is unchanged.
 const MIN_SAMPLE = 5
 
 const METRIC_COUNT = 4

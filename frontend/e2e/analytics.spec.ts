@@ -158,6 +158,23 @@ test('analytics shows the numbers the API reports', async ({ page, request }) =>
   expect(errors).toEqual([])
 })
 
+// The agreement widget hides the rate below 5 compared decisions. The analytics response is stubbed so the sample size is exact.
+for (const [compared, agreed] of [[1, 0], [5, 4]] as const) {
+  test(`agreement rate with ${compared} compared decision(s)`, async ({ page }) => {
+    await page.route('**/api/analytics', async (route) => {
+      const report = await (await route.fetch()).json()
+      report.summary.agreement = { compared, agreed, rate: agreed / compared, guard_changes: compared - agreed }
+      await route.fulfill({ json: report })
+    })
+    await page.goto('/#analytics')
+    const rate = widget(page, 'agreement').getByTestId('agreement-rate')
+    await expect(rate).toHaveText(compared < 5 ? 'n/a' : '80.0%')
+    await expect(widget(page, 'agreement').getByTestId('agreement-detail')).toHaveText(
+      agreementDetail({ compared, agreed, guard_changes: compared - agreed }),
+    )
+  })
+}
+
 test('analytics widgets follow the colour scheme', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' })
   await createCases(page)
