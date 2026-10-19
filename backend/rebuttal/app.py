@@ -57,11 +57,16 @@ configure_cors(app, cors_origins())  # after the Runtime, so REBUTTAL_CORS_ORIGI
 # PayPal webhook and the public demo under /api/demo (each reaches only its own mock session) needs
 # `Authorization: Bearer <token>`. Unset (local development) leaves the API open. Whoever can call approve is the
 # "human" in the approval gate, so set it on any deployment.
+def check_api_token(settings, token: str, allow_open: str | None) -> None:
+    """Refuse to start without an API token on the real sandbox or a shared database (REBUTTAL_ALLOW_OPEN_API=1 skips)."""
+    if not token and (not settings.mock or settings.database_url) and allow_open != "1":
+        # Real sandbox or a shared database: an open approve endpoint would make the approval gate meaningless.
+        raise RuntimeError("Set REBUTTAL_API_TOKEN (any long random string) before serving the real sandbox or a shared "
+                           "database. For local development only, REBUTTAL_ALLOW_OPEN_API=1 skips this check.")
+
+
 API_TOKEN = os.getenv("REBUTTAL_API_TOKEN", "").strip()
-if not API_TOKEN and (not rt.settings.mock or rt.settings.database_url) and os.getenv("REBUTTAL_ALLOW_OPEN_API") != "1":
-    # Real sandbox or a shared database: an open approve endpoint would make the approval gate meaningless.
-    raise RuntimeError("Set REBUTTAL_API_TOKEN (any long random string) before serving the real sandbox or a shared "
-                       "database. For local development only, REBUTTAL_ALLOW_OPEN_API=1 skips this check.")
+check_api_token(rt.settings, API_TOKEN, os.getenv("REBUTTAL_ALLOW_OPEN_API"))
 
 
 def require_token(authorization: str | None = Header(default=None)) -> None:
@@ -280,6 +285,15 @@ def analytics_deadlines():
     return analytics.deadlines(_analytics_rows(), rt.clock())
 
 
+def _analyze_from_webhook(dispute_id: str) -> None:
+    """Background analysis after the 200 answer. PayPal will not redeliver, so a failure is logged and audited here."""
+    try:
+        rt.analyze(dispute_id)
+    except Exception as exc:  # noqa: BLE001 - nothing else would ever record this failure
+        logger.exception("Webhook analysis failed for %s", dispute_id)
+        rt.audit.log(dispute_id, "webhook_analyze_failed", {"error": type(exc).__name__})
+
+
 @app.post("/api/webhooks/paypal")
 async def paypal_webhook(request: Request, background: BackgroundTasks):
     """PayPal sends CUSTOMER.DISPUTE.* here. Every delivery is verified with PayPal's verify-webhook-signature call
@@ -306,7 +320,7 @@ async def paypal_webhook(request: Request, background: BackgroundTasks):
         resource = event.get("resource") or {}
         dispute_id = resource.get("dispute_id") if isinstance(resource, dict) else None
         if dispute_id:
-            background.add_task(rt.analyze, dispute_id)
+            background.add_task(_analyze_from_webhook, dispute_id)
     return {"received": True}
 
 

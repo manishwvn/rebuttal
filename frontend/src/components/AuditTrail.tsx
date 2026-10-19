@@ -32,6 +32,8 @@ function describe(entry: AuditEntry, demo: boolean): string {
       return `${Target} call failed for ${text(d.action)}: ${text(d.error)}. Nothing was marked as sent`
     case 'execute_interrupted':
       return `${Target} call interrupted (${typeof d.status === 'number' ? `${target} answered ${d.status}` : `${target} could not be reached`}). The approval is saved; retry to continue`
+    case 'webhook_analyze_failed':
+      return 'Automatic analysis failed; click Analyze'
     default:
       return JSON.stringify(d)
   }
