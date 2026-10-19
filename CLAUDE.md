@@ -35,7 +35,7 @@ equally, often from the video alone.
 - Only the graph's `execute` node (in `rebuttal/approval.py`) may call PayPal write endpoints (message, offer,
   evidence, accept, escalate, appeal). The graph routes to it only after a human approve or edit decision (LangGraph
   `interrupt()`), and it refuses to run without one. Analysis nodes hold `client.read_only()`, a clone whose
-  transport refuses anything but GET; the full client raises on any write outside `permit_writes()`, which only
+  transport refuses anything but GET/HEAD plus the token and verify-webhook-signature POSTs; the full client raises on any write outside `permit_writes()`, which only
   `execute` (and the named manual sandbox scripts) enter. Nothing fallible may run after `interrupt()` returns or
   after the PayPal call inside `execute`. `tests/test_write_boundary.py` and
   `tests/test_core.py::test_analyze_never_writes_to_paypal` must stay green.

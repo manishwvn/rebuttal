@@ -83,5 +83,16 @@ class AuditLog:
                                     "WHERE dispute_id = %s ORDER BY id", (dispute_id,)).fetchall()
             return [{"ts": r["ts"].isoformat(timespec="seconds"), "dispute_id": r["dispute_id"], "step": r["step"],
                      "detail": r["detail"]} for r in rows]
-        # File-only (dev) mode reads this process's records, not the JSONL file: after a restart it starts empty.
+        # File mode: the JSONL file holds every record, including those of earlier processes (each is also in
+        # memory, so reading only the file cannot duplicate). Before the first write there is no file: use memory.
+        if self.path and self.path.exists():
+            rows = []
+            for line in self.path.read_text().splitlines():
+                try:
+                    record = json.loads(line)
+                except ValueError:
+                    continue
+                if record.get("dispute_id") == dispute_id:
+                    rows.append(record)
+            return rows
         return [r for r in self.records if r["dispute_id"] == dispute_id]

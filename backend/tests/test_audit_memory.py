@@ -35,3 +35,15 @@ def test_records_stay_empty_with_a_pool(monkeypatch):
     audit.log("D1", "gather", {})
     assert audit.records == []
     assert len(pool.calls) == 1 and pool.calls[0].startswith("INSERT INTO rebuttal_audit")
+
+
+def test_file_mode_reads_records_from_an_earlier_process(tmp_path):
+    path = tmp_path / "audit.jsonl"
+    first = AuditLog(path=path)
+    first.log("D1", "approve", {"decision": "approve"})
+    first.log("D2", "gather", {})
+    fresh = AuditLog(path=path)  # a restart: empty memory, same file
+    fresh.log("D1", "execute", {})
+    assert [r["step"] for r in fresh.for_dispute("D1")] == ["approve", "execute"]  # no duplicates
+    assert [r["step"] for r in fresh.for_dispute("D2")] == ["gather"]
+    assert [r["step"] for r in first.for_dispute("D1")] == ["approve", "execute"]

@@ -78,6 +78,15 @@ def test_approval_executes_offer(rt):
         rt.approvals.approve(p.id)  # cannot execute twice
 
 
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_blank_edit_is_rejected_with_no_paypal_write(rt, blank):
+    p = rt.analyze("PP-D-2000")
+    with pytest.raises(ApprovalError):
+        rt.approvals.approve(p.id, edited_message=blank)
+    assert rt.mock.write_calls() == []
+    assert rt.approvals.latest_for("PP-D-2000").status == "PENDING"
+
+
 def test_agent_purchase_mismatch_detected(rt):
     case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
     assert case.facts["is_agent_purchase"] is True
