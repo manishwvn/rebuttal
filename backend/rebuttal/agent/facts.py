@@ -24,8 +24,37 @@ def parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00"))
 
 
+_ADDRESS_WORDS = {"street": "st", "avenue": "ave", "road": "rd", "apartment": "apt", "unit": "apt"}
+
+
 def _norm(addr: str | None) -> str:
-    return " ".join((addr or "").lower().replace(",", " ").split())
+    """Lowercase, punctuation as spaces, common street words shortened: one address written two ways compares equal."""
+    text = (addr or "").lower().replace("#", " apt ")
+    words = re.sub(r"[\W_]", " ", text).split()
+    return " ".join(_ADDRESS_WORDS.get(w, w) for w in words)
+
+
+def _house_zip_city(addr: str) -> tuple[str, str, str] | None:
+    """(house number, ZIP5, city's last word) of a normalised address, or None when one of the three is missing."""
+    words = addr.split()
+    if len(words) < 4 or not words[0].isdigit():
+        return None
+    zip_word, state = words[-1], words[-2]
+    if not (zip_word.isdigit() and len(zip_word) in (5, 9)) or not (len(state) == 2 and state.isalpha()):
+        return None
+    return words[0], zip_word[:5], words[-3]
+
+
+def _address_match(delivered_to: str | None, ship_to: str | None) -> bool | None:
+    """True when the addresses match after normalising. None when house number, ZIP and city agree but the rest is
+    written differently (uncertain). False otherwise."""
+    delivered, shipped = _norm(delivered_to), _norm(ship_to)
+    if delivered == shipped:
+        return True
+    a, b = _house_zip_city(delivered), _house_zip_city(shipped)
+    if a is not None and a == b:
+        return None
+    return False
 
 
 @dataclass
@@ -228,7 +257,8 @@ def _compute_facts(order, trackers, transactions, amount, now, buyer_messages=()
         f["days_since_last_scan"] = (now - s.event_at).days
         if s.status == "DELIVERED":
             f["delivered_on"] = s.event_at.date().isoformat()
-            f["delivered_address_matches"] = _norm(s.delivered_to) == _norm(order.ship_to)
+            # True, False, or None: None means the address is written differently but house number, ZIP and city agree.
+            f["delivered_address_matches"] = _address_match(s.delivered_to, order.ship_to)
             f["days_since_delivery"] = (now - s.event_at).days
             f["within_return_window"] = f["days_since_delivery"] <= policies.RETURN_WINDOW_DAYS
         else:
