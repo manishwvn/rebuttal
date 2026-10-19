@@ -98,3 +98,22 @@ def test_a_rejected_proposal_writes_nothing(build):
 
     assert rt.approvals.reject(proposal.id, reason="not now").status == "REJECTED"
     assert rt.mock.write_calls() == []
+
+
+def test_a_dispute_moved_to_chargeback_between_gather_and_guard_blocks_escalate():
+    """The guard re-reads the dispute and refreshes stage and the can_escalate fact, not only the allowed options."""
+    rt = escalatable_rt()
+    rules_decide = rt.agent.reasoner.decide
+
+    def decide_then_move(case, config=None):
+        decision = rules_decide(case, config)
+        assert decision.resolution == "ESCALATE" and case.stage == "INQUIRY"
+        rt.mock.disputes[ID]["dispute_life_cycle_stage"] = "CHARGEBACK"  # the buyer went to their bank meanwhile
+        return decision
+
+    rt.agent.reasoner.decide = decide_then_move
+    proposal = rt.analyze(ID)
+
+    assert proposal.decision.resolution != "ESCALATE"
+    assert all(a.kind != "escalate" for a in proposal.actions)
+    assert rt.mock.write_calls() == []

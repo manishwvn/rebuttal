@@ -110,8 +110,10 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     on a dispute with no link, so this check is our own fail-closed guard, not a rule PayPal was seen to apply.
     The seller message and offer shapes read here (`posted_by`, `actor`, the offer note as a SELLER message) were
     seen on the live sandbox (2026-10-14)."""
+    if "seller_activity" not in case:
+        return False  # no baseline: an earlier identical message or offer would look new, so send rather than skip
     now = seller_activity(dispute)
-    baseline = case.get("seller_activity", {})
+    baseline = case["seller_activity"]
     kind, params = action["kind"], action["params"]
     if kind == "send_message":
         message = normalize_text(params["message"])
