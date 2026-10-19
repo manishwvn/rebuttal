@@ -41,7 +41,7 @@
     {
       "id": "guard",
       "minSeconds": 14,
-      "narration": "But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.",
+      "narration": "But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message states the $48.00 refund and offers the right item only if the buyer asks.",
       "badge": true
     },
     {

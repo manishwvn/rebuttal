@@ -187,6 +187,7 @@ def test_hero_offer_note_states_the_refund_first():
     assert action.kind == "make_offer" and action.params["offer_type"] == "REFUND_WITH_RETURN"
     note = action.params["note"]
     assert "refund" in note and "48.00" in note
+    assert note.index("refund") < note.index("right one")
     assert "we'll ship the right one as soon as" not in note  # a replacement is only an alternative
 
 
