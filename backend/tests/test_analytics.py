@@ -69,7 +69,7 @@ def row_of(found: dict, proposal: dict | None = None, records: list[dict] | None
 # ------------------------------------------------------------------ outcome and money rules
 def test_a_dispute_without_a_proposal_is_not_analyzed():
     row = row_of(make_dispute())
-    assert (row["status"], row["outcome"], row["product"]) == ("NOT_ANALYZED", "not_analyzed", "Unknown")
+    assert (row["status"], row["outcome"], row["product"]) == ("NOT_ANALYZED", "not_analyzed", "Not analyzed")
     assert (row["model_resolution"], row["final_resolution"], row["agrees"]) == (None, None, None)
     assert (row["refunded"], row["kept"], row["open"]) == (0.0, 0.0, 48.0)
 
@@ -164,6 +164,10 @@ def test_a_proposal_without_an_item_has_an_unknown_product():
     assert row_of(make_dispute(), make_proposal(item=None))["product"] == "Unknown"
 
 
+def test_a_dispute_without_a_proposal_has_the_not_analyzed_product():
+    assert row_of(make_dispute(), None)["product"] == "Not analyzed"
+
+
 def test_agreement_compares_the_last_decide_record_with_the_final_resolution():
     records = [make_audit("decide", resolution="SHARE_TRACKING"), make_audit("guard", notes=["changed"]),
                make_audit("decide", resolution="OFFER_REPLACEMENT")]
@@ -213,8 +217,8 @@ def test_breakdowns_sort_by_count_then_name_and_sum_the_amounts():
         {"reason": "C", "count": 1, "amount": 2.2}]
     assert summary["by_product"] == [
         {"product": "Mug", "count": 2, "amount": 11.1},
-        {"product": "Shirt", "count": 1, "amount": 5.0},
-        {"product": "Unknown", "count": 1, "amount": 2.2}]
+        {"product": "Not analyzed", "count": 1, "amount": 2.2},
+        {"product": "Shirt", "count": 1, "amount": 5.0}]
 
 
 def test_money_sums_are_exact_to_the_cent():

@@ -14,6 +14,10 @@ type WidgetRows = NonNullable<ReturnType<typeof useWidgetRows>>
 // Used only once the data has loaded and holds no row: nothing has been compared yet.
 const NO_DATA: Metrics = { pct: 0, compared: 0, agreed: 0, guardChanges: 0 }
 
+// Below this many compared decisions a percentage says little (0 of 1 reads as 0.0%), so the rate shows n/a.
+// Display rule only: the backend agreement.rate is unchanged.
+const MIN_SAMPLE = 5
+
 const METRIC_COUNT = 4
 // Module scope keeps the slots array stable: useWidgetRows re-runs its effect when slots changes.
 const METRICS = ['metrics']
@@ -61,15 +65,16 @@ export default function AgreementWidget(params: AgWidgetParams) {
   }
   const { pct, compared, agreed, guardChanges } = readMetrics(data)
   const hasComparison = compared > 0
+  const showRate = compared >= MIN_SAMPLE
   const clamped = Math.min(100, Math.max(0, pct))
   const decisions = compared === 1 ? 'decision' : 'decisions'
   return (
     <div data-widget-id={params.widgetId} style={ROOT}>
       <div style={CAPTION}>Model vs final agreement</div>
       <div data-testid="agreement-rate" style={FIGURE}>
-        {hasComparison ? `${pct.toFixed(1)}%` : 'n/a'}
+        {showRate ? `${pct.toFixed(1)}%` : 'n/a'}
       </div>
-      {hasComparison && (
+      {showRate && (
         <div style={TRACK}>
           <div style={{ ...FILL, width: `${clamped}%` }} />
         </div>

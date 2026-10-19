@@ -50,7 +50,7 @@ Evidence (verified): with the text "i don't want a refund, just send a replaceme
 Fix: skip a hit preceded within 3 words by not/n't/no/without/'rather than', and anchor DAMAGE_WORDS with \b at both ends.
 Acceptance: tests for 'don't want a refund', 'not damaged' and 'tornado'. Evals --rules on all three sets show no regression.
 
-### R32 Analytics: label unanalyzed disputes and small-sample agreement — size S — in-progress (cycle 2026-10-19T17:19:20-0500) — audit Oct 19, priority later
+### R32 Analytics: label unanalyzed disputes and small-sample agreement — size S — done (R32 PR) — audit Oct 19, priority later
 Evidence: in a fresh mock session after one hero approval, Analytics shows 'Disputes by product: Unknown 6 / Linen shirt 1' and 'MODEL VS FINAL AGREEMENT 0.0%' (0 of 1). Fix: label unanalyzed disputes 'Not analyzed' (or exclude them from the product chart), and show agreement as n/a when the sample is under 5. Acceptance: a frontend unit or e2e test covers both.
 
 ### R15 Guard and rules refuse a second refund — size M — done #96 — audit Oct 18, priority now
