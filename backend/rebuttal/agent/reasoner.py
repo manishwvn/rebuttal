@@ -163,8 +163,11 @@ class RuleReasoner:
                 # Only a proven mismatch (False). None is uncertain (same house number, ZIP and city), not a misdelivery.
                 if f.get("delivered_address_matches") is False:
                     return "OFFER_REPLACEMENT", 0.75, ["Delivered, but not to the address on the order."]
+                # The reason text claims the order address only when it is proven (True); None is not confirmed.
+                where = "to the order address" if f.get("delivered_address_matches") is True else \
+                    "(the address is not confirmed; check it)"
                 if case.stage == "CHARGEBACK":
-                    return "SUBMIT_EVIDENCE", 0.85, ["Claim stage; delivered to the order address."]
+                    return "SUBMIT_EVIDENCE", 0.85, [f"Claim stage; delivered {where}."]
                 # VERIFY: after our own message the live sandbox shows UNDER_REVIEW with no escalate link, and after our
                 # offer WAITING_FOR_BUYER_RESPONSE with one (both confirmed 2026-10-14). `_escalation_offered` requires
                 # WAITING_FOR_SELLER_RESPONSE, so this rule fires live only once a buyer reply returns the INQUIRY to
@@ -173,7 +176,7 @@ class RuleReasoner:
                         and f.get("seller_already_responded")):
                     return "ESCALATE", 0.7, ["Delivered to the order address and we already answered the buyer, "
                                             "but the dispute is still open; ask PayPal to decide."]
-                return "SHARE_TRACKING", 0.8, ["Delivered to the order address."]
+                return "SHARE_TRACKING", 0.8, [f"Delivered {where}."]
             if f.get("days_since_last_scan", 0) >= policies.LOST_PACKAGE_DAYS:
                 return "OFFER_REPLACEMENT", 0.65, ["No carrier movement for 10+ days; treat as lost."]
             return "SHARE_TRACKING", 0.75, ["Package is moving and inside normal delivery time."]

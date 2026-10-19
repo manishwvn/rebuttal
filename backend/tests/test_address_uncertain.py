@@ -102,3 +102,22 @@ def test_evidence_summary_states_the_address_check_in_three_ways(matches):
 def test_system_prompt_says_a_null_address_fact_is_not_a_misdelivery():
     assert "If delivered_address_matches is null" in SYSTEM_PROMPT
     assert "do not treat that as a misdelivery" in SYSTEM_PROMPT
+
+
+@pytest.mark.parametrize("stage", ["INQUIRY", "CHARGEBACK"])
+def test_uncertain_address_reasoning_does_not_claim_the_order_address(stage):
+    case = _delivered_case(None)
+    case.stage = stage
+    rules = RuleReasoner().decide(case)
+    assert rules.resolution in ("SHARE_TRACKING", "SUBMIT_EVIDENCE")
+    assert rules.reasoning and all("order address" not in line for line in rules.reasoning)
+
+
+@pytest.mark.parametrize("stage, expected", [
+    ("INQUIRY", "Delivered to the order address."),
+    ("CHARGEBACK", "Claim stage; delivered to the order address."),
+])
+def test_proven_address_reasoning_keeps_the_order_address_wording(stage, expected):
+    case = _delivered_case(True)
+    case.stage = stage
+    assert RuleReasoner().decide(case).reasoning == [expected]
