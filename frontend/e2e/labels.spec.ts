@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
-import { textLabels } from '../src/labels.ts'
-import type { ActionKind, PlannedAction } from '../src/types.ts'
+import { STATUS_LABEL, STATUS_TONE, displayStatus, textLabels } from '../src/labels.ts'
+import type { ActionKind, PlannedAction, Proposal } from '../src/types.ts'
 
 const action = (kind: ActionKind): PlannedAction => ({ kind, summary: '', params: {} })
 
@@ -17,4 +17,12 @@ test('every other text-bearing action is labelled as a message to the buyer', ()
     expect(textLabels(action(kind)).draft).toBe('Message the buyer will receive')
     expect(textLabels(action(kind)).summary).toBe('Message')
   }
+})
+
+test('an interrupted proposal is labelled Interrupted with a warning tone', () => {
+  const p = { status: 'INTERRUPTED' } as unknown as Proposal
+  expect(displayStatus(p)).toBe('interrupted')
+  expect(STATUS_LABEL.interrupted).toBe('Interrupted')
+  expect(STATUS_TONE.interrupted).toBe('warn')
+  expect(displayStatus(null)).toBe('new')
 })

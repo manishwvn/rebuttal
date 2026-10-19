@@ -23,9 +23,9 @@ export const RESOLUTION: Record<string, string> = {
 export const reasonLabel = (reason: string) => REASON[reason] ?? reason
 export const resolutionLabel = (resolution: string) => RESOLUTION[resolution] ?? resolution
 
-export type DisplayStatus = 'new' | 'pending' | 'approved' | 'rejected' | 'executed' | 'failed'
+export type DisplayStatus = 'new' | 'pending' | 'approved' | 'rejected' | 'executed' | 'failed' | 'interrupted'
 
-// Proposal.status: PENDING | APPROVED (execution interrupted, retry) | EXECUTED | REJECTED | FAILED
+// Proposal.status: PENDING | APPROVED (the PayPal call was interrupted, retry) | EXECUTED | REJECTED | FAILED | INTERRUPTED (a newer analysis stopped part-way; the fields are the previous proposal's)
 export function displayStatus(proposal: Proposal | null): DisplayStatus {
   if (!proposal) return 'new'
   return proposal.status.toLowerCase() as DisplayStatus
@@ -38,6 +38,7 @@ export const STATUS_LABEL: Record<DisplayStatus, string> = {
   rejected: 'Rejected',
   executed: 'Executed',
   failed: 'Failed',
+  interrupted: 'Interrupted',
 }
 
 export const STATUS_TONE: Record<DisplayStatus, 'neutral' | 'warn' | 'accent' | 'good' | 'bad'> = {
@@ -47,6 +48,7 @@ export const STATUS_TONE: Record<DisplayStatus, 'neutral' | 'warn' | 'accent' | 
   rejected: 'neutral',
   executed: 'good',
   failed: 'bad',
+  interrupted: 'warn',
 }
 
 export const money = (value: number | string) => `$${Number(value).toFixed(2)}`
