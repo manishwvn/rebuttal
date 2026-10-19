@@ -2,7 +2,8 @@
 
 Three places it can live: memory only (tests, evals), a JSON-lines file (`audit_to_file`), or the Postgres table
 `rebuttal_audit` when a Postgres URL is given (DATABASE_URL), which survives restarts and redeploys on hosts with an
-ephemeral disk. In Postgres mode `for_dispute` reads the table, so the history is the same from any instance."""
+ephemeral disk. In Postgres mode `for_dispute` reads the table, so the history is the same from any instance. In file
+mode `for_dispute` reads the JSONL file (the whole file on each call, fine for dev), so history survives restarts too."""
 
 from __future__ import annotations
 
@@ -83,5 +84,16 @@ class AuditLog:
                                     "WHERE dispute_id = %s ORDER BY id", (dispute_id,)).fetchall()
             return [{"ts": r["ts"].isoformat(timespec="seconds"), "dispute_id": r["dispute_id"], "step": r["step"],
                      "detail": r["detail"]} for r in rows]
-        # File-only (dev) mode reads this process's records, not the JSONL file: after a restart it starts empty.
+        # File mode: the JSONL file holds every record, including those of earlier processes (each is also in
+        # memory, so reading only the file cannot duplicate). Before the first write there is no file: use memory.
+        if self.path and self.path.exists():
+            rows = []
+            for line in self.path.read_text(errors="replace").splitlines():
+                try:
+                    record = json.loads(line)
+                except ValueError:  # a partial or garbled line (crash mid-write) is skipped
+                    continue
+                if isinstance(record, dict) and record.get("dispute_id") == dispute_id:
+                    rows.append(record)
+            return rows
         return [r for r in self.records if r["dispute_id"] == dispute_id]

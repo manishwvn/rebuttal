@@ -248,6 +248,11 @@ def test_only_post_to_the_token_and_verify_paths_passes_the_write_gates():
 
     inner = httpx.MockTransport(lambda r: httpx.Response(200, json={}))
     for gate in (ReadOnlyTransport(inner), WriteGateTransport(inner)):
+        for method in ("GET", "HEAD"):  # the only non-POST methods the gates let through
+            assert gate.handle_request(httpx.Request(method, "https://api-m.sandbox.paypal.com/v1/customer/disputes")).status_code == 200
+        for method in ("PUT", "PATCH", "DELETE", "OPTIONS"):
+            with pytest.raises(WriteNotPermitted):
+                gate.handle_request(httpx.Request(method, "https://api-m.sandbox.paypal.com/v1/customer/disputes"))
         for path in ("/v1/oauth2/token", "/v1/notifications/verify-webhook-signature"):
             assert gate.handle_request(httpx.Request("POST", f"https://api-m.sandbox.paypal.com{path}")).status_code == 200
             with pytest.raises(WriteNotPermitted):  # POST only: no PATCH/DELETE on those paths

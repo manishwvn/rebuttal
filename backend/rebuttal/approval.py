@@ -306,8 +306,10 @@ class ApprovalQueue:
 
     def approve(self, proposal_id: str, edited_message: str | None = None,
                 approver: str = "merchant") -> Proposal:
-        return self._decide(proposal_id, decision="edit" if edited_message else "approve",
-                            edited_message=edited_message or None, approver=approver)
+        # `is not None`: an empty-string edit is still an edit, and the decision model rejects it like a blank one.
+        edit = edited_message is not None
+        return self._decide(proposal_id, decision="edit" if edit else "approve",
+                            edited_message=edited_message, approver=approver)
 
     def retry(self, proposal_id: str) -> Proposal:
         """Continue an approved proposal whose execution was interrupted (for example by a crash). It first reads

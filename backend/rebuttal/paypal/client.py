@@ -4,11 +4,12 @@ Every call that changes a dispute (message, offer, evidence, accept, escalate, a
 ever invoked by the approval executor, never directly by the agent. Two runtime
 guards back that rule up:
 
-- a write (POST/PATCH/PUT/DELETE, except the OAuth token call) raises `WriteNotPermitted` unless the calling
-  context is inside `permit_writes()`, which only the approval gate's `execute` node (and manual sandbox scripts)
-  enter;
-- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET. The clone has no
-  client-secret attribute and takes the parent's access token through a getter bound to the parent. That getter keeps
+- a write (POST/PATCH/PUT/DELETE, except the OAuth token call and the verify-webhook-signature POST) raises
+  `WriteNotPermitted` unless the calling context is inside `permit_writes()`, which only the approval gate's
+  `execute` node (and manual sandbox scripts) enter;
+- `PayPalClient.read_only()` returns a clone whose HTTP transport itself refuses anything but GET/HEAD plus the token
+  and verify-webhook-signature POSTs. The clone has no client-secret attribute and takes the parent's access token
+  through a getter bound to the parent. That getter keeps
   the parent, and its secret, reachable in-process, so the transport refuses writes and `permit_writes()` still gates
   the parent.
 
@@ -78,7 +79,7 @@ class WriteGateTransport(httpx.BaseTransport):
 
 
 class ReadOnlyTransport(httpx.BaseTransport):
-    """Passes GET and HEAD through and refuses everything else, except the OAuth token request."""
+    """Passes GET and HEAD through and refuses everything else, except the OAuth token and verify-webhook-signature POSTs."""
 
     def __init__(self, inner: httpx.BaseTransport):
         self._inner = inner
@@ -143,7 +144,8 @@ class PayPalClient:
         self._token_expiry = 0.0
 
     def read_only(self) -> PayPalClient:
-        """A clone for analysis steps: same endpoint and a transport that refuses every non-GET request, even inside
+        """A clone for analysis steps: same endpoint and a transport that refuses every request but GET/HEAD and the token and
+        verify-webhook-signature POSTs, even inside
         `permit_writes()`. The clone has no client-secret attribute. It gets the parent's access token through
         `token_getter`, a bound method of the parent, so the parent and its secret remain reachable in-process; the
         transport, not the absence of the secret, is what stops writes."""

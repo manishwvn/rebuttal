@@ -103,6 +103,21 @@ def test_cors_origins_come_from_the_environment_and_never_allow_a_wildcard():
     assert app_module.cors_origins("*,http://localhost:5173") == ["http://localhost:5173"]
 
 
+def test_the_real_app_is_wired_with_cors_from_the_environment(monkeypatch):
+    import importlib
+
+    monkeypatch.setenv("REBUTTAL_CORS_ORIGINS", "http://example.test")
+    importlib.reload(app_module)  # configure_cors(app, ...) runs at import: removing that call must fail here
+    try:
+        ask = {"Origin": "http://example.test", "Access-Control-Request-Method": "GET"}
+        web = TestClient(app_module.app)
+        assert web.options("/api/health", headers=ask).headers["access-control-allow-origin"] == "http://example.test"
+        assert "access-control-allow-origin" not in web.options("/api/health", headers={**ask, "Origin": "http://evil.example"}).headers
+    finally:
+        monkeypatch.undo()  # restore the original env first, so the app is rebuilt with it
+        importlib.reload(app_module)
+
+
 def test_cors_headers_only_for_configured_origins():
     from fastapi import FastAPI
 
