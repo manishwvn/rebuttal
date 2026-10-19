@@ -58,7 +58,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   fix, no tracking on not-received gets a refund, damaged high-value items get return-for-refund (`f4cb66d`, added after the Oct 7 90% run; the Oct 14 run measures it:
   `snad_damaged_high_value` went 1/3 to 3/3).
 - **Evals (R19 refresh, Oct 19 on `6b0fa6a`, after R15/R16):** main set final 85% (17/20), model alone 75%, hard 4/4,
-  misses `snad_damaged_high_value`, `snad_outside_window`, `unauth_delivered` (R23 investigates); held-out 1 final 100%
+  misses `snad_damaged_high_value`, `snad_outside_window`, `unauth_delivered` (R23: model noise, guard behaves the same for those inputs (code read, not replayed); `docs/eval-notes/2026-10-19-main-drop.md`); held-out 1 final 100%
   (10/10), model alone 70%; held-out 2 final 90% (9/10), model alone 70%, miss `ho2_unauth_over_cap`. Gate violations 0.
   Files `evals/results/groq-qwen3.8-27b{,-holdout,-holdout2}-20261019.json`. Rules baseline: main 85%, held-out 1 90%,
   held-out 2 100%. Older runs below.
