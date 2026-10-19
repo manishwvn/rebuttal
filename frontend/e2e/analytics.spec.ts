@@ -47,7 +47,7 @@ const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits
 // The custom widgets (frontend/src/components/analytics/widgets/) each carry data-widget-id equal to their dashboard id.
 const widget = (page: Page, id: string) => page.locator(`[data-widget-id="${id}"]`)
 
-// The agreement rate as a percentage with one decimal, or n/a when no decision was compared.
+// The agreement rate as a percentage with one decimal, or n/a when fewer than 5 decisions were compared.
 const pct = (rate: number) => `${(Math.round(rate * 1000) / 10).toFixed(1)}%`
 
 // The agreement detail line, worded as the dashboard words it.
@@ -107,9 +107,9 @@ test('analytics shows the numbers the API reports', async ({ page, request }) =>
   await expect(kpi(page, /^Refunded \$$/)).toHaveText(usd(money.refunded))
   await expect(kpi(page, /^Kept \$$/)).toHaveText(usd(money.kept))
 
-  // Model vs final agreement: the rate is 0..1 and shows as percentage points to one decimal, n/a when nothing was
-  // compared.
-  const rate = agreement.compared === 0 ? 'n/a' : pct(agreement.rate)
+  // Model vs final agreement: the rate is 0..1 and shows as percentage points to one decimal, n/a when fewer than 5
+  // decisions were compared.
+  const rate = agreement.compared < 5 ? 'n/a' : pct(agreement.rate)
   await expect(widget(page, 'agreement').getByTestId('agreement-rate')).toHaveText(rate)
   await expect(widget(page, 'agreement').getByTestId('agreement-detail')).toHaveText(agreementDetail(agreement))
 

@@ -69,7 +69,7 @@ def row_of(found: dict, proposal: dict | None = None, records: list[dict] | None
 # ------------------------------------------------------------------ outcome and money rules
 def test_a_dispute_without_a_proposal_is_not_analyzed():
     row = row_of(make_dispute())
-    assert (row["status"], row["outcome"], row["product"]) == ("NOT_ANALYZED", "not_analyzed", "Unknown")
+    assert (row["status"], row["outcome"], row["product"]) == ("NOT_ANALYZED", "not_analyzed", "Not analyzed")
     assert (row["model_resolution"], row["final_resolution"], row["agrees"]) == (None, None, None)
     assert (row["refunded"], row["kept"], row["open"]) == (0.0, 0.0, 48.0)
 
@@ -161,7 +161,7 @@ def test_the_product_is_the_item_name_without_its_variant(item, product):
 
 
 def test_a_proposal_without_an_item_has_an_unknown_product():
-    assert row_of(make_dispute(), make_proposal(item=None))["product"] == "Unknown"
+    assert row_of(make_dispute(), make_proposal(item=None))["product"] == "Not analyzed"
 
 
 def test_agreement_compares_the_last_decide_record_with_the_final_resolution():
@@ -213,8 +213,8 @@ def test_breakdowns_sort_by_count_then_name_and_sum_the_amounts():
         {"reason": "C", "count": 1, "amount": 2.2}]
     assert summary["by_product"] == [
         {"product": "Mug", "count": 2, "amount": 11.1},
-        {"product": "Shirt", "count": 1, "amount": 5.0},
-        {"product": "Unknown", "count": 1, "amount": 2.2}]
+        {"product": "Not analyzed", "count": 1, "amount": 2.2},
+        {"product": "Shirt", "count": 1, "amount": 5.0}]
 
 
 def test_money_sums_are_exact_to_the_cent():

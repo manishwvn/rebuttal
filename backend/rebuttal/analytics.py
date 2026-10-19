@@ -170,9 +170,10 @@ def _facts(proposal: dict | None) -> dict:
 
 def _product_name(item: str | None) -> str:
     """`facts.item` reads "<name> (<variant>)". The variant may hold brackets of its own ("Size (L)"), so the cut is at
-    the bracket that matches the last one, not at the first " (". Without an item the product is Unknown."""
+    the bracket that matches the last one, not at the first " (". Without an item the product is "Not analyzed"
+    (the dispute has no proposal yet)."""
     if not item:
-        return "Unknown"
+        return "Not analyzed"
     if item.endswith(")"):
         depth = 0
         for i in range(len(item) - 1, -1, -1):
