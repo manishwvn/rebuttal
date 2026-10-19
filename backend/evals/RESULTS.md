@@ -44,20 +44,6 @@ Judgment calls:
 
 - `snad_outside_window`: A buyer 91 days out of the return window, not asking for a refund. We label it SUBMIT_EVIDENCE (the policy wins, so defend). OFFER_PARTIAL_REFUND is a defensible business choice that avoids a fight over $40, so models that pick it are not clearly wrong.
 
-Oct 19 drop (95% to 85%, task R23): model noise, no guard or facts regression. Model alone is 75% in both runs; the
-final score fell because the guard had less to fix. Compared per case (`results/groq-qwen3.8-27b-20261014.json` vs `-20261019.json`):
-
-- `snad_damaged_high_value`: Oct 14 the model chose OFFER_REPLACEMENT and the guard turned it into OFFER_RETURN_FOR_REFUND
-  (PayPal does not allow a replacement on not-as-described). Oct 19 the model chose OFFER_PARTIAL_REFUND, which is
-  allowed and which the guard never converted in either run (no guard rule targets a partial offer on damage; the
-  `f4cb66d` rule only converts a bare ACCEPT_CLAIM). Facts for the case are unchanged. Model noise.
-- `unauth_delivered`: Oct 14 the model chose SUBMIT_EVIDENCE; Oct 19 it chose OFFER_RETURN_FOR_REFUND. The guard has no rule
-  on UNAUTHORISED offers in either version. Model noise.
-- `snad_outside_window`: OFFER_PARTIAL_REFUND in both runs, the existing judgment call above. Not a change.
-- Offsetting guard saves on Oct 19: `inr_misdelivered` (model ESCALATE, guard fell back to OFFER_REPLACEMENT) while
-  `agent_wrong_size`, `inr_no_tracking` and `snad_damaged_high_value` no longer needed the guard.
-- Held-out 2 `ho2_unauth_over_cap` (model OFFER_PARTIAL_REFUND, wanted ACCEPT_CLAIM): reported only, no code change.
-
 ## Held-out (not used for tuning)
 
 evals/holdout.json: 10 disputes written independently of the guard and facts code. Run and reported only; no code is tuned against these results.

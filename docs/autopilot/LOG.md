@@ -3,6 +3,7 @@
 ## 2026-10-19 02:10 CDT | W 64→? % | F 7→? % | R19 | PR (see runs.log)
 Only runnable task. One Sonnet builder ran Groq once per set (main, holdout, holdout2; about 63k tokens, free tier) as one eval round; decision: R19's three sets count as today's one eval run. Main 85% (was 95%), held-out 1 100%, held-out 2 90%; reported as found, nothing tuned.
 Queued R23 (find the main-set drop, offline) and R24 (video cards and script still say 95% and 10/10).
+R23 (same cycle, one Sonnet builder, offline): model noise; raw choices changed, guard and facts same for those inputs. No code change; note moved out of generated RESULTS.md into docs/eval-notes/.
 
 # Daily summary 2026-10-18
 progress 84% (39/49 tasks done, 23 days to Nov 10 submit)

@@ -35,11 +35,11 @@ Depends on the double-refund and address tasks. Problem: README.md:206-207 and e
 Fix: run `uv run python -m evals.run --provider groq --save` for the main, holdout and holdout2 sets. Then refresh the README table and RESULTS.md with dates and the rules baseline lines. Report the numbers as found, and do not tune the guard against held-out misses. Groq usage must stay on the free tier.
 Acceptance: new evals/results/*-holdout-*.json and *-holdout2-*.json dated on or after the fix commit. The README table matches them, and each row has a commit hash or date. The rules-baseline paragraph matches a fresh `--rules` run.
 
-### R23 Main-set eval drop 95% to 85%: find the cause — size S — in-progress (cycle 2026-10-19T07:10:39Z) — from R19, priority next
+### R23 Main-set eval drop 95% to 85%: find the cause — size S — done (R23 PR: model noise, no code change, docs/eval-notes/2026-10-19-main-drop.md) — from R19, priority next
 Oct 19 Groq main set (6b0fa6a, after R15/R16/R22): final 85% (17/20), down from 95% on Oct 14. Misses: `snad_damaged_high_value` (got OFFER_PARTIAL_REFUND; was 3/3 after `f4cb66d`), `unauth_delivered` (got OFFER_RETURN_FOR_REFUND), `snad_outside_window` (judgment call). Held-out 2 miss `ho2_unauth_over_cap` (expected ACCEPT_CLAIM, got OFFER_PARTIAL_REFUND).
 Fix: compare the two result files' per-case `facts` and guard notes (`evals/results/groq-qwen3.8-27b-20261014.json` vs `-20261019.json`) offline, no model call. If a guard or facts change since Oct 14 regressed a main-set case, fix it with a unit test (the main set is the tuning set). Never tune against held-out misses. Report a model-noise verdict if facts and guard are unchanged for those cases. No Groq run in this task (R19 used today's).
 
-### R24 Refresh eval numbers in the video and its script — size S — todo — after R23, priority next
+### R24 Refresh eval numbers in the video and its script — size S — todo — after R23 (done: drop is model noise, so say "85-95% across Groq runs"), priority next
 `frontend/video/cards.ts` (about lines 178-181 and the held-out card), `docs/video-script.md` (about lines 111-112, 218, 259-261) still show Oct 14 main 95% (19/20), held-out 8/10 and 10/10, rules 85%/25%. After R23, set them to the latest numbers in `backend/evals/RESULTS.md` (or say "85-95% across Groq runs"), keep under 3:00, run the video spec checks. U3 (video upload) should wait for this.
 
 ### R20 Judge-path UI and copy fixes — size S — done #94 — audit Oct 18, priority next
