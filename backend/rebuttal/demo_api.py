@@ -6,6 +6,7 @@ DemoManager it was built with. The module never imports the app, so the dashboar
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Annotated
@@ -30,6 +31,8 @@ from .demo import (
 )
 from .paypal.client import PayPalError
 
+logger = logging.getLogger(__name__)
+
 
 class ApproveBody(BaseModel):
     edited_message: str | None = Field(default=None, max_length=2000)
@@ -41,11 +44,14 @@ class RejectBody(BaseModel):
 
 @contextmanager
 def _demo_errors() -> Iterator[None]:
-    """Turns the demo's own errors and sandbox failures into JSON errors. A bare 500 would carry no CORS headers.
+    """Turns the demo's own errors and sandbox failures into JSON errors, and any other exception into a logged, fixed
+    JSON 500. A bare 500 would carry no CORS headers.
     A sandbox call that raises (a PayPal error or a network failure) gets one fixed message. A 4xx answer to a write is
     different: the workflow records it as the proposal's result, and it is returned as the mock sent it."""
     try:
         yield
+    except HTTPException:
+        raise
     except DemoSessionNotFound as exc:
         raise HTTPException(404, "Demo session expired or unknown. Start a new demo.") from exc
     except DemoUnknownCase as exc:
@@ -63,6 +69,9 @@ def _demo_errors() -> Iterator[None]:
         raise HTTPException(409, str(exc)) from exc
     except (PayPalError, httpx.TransportError) as exc:
         raise HTTPException(502, "The demo sandbox failed. Reset the demo.") from exc
+    except Exception as exc:
+        logger.exception("Unhandled error in a demo route")
+        raise HTTPException(500, "The demo hit an unexpected error. Reset the demo.") from exc
 
 
 def client_key(request: Request) -> str:
