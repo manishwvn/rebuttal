@@ -15,7 +15,11 @@ function rows(f: Facts): Row[] {
 
   add(Boolean(f.order_found), f.order_found ? `Order found: ${String(f.item)}` : 'No matching order in the store records')
   if (has('tracking_uploaded_to_paypal')) {
-    add(Boolean(f.tracking_uploaded_to_paypal), f.tracking_uploaded_to_paypal ? 'Tracking is on the PayPal transaction' : 'No tracking on the PayPal transaction')
+    // null means not checked (no order to compare with): a neutral note, not a fact against the merchant.
+    const tracked = f.tracking_uploaded_to_paypal
+    if (tracked === true) add(true, 'Tracking is on the PayPal transaction')
+    else if (tracked === false) add(false, 'No tracking on the PayPal transaction')
+    else if (tracked === null) add(null, 'Tracking on the PayPal transaction was not checked')
   }
   if (f.has_tracking) {
     const delivered = f.shipment_status === 'DELIVERED'
@@ -24,7 +28,11 @@ function rows(f: Facts): Row[] {
       `${String(f.carrier)} ${String(f.tracking_number)}: ${delivered ? `delivered ${String(f.delivered_on)}` : `${String(f.shipment_status).toLowerCase()}, last scan ${String(f.days_since_last_scan)} days ago`}`,
     )
     if (has('delivered_address_matches')) {
-      add(Boolean(f.delivered_address_matches), f.delivered_address_matches ? 'Delivered to the address on the order' : 'Delivered to a different address than the order')
+      // null means the address is written differently from the order: a neutral note to check, not a finding.
+      const matches = f.delivered_address_matches
+      if (matches === true) add(true, 'Delivered to the address on the order')
+      else if (matches === false) add(false, 'Delivered to a different address than the order')
+      else if (matches === null) add(null, 'Delivery address written differently; check it')
     }
   } else if (has('has_tracking')) {
     add(false, 'No tracking on file')
