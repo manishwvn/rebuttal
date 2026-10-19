@@ -6,6 +6,10 @@ Daily system audit on f038629 (Sonnet per component, fresh clone, Opus principal
 Main defect: guard() recursed forever on a refund-proof decision when it was not the seller's turn (re-analysis after an approve gave a bare 500; nothing reached PayPal). Fixed today in R25 (#106); R28 (#105) shows INTERRUPTED proposals instead of "Sent to PayPal".
 Next: R26 hero offer note must say refund (may need a video re-record), R27 guard money rules, R29 boundary hardening, R30 docs drift, R31 negation-aware keywords, R32 analytics labels.
 
+## 2026-10-19 17:10 | W 86→87 % | F 45→47 % | R31 | merged (R31 PR)
+Ran under Manish's weekly-cap override 90 (H=4, one size S task). facts.py `_mentions`: a refund/damage hit is skipped when not/no/never/without/cannot/n't/'rather than' sits within 4 words before it in the same clause; damage words need a whole word (tornado no longer reads as torn); refund words still match at a word start (reimbursed, refundable).
+Opus reviewer: no blockers; its should-fixes (curly apostrophe, comma clause split, end-to-end facts+guard test) fixed in the PR. Rules evals unchanged (85/90/100%). Known limit: negation further than 4 words back still counts as a request.
+
 ## 2026-10-19 13:11 | W 80→80 % | F 19→19 % | none | skipped: weekly cap 80% reached
 ALERT weekly-80 2026-10-20T23:59:59Z sent
 
