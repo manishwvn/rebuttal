@@ -408,3 +408,31 @@ def test_a_dispute_without_a_due_date_keeps_hours_left_none(client):
     app_module.rt.agent._clock = lambda: DEMO_NOW + timedelta(days=30)
     listed = {d["dispute_id"]: d for d in client.get("/api/disputes").json()}
     assert listed["PP-D-2000"]["proposal"]["case_summary"]["hours_left"] is None
+
+
+def test_a_failed_webhook_analysis_is_audited_and_the_webhook_still_answers_200(client, monkeypatch):
+    def boom(dispute_id, **kwargs):
+        raise httpx.ConnectError("PayPal unreachable")
+
+    monkeypatch.setattr(app_module.rt, "analyze", boom)
+    event = {"event_type": "CUSTOMER.DISPUTE.CREATED", "resource": {"dispute_id": "PP-D-2001"}}
+    assert client.post("/api/webhooks/paypal", json=event).status_code == 200
+    rows = [r for r in app_module.rt.audit.for_dispute("PP-D-2001") if r["step"] == "webhook_analyze_failed"]
+    assert rows and rows[0]["detail"] == {"error": "ConnectError"}
+
+
+@pytest.mark.parametrize("mock,db,token,allow,ok", [
+    (True, "", "", None, True),
+    (False, "", "", None, False),
+    (True, "postgres://x", "", None, False),
+    (False, "postgres://x", "", "1", True),
+    (False, "", "secret", None, True),
+])
+def test_check_api_token_guards_the_real_sandbox_and_shared_database(mock, db, token, allow, ok):
+    from types import SimpleNamespace
+    settings = SimpleNamespace(mock=mock, database_url=db)
+    if ok:
+        app_module.check_api_token(settings, token, allow)
+    else:
+        with pytest.raises(RuntimeError, match="Set REBUTTAL_API_TOKEN"):
+            app_module.check_api_token(settings, token, allow)

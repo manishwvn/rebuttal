@@ -110,6 +110,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
   `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
 - **Tests:** 480 pass (backend, `uv run pytest -q`), 47 Playwright tests (`npx playwright test --list`; some skip unless `SCREENSHOTS=1`); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **R18 (API safety tests):** `check_api_token()` in `app.py` is now unit-tested (mock, real sandbox, shared DB, allow-open); a webhook analysis that raises is logged and audited as `webhook_analyze_failed` (shown in the audit trail as "Automatic analysis failed; click Analyze"). 1003 backend tests pass.
 
 ## Known issues (analytics)
 
@@ -143,6 +144,10 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 
 ## Known issues
 
+- The webhook analyzes only on `CUSTOMER.DISPUTE.CREATED`. A later buyer reply (`CUSTOMER.DISPUTE.UPDATED`) does not
+  re-run analysis, so the ESCALATE rule (needs a buyer reply and the seller's turn) is reachable live only by a manual
+  Analyze (`POST /api/disputes/{id}/analyze` or the dashboard button) once no earlier proposal is waiting for
+  approval; the API route has no `force` flag, so a waiting proposal is returned as it is. Left as is on purpose (R22).
 - `VITE_API_TOKEN` is public in a built bundle, so the build now refuses it; there is still no login: add one before
   deploying the dashboard (queue task A5).
 - Frontend: the grid still ships about 1 MB of JS (the grid core plus React; the module list is already minimal).

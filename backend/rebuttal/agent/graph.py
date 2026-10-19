@@ -37,7 +37,7 @@ from ..audit import AuditLog
 from ..paypal.client import PayPalClient, PayPalError
 from ..persistence import DisputeLocks, make_locks
 from ..store import MerchantStore
-from .facts import CaseFile, gather
+from .facts import CaseFile, dispute_actions, gather, seller_activity
 from .pipeline import Proposal, plan_actions
 from .reasoner import Decision
 from .reasoner import guard as apply_guard
@@ -93,10 +93,26 @@ def build_graph(*, client: PayPalClient, store: MerchantStore, reasoner, audit: 
             current = reader.get_dispute(case.dispute_id)
         except (PayPalError, httpx.TransportError):
             current = None
-        if current is not None and (current.get("allowed_response_options") or None) != (case.allowed_response_options or None):
-            case.allowed_response_options = current.get("allowed_response_options") or None  # even if now empty
-            case.status = current.get("status", case.status)
-            case.tool_calls.append("re-read the dispute before the guard: allowed_response_options changed")
+        if current is not None:
+            # ESCALATE and APPEAL read stage, can_escalate, can_appeal and seller_already_responded, so refresh those.
+            # `case.seller_activity` is refreshed too, so the case dict has one source of truth. It is still a valid
+            # `execute` baseline: nothing is written to PayPal before approval, so it is the seller side as it stood
+            # when the proposal was made. Deliberately not refreshed: buyer_messages, due and hours_left (the
+            # reasoner already used them; the guard does not read them).
+            activity = seller_activity(current)
+            before = {"allowed_response_options": case.allowed_response_options or None, "status": case.status,
+                      "stage": case.stage, "facts": case.facts, "seller_activity": case.seller_activity}
+            fresh = {"allowed_response_options": current.get("allowed_response_options") or None,  # even if now empty
+                     "status": current.get("status", case.status),
+                     "stage": current.get("dispute_life_cycle_stage", case.stage),
+                     "facts": {**case.facts, **dispute_actions(current),
+                               "seller_already_responded": bool(activity["messages"] or activity["offers"])},
+                     "seller_activity": activity}
+            if fresh != before:
+                case.allowed_response_options = fresh["allowed_response_options"]
+                case.status, case.stage, case.facts = fresh["status"], fresh["stage"], fresh["facts"]
+                case.seller_activity = fresh["seller_activity"]
+                case.tool_calls.append("re-read the dispute before the guard: it changed since gather")
         decision = apply_guard(Decision.from_dict(state["decision"]), case)
         if decision.guard_notes:
             audit.log(case.dispute_id, "guard", {"notes": decision.guard_notes})

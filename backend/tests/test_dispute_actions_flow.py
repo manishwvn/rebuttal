@@ -98,3 +98,59 @@ def test_a_rejected_proposal_writes_nothing(build):
 
     assert rt.approvals.reject(proposal.id, reason="not now").status == "REJECTED"
     assert rt.mock.write_calls() == []
+
+
+def test_a_dispute_moved_to_chargeback_between_gather_and_guard_blocks_escalate():
+    """The guard re-reads the dispute and refreshes stage and the can_escalate fact, not only the allowed options."""
+    rt = escalatable_rt()
+    rules_decide = rt.agent.reasoner.decide
+
+    def decide_then_move(case, config=None):
+        decision = rules_decide(case, config)
+        assert decision.resolution == "ESCALATE" and case.stage == "INQUIRY"
+        rt.mock.disputes[ID]["dispute_life_cycle_stage"] = "CHARGEBACK"  # the buyer went to their bank meanwhile
+        return decision
+
+    rt.agent.reasoner.decide = decide_then_move
+    proposal = rt.analyze(ID)
+
+    assert proposal.decision.resolution != "ESCALATE"
+    assert all(a.kind != "escalate" for a in proposal.actions)
+    assert rt.mock.write_calls() == []
+
+
+def test_a_dispute_whose_appeal_link_vanished_between_decide_and_guard_blocks_appeal():
+    rt = lost_chargeback_rt()
+    rules_decide = rt.agent.reasoner.decide
+
+    def decide_then_drop_link(case, config=None):
+        decision = rules_decide(case, config)
+        assert decision.resolution == "APPEAL" and case.facts["can_appeal"] is True
+        rt.mock.disputes[ID]["dispute_outcome"] = {"outcome_code": "RESOLVED_SELLER_FAVOUR"}  # the mock drops the link
+        return decision
+
+    rt.agent.reasoner.decide = decide_then_drop_link
+    proposal = rt.analyze(ID)
+
+    assert proposal.decision.resolution != "APPEAL"
+    assert all(a.kind != "appeal" for a in proposal.actions)
+    assert rt.mock.write_calls() == []
+
+
+def test_a_pending_proposal_without_a_send_baseline_sends_nothing(monkeypatch):
+    """An old checkpoint whose case has no seller_activity: approving it must fail closed, before any PayPal write."""
+    from rebuttal.agent.facts import CaseFile
+
+    real = CaseFile.to_dict
+    monkeypatch.setattr(CaseFile, "to_dict", lambda self: {k: v for k, v in real(self).items() if k != "seller_activity"})
+    rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True)
+    proposal = rt.analyze(ID)
+    monkeypatch.undo()
+    assert any(a.kind in ("send_message", "make_offer") for a in proposal.actions)
+
+    done = rt.approvals.approve(proposal.id)
+
+    assert done.status == "FAILED"
+    assert done.result[0]["sent"] is False and done.result[0]["ok"] is False
+    assert done.result[0]["error"] == "proposal predates the send baseline; re-analyze"
+    assert len(rt.mock.write_calls()) == 0
