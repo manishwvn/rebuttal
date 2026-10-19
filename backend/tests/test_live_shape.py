@@ -90,7 +90,7 @@ def test_with_no_allowed_options_the_guard_never_lets_a_replacement_through(live
     decision = guard(Decision("OFFER_REPLACEMENT", 0.95, ["policy says exchange"], "", "We will exchange it", "",
                               source="groq"), case)
     assert decision.resolution == "OFFER_RETURN_FOR_REFUND"
-    assert "ship the right one as soon as the return is scanned" in decision.message_to_buyer  # the exchange promise
+    assert "if you'd rather have the right one, reply and we'll ship it instead" in decision.message_to_buyer  # the exchange promise
     assert any("not available" in n for n in decision.guard_notes)
 
 

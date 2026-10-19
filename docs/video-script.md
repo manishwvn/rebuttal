@@ -81,7 +81,7 @@ AG Grid, APIMatic.
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
 | 0:46-0:56 | Same scroll. Right panel "Why this proposal": "Reasoner (groq)" = "Offer a free replacement"; "Final action" (bold) = "Refund after the item is returned"; a confidence bar with a percentage. Cursor rests on the Reasoner line, then moves to Final action. [VERIFY at record time: the Reasoner line must read the replacement and the source must read groq; see 4.1.] | “Now the decision. The model's first instinct is a free replacement, which would keep the sale.” | Tech (PayPal + AI), Innovation |
-| 0:56-1:10 | Zoom on the amber box "Guard adjusted this": "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead." Then scroll to the black-bordered proposal card: heading "Offer full refund of $48.00 after return", the dashed call line `POST /v1/customer/disputes/PP-D-2000/make-offer · offer_type REFUND_WITH_RETURN`, and the message box (Hi Priya, sorry about the mix-up… we'll ship the right one as soon as the return is scanned). | “But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.” | Tech (guard), Innovation, Best Use of PayPal |
+| 0:56-1:10 | Zoom on the amber box "Guard adjusted this": "OFFER_REPLACEMENT is not possible on this dispute: PayPal does not allow it (allowed_response_options); proposing OFFER_RETURN_FOR_REFUND instead." Then scroll to the black-bordered proposal card: heading "Offer full refund of $48.00 after return", the dashed call line `POST /v1/customer/disputes/PP-D-2000/make-offer · offer_type REFUND_WITH_RETURN`, and the message box (Hi Priya, sorry about the mix-up… we'll refund the $48.00 as soon as the return is scanned; if you'd rather have the right one, reply and we'll ship it instead). | “But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message states the $48.00 refund and offers the right item only if the buyer asks.” | Tech (guard), Innovation, Best Use of PayPal |
 
 ### Segment 5: Edit, approve, one PayPal call (1:10-1:34)
 
@@ -252,7 +252,7 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | Facts are computed in code | `backend/rebuttal/agent/facts.py` | Verified |
 | "The model's first instinct is a free replacement" | Live Oct 7: Groq chose OFFER_REPLACEMENT, guard converted it (STATUS). Rules baseline does the same in mock. | Verified live; **[VERIFY]** in mock plus Groq at record time (shot 6 asserts it) |
 | "PayPal only allows refund offers on this dispute" | The guard reads PayPal's `allowed_response_options`; `evals/cases.json` `why`; the mock mirrors the sandbox | Verified for this dispute type. Whether any replacement offer type exists is an open Discord question, so the narration says "on this dispute" |
-| The buyer message "promises the right item" | After the guard, the message is a fixed template (`draft_message` in `reasoner.py`), not model text | Verified. Do not say the model wrote it. |
+| The buyer message "states the refund, offers the right item as an alternative" | After the guard, the message is a fixed template (`draft_message` in `reasoner.py`), not model text | Verified. Do not say the model wrote it. |
 | One approval, one PayPal call, audit trail | `approval.py` `execute`; e2e test `hero case…approve with an edited message` | Verified (mock) |
 | Only one step in the app can write to PayPal | `approval.py`, `permit_writes()`, `test_write_boundary.py`. Named manual scripts (`spike_sandbox`, `make_test_order`) are outside the app | Verified; wording says "in the app" |
 | 20 labeled disputes, 4 hard | `evals/cases.json` | Verified |
@@ -302,7 +302,7 @@ The store shipped exactly what was ordered, to the right address. Every one of t
 [4, 0:46]
 Now the decision. The model's first instinct is a free replacement, which would keep the sale.
 ...
-But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message promises the right item.
+But PayPal only allows refund offers on this dispute. The guard catches that and proposes a full refund once the return is scanned, and the message states the $48.00 refund and offers the right item only if the buyer asks.
 ...
 [5, 1:10]
 I add a line in my own words, then approve.

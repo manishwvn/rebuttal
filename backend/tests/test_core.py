@@ -180,12 +180,23 @@ def test_every_proposal_is_a_single_paypal_call():
             assert p.actions[0].params["note"]  # the explanation lives in the offer note
 
 
+def test_hero_offer_note_states_the_refund_first():
+    rt = Runtime(seed_cases=["agent_wrong_size"], force_rules=True)
+    p = rt.analyze("PP-D-2000")
+    action = p.actions[0]
+    assert action.kind == "make_offer" and action.params["offer_type"] == "REFUND_WITH_RETURN"
+    note = action.params["note"]
+    assert "refund" in note and "48.00" in note
+    assert note.index("refund") < note.index("right one")
+    assert "we'll ship the right one as soon as" not in note  # a replacement is only an alternative
+
+
 def test_guard_only_proposes_what_paypal_allows(rt):
     case = gather("PP-D-2000", rt.client, rt.store, DEMO_NOW)
     assert case.allowed_response_options["make_offer"]["offer_types"] == ["REFUND", "REFUND_WITH_RETURN"]
     d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "We will replace it", "", source="claude"), case)
     assert d.resolution == "OFFER_RETURN_FOR_REFUND"
-    assert "ship the right one as soon as the return is scanned" in d.message_to_buyer
+    assert "if you'd rather have the right one, reply and we'll ship it instead" in d.message_to_buyer
 
     case.allowed_response_options = {"make_offer": {"offer_types": []}, "accept_claim": {"accept_claim_types": []}}
     d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case)
@@ -245,7 +256,7 @@ def test_assistant_misordered_fact_and_guard():
     d = guard(Decision("SUBMIT_EVIDENCE", 0.95, [], "", "m", "evidence", source="claude"), case)
     assert d.resolution == "OFFER_RETURN_FOR_REFUND"  # replacement is converted: PayPal allows refund offers only
     assert any("assistant ordered a different variant" in n for n in d.guard_notes)
-    assert "ship the right one as soon as the return is scanned" in d.message_to_buyer
+    assert "if you'd rather have the right one, reply and we'll ship it instead" in d.message_to_buyer
     _, right = _case_facts("hard_agent_right_size")
     assert right.facts["assistant_misordered"] is False
     assert guard(Decision("SUBMIT_EVIDENCE", 0.9, [], "", "m", "e", source="claude"), right).resolution == "SUBMIT_EVIDENCE"
