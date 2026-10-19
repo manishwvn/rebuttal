@@ -108,7 +108,7 @@ AG Grid, APIMatic.
 
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
-| 2:04-2:12 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "Two sets of 10 unseen disputes, never used for tuning: model alone 7 of 10 and 7 of 10, model + guard 10 of 10 and 9 of 10". Footer, small: "PayPal writes before approval: 0". | “On two sets of ten disputes we never tuned on, the model alone got seven right each time. With the guard, ten and nine.” | Tech (PayPal + AI) |
+| 2:04-2:12 | [Static card from `backend/evals/RESULTS.md`; see 4.3.] Title "Held-out test". Large: "Two sets of 10 disputes written blind to the agent code: model alone 7 of 10 on both, model + guard 10 of 10 and 9 of 10". Footer, small: "PayPal writes before approval: 0". | “On two sets of ten disputes written blind to the code, the model alone got seven right each time. With the guard, ten and nine.” | Tech (PayPal + AI) |
 | 2:12-2:22 | [Same card, lower half appears.] "Main set, 20 cases we tuned on: rules only 85% (hard cases 1 of 4); model + guard (Groq qwen/qwen3.8-27b) 85% (17 of 20) latest, 95% best, hard cases 4 of 4." Footer chips: "85-95% across Groq runs." and "4 hard cases = the buyer's wording changes the right answer." | “On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.” | Tech, Presentation |
 
 ### Segment 8b: Live proof (2:22-2:34)
@@ -258,7 +258,7 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | 20 labeled disputes, 4 hard | `evals/cases.json` | Verified |
 | 85% (17 of 20) latest, 95% best, hard 4 of 4, zero writes before approval | `evals/RESULTS.md`, Oct 19 and Oct 14 runs | Verified. Scores swing 85-95% across Groq runs (shown on the card), the set was used for tuning (the voice-over says "we tuned on"). |
 | Rules-only baseline solves 1 of 4 hard cases | `evals.run --rules`, Oct 19: 85% overall, 25% hard | Verified |
-| Held-out result | `evals/holdout.json` and `holdout2.json`, Oct 19 | Verified: model alone 70% on both, final 100% and 90%, 0 gate violations. The card reports both sets. |
+| Held-out result | `evals/holdout.json` and `holdout2.json`, Oct 19 | Verified: model alone 70% on both, final 100% and 90%, 0 gate violations. The card reports both sets. Set 2 is not fully blind: two of its misses prompted the R15/R16 fixes, so the wording is "written blind to the agent code", not "never used for tuning". |
 | Runs on Render against the real sandbox; a dispute arrived by signed webhook and stopped at the approval gate | STATUS "Webhook proven live" (no dispute ID: the link to the hero dispute is unconfirmed) | Verified Oct 7. Not yet shown approving a write on the live sandbox through the dashboard |
 | Inbox is built with AG Grid | `frontend/src/components/Inbox.tsx` (AG Grid Community) | Verified |
 | AG Studio dashboard in the video: disputes, money kept and refunded, reasons, products, deadlines, model-versus-final agreement | frontend/src/components/analytics, docs/ag-studio.md | Verified. The Studio assistant is not claimed and not shown |
@@ -320,7 +320,7 @@ Why trust it? Only one step in the app can write to PayPal, and it won't run wit
 Analysis runs on a read-only client, and tests scan the code for any other route to a write.
 ...
 [8, 2:04]
-On two sets of ten disputes we never tuned on, the model alone got seven right each time. With the guard, ten and nine.
+On two sets of ten disputes written blind to the code, the model alone got seven right each time. With the guard, ten and nine.
 ...
 On the twenty we tuned on, rules alone solve one of four hard cases. The model with the guard solves all four.
 ...
