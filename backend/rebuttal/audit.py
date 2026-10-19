@@ -2,7 +2,8 @@
 
 Three places it can live: memory only (tests, evals), a JSON-lines file (`audit_to_file`), or the Postgres table
 `rebuttal_audit` when a Postgres URL is given (DATABASE_URL), which survives restarts and redeploys on hosts with an
-ephemeral disk. In Postgres mode `for_dispute` reads the table, so the history is the same from any instance."""
+ephemeral disk. In Postgres mode `for_dispute` reads the table, so the history is the same from any instance. In file
+mode `for_dispute` reads the JSONL file (the whole file on each call, fine for dev), so history survives restarts too."""
 
 from __future__ import annotations
 
@@ -87,12 +88,12 @@ class AuditLog:
         # memory, so reading only the file cannot duplicate). Before the first write there is no file: use memory.
         if self.path and self.path.exists():
             rows = []
-            for line in self.path.read_text().splitlines():
+            for line in self.path.read_text(errors="replace").splitlines():
                 try:
                     record = json.loads(line)
-                except ValueError:
+                except ValueError:  # a partial or garbled line (crash mid-write) is skipped
                     continue
-                if record.get("dispute_id") == dispute_id:
+                if isinstance(record, dict) and record.get("dispute_id") == dispute_id:
                     rows.append(record)
             return rows
         return [r for r in self.records if r["dispute_id"] == dispute_id]

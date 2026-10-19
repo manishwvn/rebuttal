@@ -114,7 +114,7 @@ def test_the_real_app_is_wired_with_cors_from_the_environment(monkeypatch):
         assert web.options("/api/health", headers=ask).headers["access-control-allow-origin"] == "http://example.test"
         assert "access-control-allow-origin" not in web.options("/api/health", headers={**ask, "Origin": "http://evil.example"}).headers
     finally:
-        monkeypatch.delenv("REBUTTAL_CORS_ORIGINS")
+        monkeypatch.undo()  # restore the original env first, so the app is rebuilt with it
         importlib.reload(app_module)
 
 
