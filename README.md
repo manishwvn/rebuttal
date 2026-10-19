@@ -217,7 +217,7 @@ Read these honestly:
   (`ho2_dup_already_refunded`); the Oct 10 numbers predate the fix, and later results on that case are not blind.
 - Scores swing 75-95% from run to run on the main set.
 - `snad_outside_window` is a judgment call (a partial refund is defensible).
-- On Oct 18 Held-out 2 showed `ho2_inr_unit_format` reported as a misdelivery. The fix (R16, not merged yet) will normalise street suffixes and unit markers, and an address written differently but with the same house number, ZIP and city is "uncertain" and is not converted into a replacement. The fix is not merged yet, so the case still misses until R16 lands. Later results on that case are not blind.
+- On Oct 18 Held-out 2 showed `ho2_inr_unit_format` reported as a misdelivery. The fix (R16) normalises street suffixes and unit markers, and an address written differently but with the same house number, ZIP and city is "uncertain" and is not converted into a replacement. Later results on that case are not blind.
 - The gap between "model alone" and "final" is the guard at work. In the held-out runs the guard's changes turned
   OFFER_REPLACEMENT, an offer type PayPal does not allow on those disputes, into OFFER_RETURN_FOR_REFUND, and on
   `ho2_inr_nothing_shipped` (nothing shipped, so no delivery can be proved: `cannot_prove_delivery`) into ACCEPT_CLAIM.

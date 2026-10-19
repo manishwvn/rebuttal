@@ -63,11 +63,9 @@ JUDGMENT_CALLS = {
 HOLDOUT2_NOTES = {
     "ho2_inr_unit_format": "The rules baseline missed this in the Oct 18 audit (OFFER_REPLACEMENT instead of "
                            "SHARE_TRACKING, because the facts code did not normalise street suffixes or unit markers). "
-                           "That miss prompted the R16 fix (not merged yet): addresses will be normalised, and the same "
-                           "house number, ZIP and city with different wording is 'uncertain' and never turned into a "
-                           "replacement. The case and its label are kept unchanged. The R16 fix is not merged yet, so "
-                           "the case still misses until it lands, and it passes after that. Later results on this case "
-                           "are not blind.",
+                           "That miss prompted the R16 fix: addresses are normalised, and the same house number, ZIP "
+                           "and city with different wording is 'uncertain' and never turned into a replacement. The "
+                           "case and its label are kept unchanged, and later results on this case are not blind.",
     "ho2_dup_already_refunded": "The rules baseline missed this in the Oct 18 audit (ACCEPT_CLAIM, a second refund). That "
                                 "miss prompted the R15 fix: the rules check the refund before the duplicate charge, "
                                 "and guard() refuses a second refund. The case and its label are kept unchanged, and "

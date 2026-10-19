@@ -56,7 +56,12 @@ def _unit(addr: str) -> str | None:
     words = addr.split()
     if "apt" not in words or words.index("apt") + 1 >= len(words):
         return None
-    return words[words.index("apt") + 1]
+    i = words.index("apt") + 1
+    unit = words[i]
+    # "Apt 4 B" and "Apt 4-B" are "Apt 4B": join a lone trailing letter onto a unit that ends in a digit.
+    if i + 1 < len(words) and len(words[i + 1]) == 1 and words[i + 1].isalpha() and unit[-1:].isdigit():
+        unit += words[i + 1]
+    return unit
 
 
 def _address_match(delivered_to: str | None, ship_to: str | None) -> bool | None:
