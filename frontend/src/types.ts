@@ -56,7 +56,7 @@ export interface CaseSummary {
   tool_calls: string[]
 }
 
-export type ProposalStatus = 'PENDING' | 'APPROVED' | 'EXECUTED' | 'REJECTED' | 'FAILED'
+export type ProposalStatus = 'PENDING' | 'APPROVED' | 'EXECUTED' | 'REJECTED' | 'FAILED' | 'INTERRUPTED'
 
 export interface ActionResult {
   action: string
