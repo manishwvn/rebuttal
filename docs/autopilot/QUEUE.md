@@ -45,7 +45,7 @@ Evidence (verified): README.md:73 says '976 backend tests', but pytest gives 104
 Fix: write 'over 1,000 backend tests' (or the exact count) in the README and devpost. Fix the run.py comment, help and section title to 'two cases later fixed', then run `uv run python -m evals.run --rebuild-md`. Add a caveat to the cards.ts held-out line. Correct deploy.md, the STATUS header and the QUEUE paths (to backend/evals/RESULTS.md). Add `VITE_API_BASE=http://localhost:8001 npm run dev -- --port 5174` and a one-line audit.jsonl note to the README, and the console.error note to frontend/README.
 Acceptance: grep finds no 976/469 claims, no 'never used for tuning', and no docs/evals.md references. RESULTS.md is regenerated. Tests stay green.
 
-### R31 facts.py: negation-aware refund/damage keywords — size S — in-progress (cycle 2026-10-19T17:10:36-0500) — audit Oct 19, priority later
+### R31 facts.py: negation-aware refund/damage keywords — size S — done (R31 PR) — audit Oct 19, priority later
 Evidence (verified): with the text "i don't want a refund, just send a replacement. the box is not damaged", REFUND_WORDS matches 'refund' (facts.py:291) and DAMAGE_WORDS matches 'damaged' (facts.py:298, no end anchor, so 'torn' also matches 'tornado'). buyer_asks_for_refund then drives guard line ~421, which turns SHARE_TRACKING into ACCEPT_CLAIM on a likely-lost package.
 Fix: skip a hit preceded within 3 words by not/n't/no/without/'rather than', and anchor DAMAGE_WORDS with \b at both ends.
 Acceptance: tests for 'don't want a refund', 'not damaged' and 'tornado'. Evals --rules on all three sets show no regression.
