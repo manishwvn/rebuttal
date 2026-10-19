@@ -6,6 +6,9 @@ Daily system audit on f038629 (Sonnet per component, fresh clone, Opus principal
 Main defect: guard() recursed forever on a refund-proof decision when it was not the seller's turn (re-analysis after an approve gave a bare 500; nothing reached PayPal). Fixed today in R25 (#106); R28 (#105) shows INTERRUPTED proposals instead of "Sent to PayPal".
 Next: R26 hero offer note must say refund (may need a video re-record), R27 guard money rules, R29 boundary hardening, R30 docs drift, R31 negation-aware keywords, R32 analytics labels.
 
+## 2026-10-19 13:11 | W 80→80 % | F 19→19 % | none | skipped: weekly cap 80% reached
+ALERT weekly-80 2026-10-20T23:59:59Z sent
+
 ## 2026-10-19 12:40 | W 79 % | F 15 % | R30 | merged #110
 Docs drift fixed (test counts, held-out honesty now names three later-fixed cases, deploy, STATUS, QUEUE paths, README dev notes).
 Residual: the run.py/RESULTS.md heading 'Held-out set 2 (one case later fixed)' is pinned by tests/test_holdout2.py:100; retitle it together with that test in a later task.
