@@ -257,7 +257,7 @@ def draft_message(resolution: str, case: CaseFile) -> str:
             return (f"Hi {first}, sorry about the mix-up. Your shopping assistant placed the order for {item}, "
                     "but your note asked for something different. Send it back and we'll ship the right one "
                     "as soon as the return is scanned.")
-        return (f"Hi {first}, no problem. Send the {item} back within our 30-day return window and we'll "
+        return (f"Hi {first}, no problem. Send the {item} back within our {policies.RETURN_WINDOW_DAYS}-day return window and we'll "
                 "refund you in full as soon as it arrives.")
     if resolution == "ACCEPT_CLAIM":
         if accept_with_return(case):  # REFUND_WITH_RETURN: the refund waits for the return
@@ -315,7 +315,7 @@ def _output_spec(case: CaseFile) -> dict:
         "partial_refund_pct": "integer 5-50, only for OFFER_PARTIAL_REFUND, else null",
         "confidence": "0.0-1.0",
         "reasoning": "3-5 short bullet strings citing facts or policies",
-        "message_to_buyer": "friendly, under 90 words, signed 'Juniper & Oak'",
+        "message_to_buyer": "friendly, under 90 words, no signature line",
         "evidence_summary": "2-4 factual sentences for PayPal, only if submitting evidence, else empty string",
     }
 

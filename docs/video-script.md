@@ -102,7 +102,7 @@ AG Grid, APIMatic.
 | Time | On screen | Narration | Criterion |
 |---|---|---|---|
 | 1:46-1:56 | [Static card, not the app; see 4.3.] The graph as one left-to-right row: "gather (read-only GET)" > "decide (the only model call)" > "guard" > "plan one action" > "human approves, edits or rejects" > "execute (the only PayPal writes)". Source: README mermaid diagram and `backend/rebuttal/agent/graph.py`. | “Why trust it? Only one step in the app can write to PayPal, and it won't run without a human approval.” | Tech, Impact |
-| 1:56-2:04 | Terminal. Command `cd backend && uv run pytest tests/test_write_boundary.py "tests/test_core.py::test_analyze_never_writes_to_paypal" -v`. The viewer sees test names scroll (`test_execute_refuses_to_run_without_an_approval`, `test_only_approve_and_edit_route_to_execute`, `test_analyze_never_writes_to_paypal`) and the last line "24 passed". [VERIFY the count on the release commit; it was 24 on Oct 9.] | “Analysis runs on a read-only client, and tests scan the code for any other route to a write.” | Tech |
+| 1:56-2:04 | Terminal. Command `cd backend && uv run pytest tests/test_write_boundary.py "tests/test_core.py::test_analyze_never_writes_to_paypal" -v`. The viewer sees test names scroll (`test_execute_refuses_to_run_without_an_approval`, `test_only_approve_and_edit_route_to_execute`, `test_analyze_never_writes_to_paypal`) and the last line "53 passed" (count as of Oct 18; it changes when tests are added, so read it off the screen). | “Analysis runs on a read-only client, and tests scan the code for any other route to a write.” | Tech |
 
 ### Segment 8: Cutaway B, the eval numbers (2:04-2:22)
 
@@ -187,7 +187,7 @@ the replacement and the guard converted it.
 | 10 | 1:28-1:34 | Click "Approve and send" in the dialog. Wait for the dialog to hide, then smooth-scroll `audit-trail` to the end of the viewport. | `case-status` reads "Executed"; row status cell reads "Executed"; audit `data-step` values equal gather, decide, guard, propose, approve, execute, record; audit text contains "Merchant approved with an edited message". |
 | 11 | 1:34-1:46 | Segment 6, AG Studio: click `getByTestId('tab-analytics')` on the same dashboard (open API on localhost, no token; section 8). Hold the Analytics view for the narration. | Wait for `analytics-status` to read "6 disputes · 1 analyzed · 1 executed". Hold to 1:46. |
 | 12 | 1:46-1:56 | Cutaway card A (static page, 4.3). | n/a |
-| 13 | 1:56-2:04 | Terminal clip T1 (4.3). | Last line contains "24 passed" [VERIFY]. |
+| 13 | 1:56-2:04 | Terminal clip T1 (4.3). | Last line contains "passed" with no failures (53 on Oct 18). |
 | 14 | 2:04-2:22 | Cutaway card B (static page, 4.3), two states (the held-out result, then the main set added). | Numbers equal the verified table in 4.3. |
 | 15 | 2:22-2:34 | Segment 8b, live-proof card (static page, 4.3). | n/a |
 | 16 | 2:34-2:50 | Close cards C and D (static pages, 4.3). | n/a |
@@ -213,7 +213,7 @@ await page.getByTestId('case-status').filter({ hasText: 'Executed' }).waitFor()
 
 | Need | Used in | What it is | Status |
 |---|---|---|---|
-| Terminal clip T1 | Shot 13 | The real stdout of the pytest command in segment 7. Either screen-record Terminal.app, or run the command with `tee` and render the captured text in a monospace HTML card and screenshot it. Do not fake the output. | Command works today (24 passed in about 2 s). |
+| Terminal clip T1 | Shot 13 | The real stdout of the pytest command in segment 7. Either screen-record Terminal.app, or run the command with `tee` and render the captured text in a monospace HTML card and screenshot it. Do not fake the output. | Command works today (53 passed in about 2 s on Oct 18). |
 | Static card A | Shot 12 | The pipeline row from segment 7, drawn in the dashboard's design tokens (`preview/template.html`: ink `#14202e`, accent `#0e6b63`, background `#f2f5f8`; Bricolage Grotesque, Public Sans, JetBrains Mono). | To author in B4. |
 | Static card B | Shot 14 | Eval numbers. Verified Oct 14: Groq `qwen/qwen3.8-27b` run `groq-qwen3.8-27b-20261014-001228`: 95% overall (19 of 20), standard 94%, hard 100% of 4, gate violations 0. Earlier Oct 7 run `groq-qwen3.8-27b-20261007-112629`: 90% (18 of 20). Rules baseline (`uv run python -m evals.run --rules`, run on this commit Oct 9): 85% overall, 100% standard, 25% hard (1 of 4), gate violations 0. Re-run `--rules` on the release commit (it only prints; add `--save` to write `evals/RESULTS.md` and a file under `evals/results/`). | Numbers verified; card to author. Held-out chip verified Oct 9: run `groq-qwen3.8-27b-holdout-20261009-054233`, model alone 80% (8/10), final 100% (10/10), hard 3/3, gate violations 0. |
 | Static cards C and D | Shot 16 | Close cards from segment 9. | To author in B4. |
@@ -247,7 +247,7 @@ Every factual claim spoken or shown, and what backs it. "Demo" means true of the
 | Claim | Evidence | Status |
 |---|---|---|
 | A PayPal webhook starts the agent | `backend/rebuttal/app.py` (only `CUSTOMER.DISPUTE.CREATED` starts an analysis, signature verified); proven live Oct 7 (STATUS) | Verified |
-| Analysis only reads | Analysis nodes hold `client.read_only()`; `tests/test_write_boundary.py`, `test_analyze_never_writes_to_paypal` | Verified (ran Oct 9, 24 passed) |
+| Analysis only reads | Analysis nodes hold `client.read_only()`; `tests/test_write_boundary.py`, `test_analyze_never_writes_to_paypal` | Verified (ran Oct 18, 53 passed) |
 | The assistant was told "medium", the order was a large | `evals/cases.json` `agent_wrong_size`, seeded into the mock | **Demo data.** No real assistant integration exists; the shop's own order record holds the instruction (store policy: "We store the assistant's purchase instructions with the order") |
 | Facts are computed in code | `backend/rebuttal/agent/facts.py` | Verified |
 | "The model's first instinct is a free replacement" | Live Oct 7: Groq chose OFFER_REPLACEMENT, guard converted it (STATUS). Rules baseline does the same in mock. | Verified live; **[VERIFY]** in mock plus Groq at record time (shot 6 asserts it) |

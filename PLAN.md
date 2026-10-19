@@ -12,7 +12,7 @@ Judging Dec 1–15, winners ~Dec 21. Owner: Manish. Builder: Claude Code. Strate
   separates us from card-chargeback tools.
 - Prototype done and passing: PayPal client (Disputes, Orders, tracking, transactions, webhooks), mock sandbox,
   agent pipeline (gather → decide → guard → plan), single approval gate, audit log, evidence PDF, FastAPI API,
-  judge simulator (mock), 20 labeled eval cases, 8 tests, sandbox spike script.
+  judge simulator (mock), 20 labeled eval cases, a test suite, sandbox spike script.
 - Offline baseline: 85% overall, 100% on standard cases, 25% on hard cases, 0 PayPal writes before approval.
 
 ## Prize strategy

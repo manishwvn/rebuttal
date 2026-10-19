@@ -1,6 +1,6 @@
 """Store policies and a small retriever.
 
-Week 4 swaps `retrieve` for Elasticsearch hybrid search; the interface stays.
+Optionally `retrieve` can later move to Elasticsearch hybrid search; the interface stays.
 """
 
 from __future__ import annotations

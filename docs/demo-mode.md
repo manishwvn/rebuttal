@@ -49,7 +49,7 @@ The browser flow is tested by `frontend/e2e/demo.spec.ts`.
 | Maximum age | 2 hours | The session expires, even when in use. A reset does not restart it. |
 | Disputes per session | 16 | Creating more returns 429. |
 | Workflow runs per session | 100 | Analyze, approve, reject, retry and simulate each count as one run. Every run adds checkpoints and audit rows to the session's memory, so the 101st returns 429 until the visitor clicks **Reset demo**, which restores the budget. |
-| Session creations and resets | 5 per minute per client (first `X-Forwarded-For` hop, else the peer address), 20 per minute for the whole service | Returns 429 with `Retry-After`. |
+| Session creations and resets | 10 per minute per client, set by `REBUTTAL_DEMO_CLIENT_LIMIT` (first `X-Forwarded-For` hop, else the peer address), 20 per minute for the whole service | Returns 429 with `Retry-After`. |
 | Waiting for a busy session | 10 seconds | Returns 429. |
 | Runtime build failure | none | Returns 503 with JSON. |
 | Edited message | 2000 characters | Longer bodies are refused. |

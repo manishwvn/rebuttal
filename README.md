@@ -35,6 +35,8 @@ REBUTTAL_MOCK=1 REBUTTAL_REASONER=rules REBUTTAL_API_TOKEN= DATABASE_URL= REBUTT
   REBUTTAL_CORS_ORIGINS=http://localhost:5173 uv run uvicorn rebuttal.app:app --port 8000
 ```
 
+Port 8000 or 5173 busy? Change them together: `--port`, `REBUTTAL_CORS_ORIGINS` and the frontend's `VITE_API_BASE` must all name the same ports.
+
 Terminal 2:
 
 ```bash
