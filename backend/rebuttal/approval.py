@@ -108,10 +108,14 @@ def already_applied(dispute: dict, action: dict, case: dict) -> bool:
     VERIFY: retry safety for escalate and appeal depends on PayPal removing the link after a successful send. The live
     sandbox showed no before and after pair for escalate (docs/sandbox-findings.md item 7), and it accepted an escalate
     on a dispute with no link, so this check is our own fail-closed guard, not a rule PayPal was seen to apply.
+    A case without `seller_activity` has no baseline, so this returns False (nothing is reconciled); `execute` refuses
+    to send a message or offer for such a case before any PayPal call.
     The seller message and offer shapes read here (`posted_by`, `actor`, the offer note as a SELLER message) were
     seen on the live sandbox (2026-10-14)."""
+    if "seller_activity" not in case:
+        return False  # no baseline: an earlier identical message or offer would look new, so send rather than skip
     now = seller_activity(dispute)
-    baseline = case.get("seller_activity", {})
+    baseline = case["seller_activity"]
     kind, params = action["kind"], action["params"]
     if kind == "send_message":
         message = normalize_text(params["message"])
@@ -244,6 +248,14 @@ def make_execute_node(client: PayPalClient, audit: AuditLog):
         with permit_writes():
             for index, action in enumerate(actions):
                 key = idempotency_key(proposal_id, index, action["kind"])
+                # Fail closed before any PayPal call: without the baseline a retry cannot tell a landed message or
+                # offer from an older identical one, so it could send twice.
+                if action["kind"] in ("send_message", "make_offer") and "seller_activity" not in state["case"]:
+                    results.append({"action": action["kind"], "ok": False, "sent": False,
+                                    "error": "proposal predates the send baseline; re-analyze",
+                                    "idempotency_key": key})
+                    status = "FAILED"
+                    break
                 if already_applied(current, action, state["case"]):
                     results.append({"action": action["kind"], "ok": True, "reconciled": True,
                                     "idempotency_key": key})
