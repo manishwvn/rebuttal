@@ -166,6 +166,19 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
     }
   }
 
+  const analyzeAgain = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      await api.analyze(dispute.dispute_id)
+      await onChanged()
+    } catch (e) {
+      setError(errorText(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <header className="case-head">
@@ -337,6 +350,19 @@ function ProposalCase({ dispute, proposal, audit, onChanged }: Props & { proposa
           </div>
         )}
 
+        {proposal.status === 'INTERRUPTED' && (
+          <div className="actions">
+            {error && confirming === null && (
+              <p role="alert" className="error">
+                {error}
+              </p>
+            )}
+            <button type="button" className="primary" onClick={analyzeAgain} disabled={busy}>
+              {busy ? 'Analyzing…' : 'Analyze again'}
+            </button>
+          </div>
+        )}
+
         {!pending && proposal.status !== 'APPROVED' && <Outcome proposal={proposal} />}
       </section>
 
@@ -461,6 +487,10 @@ function SendSummary({
 
 function Outcome({ proposal }: { proposal: Proposal }) {
   const demo = useContext(DemoContext)
+  // Checked first: an interrupted proposal can still carry the previous proposal's failed results.
+  if (proposal.status === 'INTERRUPTED') {
+    return <p className="result rejected">A newer analysis stopped part-way. Nothing new was sent.</p>
+  }
   if (proposal.status === 'REJECTED') {
     return <p className="result rejected">Rejected. Nothing was sent to PayPal.</p>
   }
