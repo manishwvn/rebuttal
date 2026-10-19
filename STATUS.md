@@ -145,7 +145,8 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
 
 - The webhook analyzes only on `CUSTOMER.DISPUTE.CREATED`. A later buyer reply (`CUSTOMER.DISPUTE.UPDATED`) does not
   re-run analysis, so the ESCALATE rule (needs a buyer reply and the seller's turn) is reachable live only by a manual
-  forced Analyze (dashboard Analyze with force, or the analyze API with `force`). Left as is on purpose (R22).
+  manual Analyze (`POST /api/disputes/{id}/analyze` or the dashboard button) once no earlier proposal is waiting for
+  approval; the API route has no `force` flag, so a waiting proposal is returned as it is. Left as is on purpose (R22).
 - `VITE_API_TOKEN` is public in a built bundle, so the build now refuses it; there is still no login: add one before
   deploying the dashboard (queue task A5).
 - Frontend: the grid still ships about 1 MB of JS (the grid core plus React; the module list is already minimal).
