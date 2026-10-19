@@ -109,6 +109,7 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   (`tests/test_demo_isolation.py`). Frontend: `App.tsx` is now a router shell over `Dashboard`, `DemoApp` and the shared
   `Desk`. Docs: `docs/demo-mode.md`, ADR 0009. Not verified: a run against the deployed Render service.
 - **Tests:** 480 pass (backend, `uv run pytest -q`), 47 Playwright tests (`npx playwright test --list`; some skip unless `SCREENSHOTS=1`); the PayPal write boundary (only `approval.py`'s `execute`) is enforced by tests.
+- **R18 (API safety tests):** `check_api_token()` in `app.py` is now unit-tested (mock, real sandbox, shared DB, allow-open); a webhook analysis that raises is logged and audited as `webhook_analyze_failed` (shown in the audit trail as "Automatic analysis failed; click Analyze"). 1003 backend tests pass.
 
 ## Known issues (analytics)
 
