@@ -83,7 +83,7 @@
     {
       "id": "eval-held-out",
       "minSeconds": 8,
-      "narration": "On ten disputes we never tuned on, the model alone got eight right. With the guard, ten.",
+      "narration": "On two sets of ten disputes written blind to the code, the model alone got seven right each time. With the guard, ten and nine.",
       "badge": false
     },
     {
