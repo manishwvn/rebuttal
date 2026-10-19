@@ -358,6 +358,7 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
     f = case.facts
     notes = decision.guard_notes
     return_needed = f.get("refund_without_return_eligible") is False
+    seller_turn = case.status == "WAITING_FOR_SELLER_RESPONSE"
 
     def fallback(why: str) -> Decision:
         # Single shot: the rules' pick gets one guard pass (depth 1); a refusal there is capped, never a second fallback.
@@ -370,6 +371,17 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
         base.guard_notes = notes + [why, f"Fell back to rules: {base.resolution}."]
         base.source = f"{decision.source}+guard"
         return guard(base, case, _depth + 1)
+
+    def refuse_second_refund(why: str) -> Decision:
+        # A refund was already issued, so the refund is refused. On the second pass the proof of that refund is kept
+        # (it is what the rules pick for a refund on file), since a further fallback would never end.
+        if _depth == 0:
+            return fallback(why)
+        decision.resolution = "SUBMIT_REFUND_PROOF"
+        decision.message_to_buyer = draft_message("SUBMIT_REFUND_PROOF", case)
+        decision.confidence = min(decision.confidence, 0.3)
+        notes.append(f"{why} Kept SUBMIT_REFUND_PROOF; resolve in Resolution Center.")
+        return decision
 
     if decision.resolution not in RESOLUTIONS:
         return fallback(f"Unknown resolution '{decision.resolution}'.")
@@ -393,14 +405,15 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
                          "not the buyer.")
     if decision.resolution == "APPEAL" and not (f.get("can_appeal") is True and f.get("order_found") is not False):
         return fallback("Proposed an appeal, but PayPal offers none or we hold no order record.")
-    if (decision.resolution == "SUBMIT_EVIDENCE" and f.get("assistant_misordered")
+    if (decision.resolution == "SUBMIT_EVIDENCE" and seller_turn and f.get("assistant_misordered")
             and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"):
         # Proposed as a replacement; the PayPal check below turns it into return-for-refund where needed.
         decision.resolution = "OFFER_REPLACEMENT"
         decision.message_to_buyer = draft_message("OFFER_REPLACEMENT", case)
         notes.append("The buyer's assistant ordered a different variant than instructed; offering the friendly "
                      "fix instead of fighting with evidence.")
-    if (decision.resolution == "ACCEPT_CLAIM" and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
+    if (decision.resolution == "ACCEPT_CLAIM" and seller_turn
+            and case.reason == "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
             and f.get("buyer_reports_damage") and return_needed):
         # Damage alone does not waive the return: only a small item is refunded without one (policies).
         decision.resolution = "OFFER_RETURN_FOR_REFUND"
@@ -433,7 +446,8 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
             and f.get("delivered_address_matches") is False):
         # Delivered somewhere else: tracking proves nothing about this buyer's package. Convert only when PayPal
         # allows a replacement; otherwise keep the decision but flag it and lower confidence.
-        if paypal_allows("OFFER_REPLACEMENT", case):
+        # Evidence is not turned into an offer off the seller's turn; the share-tracking conversion is unchanged.
+        if paypal_allows("OFFER_REPLACEMENT", case) and (seller_turn or decision.resolution == "SHARE_TRACKING"):
             notes.append(f"Delivered, but not to the address on the order; converted '{decision.resolution}' into "
                          "a replacement offer.")
             decision.resolution = "OFFER_REPLACEMENT"
@@ -460,7 +474,7 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
         # An unknown refunded total counts as a full refund: refusing a second payment is the safe default.
         refunded = f.get("refunded_amount")
         if refunded is None or refunded >= case.amount - 0.01:
-            return fallback("A refund was already issued; refusing a second one.")
+            return refuse_second_refund("A refund was already issued; refusing a second one.")
         notes.append(f"A refund of ${refunded:.2f} of the ${case.amount:.2f} disputed was already issued; the merchant "
                      "should check the remainder before approving.")
         decision.confidence = min(decision.confidence, 0.5)
@@ -474,7 +488,7 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
-        turn_refused = wanted in SELLER_TURN_ONLY and case.status != "WAITING_FOR_SELLER_RESPONSE"
+        turn_refused = wanted in SELLER_TURN_ONLY and not seller_turn
         # Only a missing offer or accept type is swapped for an alternative, never a refusal for the wrong turn.
         instead = None
         if wanted in PAYPAL_REQUIRES and not turn_refused:
@@ -485,7 +499,7 @@ def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
             # full refund, and on a partial one pay the disputed amount over: leave the remainder to the merchant.
             refunded = f.get("refunded_amount")
             if refunded is None or refunded >= case.amount - 0.01:
-                return fallback("A refund was already issued; refusing a second one.")
+                return refuse_second_refund("A refund was already issued; refusing a second one.")
             instead = None
         if instead:
             decision.resolution = instead

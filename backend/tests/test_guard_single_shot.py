@@ -7,7 +7,7 @@ import pytest
 
 from evals import run as ev
 from rebuttal.agent.facts import gather
-from rebuttal.agent.reasoner import RESOLUTIONS, Decision, RuleReasoner, guard
+from rebuttal.agent.reasoner import RESOLUTIONS, Decision, RuleReasoner, draft_message, guard
 from rebuttal.runtime import Runtime
 from rebuttal.scenarios import DEMO_NOW, load_cases, seed_case
 
@@ -69,6 +69,74 @@ def test_a_second_pass_fallback_keeps_the_resolution_and_caps_it_at_low_confiden
     assert any("Proposed sharing tracking, but there is no tracking. SHARE_TRACKING is not possible now; "
                "resolve in Resolution Center or wait for the buyer." in n for n in d.guard_notes)
     assert not any("Fell back to rules" in n for n in d.guard_notes)
+
+
+# ------------------------------------- a second refund is refused on the second pass too, never paid again
+@pytest.mark.parametrize("resolution", ["ACCEPT_CLAIM", "OFFER_RETURN_FOR_REFUND", "OFFER_PARTIAL_REFUND"])
+def test_a_second_pass_refuses_a_second_refund_with_the_refund_proof(resolution):
+    case = _gather("cnp_refunded")
+    case.facts.update(refund_issued=True, refunded_amount=case.amount)
+    assert guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case).resolution == "SUBMIT_REFUND_PROOF"
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case, _depth=1)
+    assert d.resolution == "SUBMIT_REFUND_PROOF" and d.confidence <= 0.3
+    assert d.message_to_buyer == draft_message("SUBMIT_REFUND_PROOF", case)
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+def test_a_second_pass_offer_swap_that_would_refund_again_keeps_the_refund_proof():
+    """PayPal lists only REFUND_WITH_RETURN, so the offer swap is return-for-refund: on a full refund, a second refund."""
+    case = _gather("cnp_refunded")
+    case.facts.update(refund_issued=True, refunded_amount=case.amount)
+    case.allowed_response_options = {"make_offer": {"offer_types": ["REFUND_WITH_RETURN"]}}
+    d = guard(Decision("OFFER_REPLACEMENT", 0.9, [], "", "m", "", source="claude"), case, _depth=1)
+    assert d.resolution == "SUBMIT_REFUND_PROOF" and d.confidence <= 0.3
+    assert any("refusing a second one" in n for n in d.guard_notes)
+
+
+# ------------------------------------- an accept or an offer is not swapped in for a claim off the seller's turn
+def test_accept_claim_off_the_sellers_turn_is_not_swapped_for_an_offer_paypal_lists():
+    for status in ("WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW"):
+        case = _gather("inr_no_tracking")
+        case.status = status
+        case.allowed_response_options = {"accept_claim": {"accept_claim_types": []},
+                                         "make_offer": {"offer_types": ["REFUND_WITH_RETURN", "REFUND"]}}
+        d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+        assert d.resolution == "ACCEPT_CLAIM" and d.confidence <= 0.3, status
+        assert any("not the seller's turn" in n for n in d.guard_notes), status
+
+
+def test_accept_claim_on_an_unrefunded_claim_under_review_is_capped_not_offered():
+    case = _gather("cnp_refunded")
+    case.facts.update(refund_issued=False, refunded_amount=0.0)
+    case.status = "UNDER_REVIEW"
+    case.allowed_response_options = None
+    d = guard(Decision("ACCEPT_CLAIM", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "ACCEPT_CLAIM" and d.confidence <= 0.3
+    assert any("not the seller's turn" in n for n in d.guard_notes)
+
+
+# --------------------------- facts conversions to an offer are seller's-turn only; evidence and claims stay off-turn
+@pytest.mark.parametrize("status", ["WAITING_FOR_BUYER_RESPONSE", "UNDER_REVIEW", "RESOLVED"])
+@pytest.mark.parametrize(("case_id", "resolution"), [
+    ("agent_wrong_size", "SUBMIT_EVIDENCE"),
+    ("inr_misdelivered", "SUBMIT_EVIDENCE"),
+    ("snad_damaged_high_value", "ACCEPT_CLAIM"),
+])
+def test_facts_conversion_to_an_offer_is_not_made_off_the_sellers_turn(case_id, resolution, status):
+    case = _gather(case_id)
+    case.status = status
+    d = guard(Decision(resolution, 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == resolution and d.confidence <= 0.3
+    assert any("not the seller's turn" in n for n in d.guard_notes)
+
+
+def test_facts_conversion_to_an_offer_still_happens_on_the_sellers_turn():
+    case = _gather("agent_wrong_size")
+    assert case.status == "WAITING_FOR_SELLER_RESPONSE"
+    case.allowed_response_options = {"accept_claim": {"accept_claim_types": []},
+                                     "make_offer": {"offer_types": ["REPLACEMENT_WITHOUT_REFUND"]}}
+    d = guard(Decision("SUBMIT_EVIDENCE", 0.9, [], "", "m", "", source="claude"), case)
+    assert d.resolution == "OFFER_REPLACEMENT" and d.confidence == 0.9
 
 
 # ---------------------------------------------------------------- the graph: approve, then analyze again
