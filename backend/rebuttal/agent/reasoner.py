@@ -353,22 +353,23 @@ def extract_decision_json(text: str) -> dict:
 
 
 # ---------------------------------------------------------------------- guard
-def guard(decision: Decision, case: CaseFile) -> Decision:
+def guard(decision: Decision, case: CaseFile, _depth: int = 0) -> Decision:
     """Reject or adjust decisions the facts don't support. Never trusts the model blindly."""
     f = case.facts
     notes = decision.guard_notes
     return_needed = f.get("refund_without_return_eligible") is False
 
     def fallback(why: str) -> Decision:
+        # Single shot: the rules' pick gets one guard pass (depth 1); a refusal there is capped, never a second fallback.
+        if _depth >= 1:
+            decision.confidence = min(decision.confidence, 0.3)
+            notes.append(f"{why} {decision.resolution} is not possible now; "
+                         "resolve in Resolution Center or wait for the buyer.")
+            return decision
         base = RuleReasoner().decide(case)
         base.guard_notes = notes + [why, f"Fell back to rules: {base.resolution}."]
         base.source = f"{decision.source}+guard"
-        # Cannot loop: rules pick SHARE_TRACKING only when tracking exists, SUBMIT_REFUND_PROOF whenever a refund exists
-        # for CREDIT_NOT_PROCESSED and DUPLICATE_TRANSACTION (unless PayPal offers an appeal first), ESCALATE only at
-        # INQUIRY on the seller's turn with can_escalate True, delivery to the order address proven (is True),
-        # and seller_already_responded, APPEAL only when can_appeal is True, and never an unknown resolution, so this
-        # second pass returns without falling back again.
-        return guard(base, case)
+        return guard(base, case, _depth + 1)
 
     if decision.resolution not in RESOLUTIONS:
         return fallback(f"Unknown resolution '{decision.resolution}'.")
@@ -473,7 +474,11 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
     if not paypal_allows(decision.resolution, case):
         wanted = decision.resolution
         no_list = case.stage == "CHARGEBACK" and not case.allowed_response_options
-        instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
+        turn_refused = wanted in SELLER_TURN_ONLY and case.status != "WAITING_FOR_SELLER_RESPONSE"
+        # Only a missing offer or accept type is swapped for an alternative, never a refusal for the wrong turn.
+        instead = None
+        if wanted in PAYPAL_REQUIRES and not turn_refused:
+            instead = next((r for r in PAYPAL_ALTERNATIVES if r != wanted and paypal_allows(r, case)), None)
         if (instead in ("ACCEPT_CLAIM", "OFFER_RETURN_FOR_REFUND") and f.get("refund_issued")
                 and case.reason in ("CREDIT_NOT_PROCESSED", "DUPLICATE_TRANSACTION")):
             # The refund block above saw only the offer. This alternative would refund the buyer in full again on a
@@ -489,8 +494,8 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
                 # The replacement promise rides in the offer note, since PayPal won't take a replacement offer.
                 decision.message_to_buyer += (" If you'd like a replacement instead, just say so and we'll ship it "
                                               "as soon as the return is scanned.")
-            _, fallback = effective_options(case.allowed_response_options, case.reason, case.stage)
-            if fallback:
+            _, used_fallback_options = effective_options(case.allowed_response_options, case.reason, case.stage)
+            if used_fallback_options:
                 source = ("PayPal's allowed options were not available (dispute under review?), so only the offer "
                           "types the sandbox is known to accept were considered")
             elif no_list:
@@ -498,6 +503,10 @@ def guard(decision: Decision, case: CaseFile) -> Decision:
             else:
                 source = "PayPal does not allow it (allowed_response_options)"
             notes.append(f"{wanted} is not possible on this dispute: {source}; proposing {instead} instead.")
+        elif turn_refused:
+            decision.confidence = min(decision.confidence, 0.3)
+            notes.append(f"{wanted} is not possible on this dispute: it is not the seller's turn "
+                         f"(status {case.status}); resolve it in Resolution Center or wait for the buyer.")
         else:
             decision.confidence = min(decision.confidence, 0.3)
             notes.append(f"{wanted} is not possible on this dispute and there is no close alternative; "
