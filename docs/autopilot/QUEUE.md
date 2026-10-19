@@ -338,7 +338,7 @@ Left STILL UNVERIFIED by S3 (#74, see `docs/sandbox-findings.md`): the `appeal` 
 
 Things only Manish can do. Each with exact steps; the lead adds them here and alerts at most once a day.
 
-- **U4 Render: redeploy and fix auto-deploy** (ready Oct 18, from R14; the live demo still serves the pre-#92 bundle). Change the three fields together in one save; a cleared Root Directory with the old commands would fail the build.
+- ~~**U4 Render: redeploy and fix auto-deploy**~~ done Oct 19 by the lead in Manish's Chrome session: Root Directory empty, both commands start with `cd backend &&`, env var `PYTHON_VERSION=3.12.11` (needed once the root is the repo root; mirror it in render.yaml), live bundle has "demo sandbox", health ok. Build Filters not set (optional). (ready Oct 18, from R14; the live demo still serves the pre-#92 bundle). Change the three fields together in one save; a cleared Root Directory with the old commands would fail the build.
   1. Go to dashboard.render.com, sign in, open the service `rebuttal` (URL `rebuttal-oq3g.onrender.com`), click **Settings**, scroll to **Build & Deploy**.
   2. **Root Directory**: click Edit, clear the field (empty), Save.
   3. **Build Command**: Edit, paste `cd backend && pip install uv && uv sync --frozen --no-dev --extra postgres && (cd ../frontend && npm ci && npm run build || echo "frontend build failed, serving the API only")`, Save.
