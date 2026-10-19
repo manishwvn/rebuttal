@@ -51,14 +51,14 @@ The dashboard has an inbox (AG Grid), a case view, and an Analytics tab built wi
 ## Accomplishments that we're proud of
 
 - A real sandbox dispute went end to end on Oct 7, 2026: buyer files, verified webhook, gather, decide, guard, propose, and stop at the approval gate with no PayPal write.
-- Eval numbers (from backend/evals/RESULTS.md, Groq `qwen/qwen3.8-27b`): main set 75% model alone, 95% (19/20) final on Oct 14; held-out set 1: 80% model alone, 100% (10/10) final; held-out set 2: 80% model alone, 100% (10/10) final. Zero PayPal writes before approval in every run. Held-out sets have 10 cases each, so the sample is small.
+- Eval numbers (from backend/evals/RESULTS.md, Groq `qwen/qwen3.8-27b`): latest run Oct 19: main set 75% model alone, 85% (17/20) final (95% on Oct 14, swings run to run); held-out set 1: 70% model alone, 100% (10/10) final; held-out set 2: 70% model alone, 90% (9/10) final (Oct 10: 80% and 100%). Zero PayPal writes before approval in every run. Held-out sets have 10 cases each, so the sample is small.
 - The write boundary is enforced by tests, not by convention.
 - A public demo that needs no accounts and cannot reach the real PayPal client.
 - 469 backend tests at 93% combined line and branch coverage, ten architecture decision records.
 
 ## What we learned
 
-- Put facts in code and let the model do words. The guard turned model-alone scores of 75-80% into 95-100% final, and the held-out sets say the guard is not just fitted to our own cases.
+- Put facts in code and let the model do words. The guard turned model-alone scores of 70-80% into 85-100% final, and the held-out sets say the guard is not just fitted to our own cases.
 - A human approval gate is easiest to trust when it is a graph interrupt and a test, not a UI button.
 - Read the vendor tool's source before you depend on it. The SDK and toolkit checks changed what we built.
 - A demo for judges is a product feature: it needs isolation, limits and its own tests.

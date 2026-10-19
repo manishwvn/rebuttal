@@ -200,16 +200,20 @@ violations (PayPal writes before approval) are 0 in every run.
 
 | Set | Date | Model | Model alone | Final (model + guard) | Standard | Hard | Guard changed | Tokens |
 |---|---|---|---|---|---|---|---|---|
-| Main set (20 cases, used for tuning) | 2026-10-14 | groq qwen/qwen3.8-27b | 75% (15/20) | 95% (19/20) | 94% | 100% of 4 | 4/20 (20%) | 27,532 |
+| Main set (20 cases, used for tuning) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 75% (15/20) | 85% (17/20) | 81% | 100% of 4 | 2/20 (10%) | 31,471 |
+| Main set | 2026-10-14 | groq qwen/qwen3.8-27b | 75% (15/20) | 95% (19/20) | 94% | 100% of 4 | 4/20 (20%) | 27,532 |
 | Main set | 2026-10-07 | groq qwen/qwen3.8-27b | final only | 90% (18/20) | 88% | 100% of 4 | n/a | 27,146 |
 | Main set | 2026-10-07 | groq qwen/qwen3.8-27b | final only | 85% (17/20) | 81% | 100% of 4 | n/a | 27,199 |
 | Main set | 2026-10-07 | nvidia z-ai/glm-5.3 | final only | 100% (20/20) | 100% | 100% of 4 | n/a | 53,138 |
 | Main set | 2026-10-07 | nvidia z-ai/glm-5.3-flash | final only | 95% (19/20) | 94% | 100% of 4 | n/a | 59,808 |
-| **Held-out 1** (10 cases, not tuned against) | 2026-10-09 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 3 | 2/10 (20%) | 13,685 |
-| **Held-out 2** (10 cases, one case later fixed, see notes) | 2026-10-10 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 6 | 2/10 (20%) | 13,979 |
+| **Held-out 1** (10 cases, not tuned against) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 70% (7/10) | 100% (10/10) | 100% | 100% of 3 | 3/10 (30%) | 15,737 |
+| Held-out 1 | 2026-10-09 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 3 | 2/10 (20%) | 13,685 |
+| **Held-out 2** (10 cases; Oct 19 miss `ho2_unauth_over_cap`, see notes) | 2026-10-19 (6b0fa6a) | groq qwen/qwen3.8-27b | 70% (7/10) | 90% (9/10) | 100% | 83% of 6 | 2/10 (20%) | 16,106 |
+| Held-out 2 | 2026-10-10 | groq qwen/qwen3.8-27b | 80% (8/10) | 100% (10/10) | 100% | 100% of 6 | 2/10 (20%) | 13,979 |
 
-Offline rules baseline (no model, `uv run python -m evals.run --rules`, re-run Oct 14, 2026 for this README): model
-alone 75%, final 85% overall, 100% standard, 25% hard (4 cases). The hard cases are what the model has to win.
+Offline rules baseline (no model, `uv run python -m evals.run --rules`, re-run Oct 19, 2026 on 6b0fa6a): main set
+model alone 75%, final 85% overall, 100% standard, 25% hard (4 cases). Held-out 1 rules final 90% (9/10, 67% of 3 hard;
+miss `ho_snapped_mug`), Held-out 2 rules final 100% (10/10; the rules were fixed after that set, see below). The hard cases are what the model has to win.
 
 Read these honestly:
 

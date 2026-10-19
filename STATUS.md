@@ -57,7 +57,12 @@ work (Oct 14: scheduled runs cannot reschedule themselves). See `docs/autopilot/
   REFUND / REFUND_WITH_RETURN when PayPal lists none; execute refuses too), assistant mis-orders get the friendly
   fix, no tracking on not-received gets a refund, damaged high-value items get return-for-refund (`f4cb66d`, added after the Oct 7 90% run; the Oct 14 run measures it:
   `snad_damaged_high_value` went 1/3 to 3/3).
-- **Evals:** main set (20 cases) on Groq, latest run Oct 14 on current code (guard `f4cb66d` included): final 95% (19/20),
+- **Evals (R19 refresh, Oct 19 on `6b0fa6a`, after R15/R16):** main set final 85% (17/20), model alone 75%, hard 4/4,
+  misses `snad_damaged_high_value`, `snad_outside_window`, `unauth_delivered` (R23 investigates); held-out 1 final 100%
+  (10/10), model alone 70%; held-out 2 final 90% (9/10), model alone 70%, miss `ho2_unauth_over_cap`. Gate violations 0.
+  Files `evals/results/groq-qwen3.8-27b{,-holdout,-holdout2}-20261019.json`. Rules baseline: main 85%, held-out 1 90%,
+  held-out 2 100%. Older runs below.
+- **Evals (history):** main set (20 cases) on Groq, run Oct 14 (guard `f4cb66d` included): final 95% (19/20),
   model alone 75%, hard 4/4, gate violations 0, run `groq-qwen3.8-27b-20261014-001228`. Earlier Oct 7 run: 90% (18/20),
   run `groq-qwen3.8-27b-20261007-112629`. Swings 75-95% run to run. The main set has been used for tuning. `snad_outside_window` is a judgment call.
   **Held-out set** (`evals/holdout.json`, 10 cases, written without reading the guard or facts code) ran Oct 9 on
